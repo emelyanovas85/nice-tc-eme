@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Детали теста - Single File Test Service</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea, #764ba2); }
+        .header {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        .header h2 { margin: 0; font-size: 24px; }
+        .notification {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border: 2px solid #ffeaa7;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .notification.show { display: flex; }
+        .container { padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .tabs {
+            background: white;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            overflow-x: auto;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .tab {
+            padding: 20px 30px;
+            cursor: pointer;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            white-space: nowrap;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        .tab:first-child { border-radius: 15px 0 0 0; }
+        .tab:last-child { border-right: none; border-radius: 0 15px 0 0; }
+        .tab.active {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+        }
+        .tab:hover:not(.active) { 
+            background: linear-gradient(135deg, #e9ecef, #dee2e6); 
+            transform: translateY(-2px);
+        }
+        .tab-content { 
+            display: none; 
+            background: white;
+            border-radius: 0 0 15px 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .tab-content.active { display: block; }
+        .accordion {
+            border-bottom: 1px solid #dee2e6;
+        }
+        .accordion:last-child { border-bottom: none; border-radius: 0 0 15px 15px; }
+        .accordion-header {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 25px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        .accordion-header:hover { 
+            background: linear-gradient(135deg, #e9ecef, #dee2e6); 
+            transform: scale(1.02);
+        }
+        .accordion-header.highlight {
+            background: linear-gradient(135deg, #ffebee, #ffcdd2);
+            border-left: 5px solid #f44336;
+            animation: highlight-pulse 2s infinite;
+        }
+        @keyframes highlight-pulse {
+            0%, 100% { background: linear-gradient(135deg, #ffebee, #ffcdd2); }
+            50% { background: linear-gradient(135deg, #ffcdd2, #ef5350); }
+        }
+        .accordion-content {
+            padding: 25px;
+            display: none;
+            border-top: 1px solid #dee2e6;
+            background: linear-gradient(135deg, #fdfdfd, #f8f9fa);
+        }
+        .accordion-content.active { display: block; }
+        .status-indicator {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 15px;
+            border: 3px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+        .status-checking { background: linear-gradient(135deg, #2196F3, #1976D2); animation: rotate 1s linear infinite; }
+        .status-compliant { background: linear-gradient(135deg, #4CAF50, #388E3C); }
+        .status-non-compliant { background: linear-gradient(135deg, #f44336, #d32f2f); }
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .chat-container {
+            background: linear-gradient(135deg, #f9f9f9, #f1f3f4);
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .viewer-count {
+            background: rgba(255,255,255,0.3);
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+        }
+        .viewer-count::before { content: "👥"; margin-right: 10px; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+        .btn-primary { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,123,255,0.4); }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d, #545b62); color: white; }
+        .btn-secondary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(108,117,125,0.4); }
+        .accordion-title {
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .expand-icon {
+            transition: transform 0.3s;
+            color: #6c757d;
+            font-size: 18px;
+        }
+        .accordion-header.active .expand-icon { transform: rotate(180deg); }
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 25px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .back-link:hover {
+            background: rgba(0,0,0,0.9);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <a href="search-page.html" class="back-link">⬅️ Назад к поиску</a>
+
+    <div class="header">
+        <div>
+            <h2 id="testTitle">🔄 Загружается...</h2>
+            <p style="margin: 5px 0 0 0; opacity: 0.8;">Single File Test Service</p>
+        </div>
+        <div class="viewer-count">
+            <span id="viewerCount">1</span>
+        </div>
+    </div>
+
+    <div id="notification" class="notification">
+        <div>
+            <strong>🆕 Доступна новая версия теста!</strong>
+            <span style="margin-left: 15px; color: #856404;">Обновите страницу для просмотра изменений</span>
+        </div>
+        <div>
+            <button class="btn btn-primary" onclick="reloadTest()">🔄 Обновить</button>
+            <button class="btn btn-secondary" onclick="hideNotification()">❌ Скрыть</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" onclick="showTab(event, 'details')">📋 Подробнее</div>
+            <div class="tab" onclick="showTab(event, 'steps')">🔄 Шаги</div>
+            <div class="tab" onclick="showTab(event, 'executions')">▶️ Выполнения</div>
+            <div class="tab" onclick="showTab(event, 'attachments')">📎 Вложения</div>
+            <div class="tab" onclick="showTab(event, 'history')">📈 История</div>
+        </div>
+
+        <div id="details" class="tab-content active">
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this, 'details_objective')">
+                    <div class="accordion-title">
+                        <span class="status-indicator status-checking" id="status_details_objective"></span>
+                        🎯 Проверка цели теста
+                    </div>
+                    <span class="expand-icon">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <p><strong>Описание:</strong> AI анализ соответствия цели теста требованиям и её проверяемости.</p>
+                    <div class="chat-container">
+                        <div id="chat_details_objective">
+                            <em>🤖 AI модель анализирует цель теста... Ожидайте результат.</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this, 'details_name')">
+                    <div class="accordion-title">
+                        <span class="status-indicator status-checking" id="status_details_name"></span>
+                        📝 Проверка названия теста
+                    </div>
+                    <span class="expand-icon">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <p><strong>Описание:</strong> Проверка соответствия названия содержанию и цели теста.</p>
+                    <div class="chat-container">
+                        <div id="chat_details_name">
+                            <em>🤖 AI модель анализирует название теста... Ожидайте результат.</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="steps" class="tab-content">
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion(this, 'steps_completeness')">
+                    <div class="accordion-title">
+                        <span class="status-indicator status-checking" id="status_steps_completeness"></span>
+                        ✅ Полнота шагов теста
+                    </div>
+                    <span class="expand-icon">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <p><strong>Описание:</strong> Проверка полноты и логичности шагов тестирования.</p>
+                    <div class="chat-container">
+                        <div id="chat_steps_completeness">
+                            <em>🤖 AI модель анализирует шаги теста... Ожидайте результат.</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="executions" class="tab-content">
+            <p style="text-align: center; padding: 50px; color: #6c757d; font-size: 18px;">
+                🔄 Анализ выполнений тестов будет реализован в следующих версиях
+            </p>
+        </div>
+
+        <div id="attachments" class="tab-content">
+            <p style="text-align: center; padding: 50px; color: #6c757d; font-size: 18px;">
+                📎 Анализ вложений будет реализован в следующих версиях
+            </p>
+        </div>
+
+        <div id="history" class="tab-content">
+            <p style="text-align: center; padding: 50px; color: #6c757d; font-size: 18px;">
+                📈 Анализ истории изменений будет реализован в следующих версиях
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let currentTestId = null;
+
+        // Get test ID from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        currentTestId = urlParams.get('testId');
+        const version = urlParams.get('version') || 'latest';
+
+        if (!currentTestId) {
+            alert('❌ Не указан ID теста');
+            window.location.href = 'search-page.html';
+        }
+
+        // SSE connection for real-time updates
+        const eventSource = new EventSource('/api/sse/stream');
+
+        eventSource.addEventListener('item_status_changed', function(event) {
+            console.log('📨 Item status update received:', event.data);
+            const data = JSON.parse(event.data);
+            if (data.data.testId === currentTestId) {
+                updateItemStatus(data.data.itemId, data.data.status, data.data.statusColor);
+            }
+        });
+
+        eventSource.addEventListener('item_field_changed', function(event) {
+            console.log('📨 Field change notification received:', event.data);
+            const data = JSON.parse(event.data);
+            if (data.data.testId === currentTestId) {
+                highlightChangedItem(data.data.itemId);
+            }
+        });
+
+        eventSource.addEventListener('new_version_available', function(event) {
+            console.log('📨 New version notification received:', event.data);
+            const data = JSON.parse(event.data);
+            if (data.data.testId === currentTestId) {
+                showNotification();
+            }
+        });
+
+        // Load test details
+        fetch(\`/api/test/\${currentTestId}/details?version=\${version}\`)
+            .then(response => response.json())
+            .then(testData => {
+                document.getElementById('testTitle').textContent = 
+                    \`📊 \${testData.name || 'Test'} (\${testData.id || currentTestId})\`;
+                console.log('✅ Test details loaded:', testData);
+            })
+            .catch(error => {
+                console.error('❌ Error loading test details:', error);
+                document.getElementById('testTitle').textContent = \`📊 Test \${currentTestId}\`;
+            });
+
+        function showTab(event, tabName) {
+            document.querySelectorAll('.tab').forEach(tab => 
+                tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => 
+                content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function toggleAccordion(header, itemId) {
+            const content = header.nextElementSibling;
+            const isActive = content.classList.contains('active');
+
+            // Close all accordions in current tab
+            const currentTab = header.closest('.tab-content');
+            currentTab.querySelectorAll('.accordion-content').forEach(acc => 
+                acc.classList.remove('active'));
+            currentTab.querySelectorAll('.accordion-header').forEach(h => 
+                h.classList.remove('active'));
+
+            if (!isActive) {
+                content.classList.add('active');
+                header.classList.add('active');
+            }
+        }
+
+        function updateItemStatus(itemId, status, color) {
+            console.log(\`🔄 Updating status for \${itemId}: \${status} (\${color})\`);
+            const indicator = document.getElementById(\`status_\${itemId}\`);
+            if (indicator) {
+                indicator.className = \`status-indicator status-\${color}\`;
+            }
+
+            // Update chat message
+            const chatElement = document.getElementById(\`chat_\${itemId}\`);
+            if (chatElement && status !== 'CHECKING') {
+                const statusText = status === 'COMPLIANT' ? 
+                    '✅ Результат: Соответствует критериям' : 
+                    '❌ Результат: Не соответствует критериям';
+                chatElement.innerHTML = \`<strong>\${statusText}</strong>\`;
+            }
+        }
+
+        function highlightChangedItem(itemId) {
+            console.log(\`🔴 Highlighting changed item: \${itemId}\`);
+            const header = document.querySelector(\`[onclick*="\${itemId}"]\`);
+            if (header) {
+                header.classList.add('highlight');
+                setTimeout(() => {
+                    header.classList.remove('highlight');
+                }, 10000);
+            }
+        }
+
+        function showNotification() {
+            document.getElementById('notification').classList.add('show');
+        }
+
+        function hideNotification() {
+            document.getElementById('notification').classList.remove('show');
+        }
+
+        function reloadTest() {
+            location.reload();
+        }
+
+        // Cleanup when leaving page
+        window.addEventListener('beforeunload', function() {
+            if (currentTestId) {
+                fetch(\`/api/test/\${currentTestId}/stop-monitoring\`, { method: 'POST' })
+                    .catch(error => console.error('❌ Error stopping monitoring:', error));
+            }
+        });
+
+        // Handle SSE connection
+        eventSource.onopen = function(event) {
+            console.log('✅ SSE connection established');
+        };
+
+        eventSource.onerror = function(event) {
+            console.error('❌ SSE connection error:', event);
+        };
+
+        console.log(\`🚀 Single File Test Service - Test Details Page Loaded for: \${currentTestId}\`);
+    </script>
+</body>
+</html>

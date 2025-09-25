@@ -1,0 +1,984 @@
+package at.nice.tc;
+
+import lombok.Builder;
+import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.config.CorsRegistry;
+import org.springframework.web.reactive.config.EnableWebFlux;
+import org.springframework.web.reactive.config.ResourceHandlerRegistry;
+import org.springframework.web.reactive.config.WebFluxConfigurer;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
+
+import java.net.URI;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * 🚀 Reactive Test Service - All-in-One Program
+ *
+ * Единый класс, содержащий все компоненты Spring Boot реактивного сервиса
+ * для управления тестами с Server-Sent Events, Jira интеграцией и AI обработкой.
+ *
+ * @author Test Service Team
+ * @version 1.0.0
+ */
+@SuppressWarnings("unused")
+@SpringBootApplication
+@EnableScheduling
+public class Program {
+
+    private static final Logger log = LoggerFactory.getLogger(Program.class);
+
+    public static void main(String[] args) {
+        log.info("🚀 Запуск Reactive Test Service...");
+        log.info("📋 Доступные страницы:");
+        log.info("   🔍 Поиск тестов: http://localhost:8080/search-page.html");
+        log.info("   📊 Детали теста: http://localhost:8080/test-details.html");
+        log.info("   ⚙️ Админка: http://localhost:8080/admin-page.html");
+        log.info("   🌊 SSE поток: http://localhost:8080/api/sse/stream");
+        log.info("");
+
+        SpringApplication.run(Program.class, args);
+    }
+
+    // ========================================
+    // 📦 DATA TRANSFER OBJECTS (DTOs)
+    // ========================================
+
+    @Data
+    @Builder
+    public static class NotificationDTO {
+        private String type;
+        private String message;
+        private LocalDateTime timestamp;
+        private Object data;
+    }
+
+    @Data
+    @Builder
+    public static class JiraTestDTO {
+        private String id;
+        private String name;
+        private String objective;
+        private List<String> steps;
+        private String author;
+        private String status;
+        private String precondition;
+        private List<String> labels;
+        private String priority;
+
+        public Map<String, Object> toMap() {
+            return Map.of(
+                "id", id != null ? id : "",
+                "name", name != null ? name : "",
+                "objective", objective != null ? objective : "",
+                "steps", steps != null ? steps : List.of(),
+                "author", author != null ? author : "",
+                "status", status != null ? status : "",
+                "precondition", precondition != null ? precondition : "",
+                "labels", labels != null ? labels : List.of(),
+                "priority", priority != null ? priority : ""
+            );
+        }
+    }
+
+    @Data
+    @Builder
+    public static class TestDetailsDTO {
+        private String testId;
+        private String version;
+        private JiraTestDTO testData;
+        private List<TestItemStatusDTO> itemStatuses;
+        private Map<String, Object> executionRuns;
+        private List<String> attachments;
+        private List<Map<String, Object>> changeHistory;
+    }
+
+    @Data
+    @Builder
+    public static class TestItemStatusDTO {
+        private String itemId;
+        private String tabName;
+        private String name;
+        private String status; // CHECKING, COMPLIANT, NON_COMPLIANT
+        private String statusColor;
+        private boolean highlighted;
+        private String aiResponse;
+    }
+
+    // ========================================
+    // 🏗️ DOMAIN MODELS
+    // ========================================
+
+    @Data
+    @Builder
+    public static class TestItem {
+        private String testId;
+        private String itemId;
+        private String tabName;
+        private String name;
+        private ItemStatus status;
+
+        public enum ItemStatus {
+            CHECKING,
+            COMPLIANT,
+            NON_COMPLIANT
+        }
+    }
+
+    @Data
+    @Builder
+    public static class AIPromptConfig {
+        private String itemId;
+        private String tabName;
+        private String name;
+        private String prompt;
+        private List<String> dataFields;
+    }
+
+    // ========================================
+    // 🎮 CONTROLLERS
+    // ========================================
+
+    @RestController
+    @RequestMapping("/api/sse")
+    @CrossOrigin(origins = "*")
+    public static class SSEController {
+
+        private static final Logger log = LoggerFactory.getLogger(SSEController.class);
+        private final TestHistoryService historyService;
+        private TestItemService itemService;
+
+        // Global sinks for different types of SSE updates
+        private final Sinks.Many<NotificationDTO> historySink =
+            Sinks.many().multicast().directBestEffort();
+        private final Sinks.Many<NotificationDTO> itemStatusSink =
+            Sinks.many().multicast().directBestEffort();
+        private final Sinks.Many<NotificationDTO> viewerCountSink =
+            Sinks.many().multicast().directBestEffort();
+        private final Sinks.Many<NotificationDTO> changeNotificationSink =
+            Sinks.many().multicast().directBestEffort();
+
+        public SSEController(TestHistoryService historyService) {
+            this.historyService = historyService;
+        }
+
+        public void setItemService(TestItemService itemService) {
+            this.itemService = itemService;
+        }
+
+        @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+        public Flux<ServerSentEvent<NotificationDTO>> streamUpdates() {
+            // Combine all SSE streams into one
+            Flux<NotificationDTO> allUpdates = Flux.merge(
+                historySink.asFlux(),
+                itemStatusSink.asFlux(),
+                viewerCountSink.asFlux(),
+                changeNotificationSink.asFlux()
+            );
+
+            return allUpdates
+                .map(notification -> ServerSentEvent.<NotificationDTO>builder()
+                    .id(String.valueOf(System.currentTimeMillis()))
+                    .event(notification.getType())
+                    .data(notification)
+                    .retry(Duration.ofSeconds(3))
+                    .build())
+                .doOnCancel(() -> log.info("🔌 SSE connection cancelled"))
+                .doOnSubscribe(sub -> log.info("🔌 New SSE connection established"));
+        }
+
+        @GetMapping(value = "/test/{testId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+        public Flux<ServerSentEvent<NotificationDTO>> streamTestUpdates(@PathVariable String testId) {
+            return itemService.getTestItemUpdates(testId)
+                .map(notification -> ServerSentEvent.<NotificationDTO>builder()
+                    .id(testId + "_" + System.currentTimeMillis())
+                    .event("item_status_update")
+                    .data(notification)
+                    .build());
+        }
+
+        // Methods to emit updates (called by services)
+        public void emitHistoryUpdate(NotificationDTO notification) {
+            historySink.tryEmitNext(notification);
+        }
+
+        public void emitItemStatusUpdate(NotificationDTO notification) {
+            itemStatusSink.tryEmitNext(notification);
+        }
+
+        public void emitViewerCountUpdate(NotificationDTO notification) {
+            viewerCountSink.tryEmitNext(notification);
+        }
+
+        public void emitChangeNotification(NotificationDTO notification) {
+            changeNotificationSink.tryEmitNext(notification);
+        }
+    }
+
+    @RestController
+    @RequestMapping("/api")
+    public static class PageController {
+
+        private static final Logger log = LoggerFactory.getLogger(PageController.class);
+        private final TestHistoryService historyService;
+        private final JiraService jiraService;
+        private final TestItemService testItemService;
+        private final ScheduledPollingService pollingService;
+
+        public PageController(TestHistoryService historyService,
+                             JiraService jiraService,
+                             TestItemService testItemService,
+                             ScheduledPollingService pollingService) {
+            this.historyService = historyService;
+            this.jiraService = jiraService;
+            this.testItemService = testItemService;
+            this.pollingService = pollingService;
+        }
+
+        @PostMapping("/test/{testId}/access")
+        public Mono<ResponseEntity<String>> accessTest(@PathVariable String testId) {
+            log.info("🔍 Accessing test: {}", testId);
+            return historyService.addToHistory(testId)
+                .then(Mono.just(ResponseEntity.ok("Test added to history")));
+        }
+
+        @GetMapping("/test/{testId}/versions")
+        public Flux<String> getTestVersions(@PathVariable String testId) {
+            log.info("📋 Getting versions for test: {}", testId);
+            return jiraService.getAllVersions(testId);
+        }
+
+        @GetMapping("/test/{testId}/details")
+        public Mono<JiraTestDTO> getTestDetails(@PathVariable String testId,
+                                              @RequestParam(defaultValue = "latest") String version) {
+            log.info("📊 Getting details for test: {}, version: {}", testId, version);
+            return historyService.isFirstTimeAccess(testId)
+                .flatMap(isFirst -> {
+                    if (isFirst) {
+                        pollingService.startMonitoring(testId, version);
+                        return jiraService.getTestDetails(testId, version)
+                            .flatMap(testData ->
+                                testItemService.initializeTestItems(testId, testData.toMap())
+                                    .then(Mono.just(testData))
+                            );
+                    } else {
+                        return jiraService.getTestDetails(testId, version);
+                    }
+                });
+        }
+
+        @GetMapping("/history")
+        public Flux<String> getTestHistory() {
+            log.info("📜 Getting test history");
+            return historyService.getHistory();
+        }
+
+        @PostMapping("/test/{testId}/stop-monitoring")
+        public Mono<ResponseEntity<String>> stopMonitoring(@PathVariable String testId) {
+            log.info("⏹️ Stopping monitoring for test: {}", testId);
+            return Mono.fromRunnable(() -> pollingService.stopMonitoring(testId))
+                .then(Mono.just(ResponseEntity.ok("Monitoring stopped")));
+        }
+    }
+
+    @RestController
+    @RequestMapping("/api/admin")
+    public static class AdminController {
+
+        private static final Logger log = LoggerFactory.getLogger(AdminController.class);
+        private final AdminService adminService;
+
+        public AdminController(AdminService adminService) {
+            this.adminService = adminService;
+        }
+
+        @GetMapping("/items/configs")
+        public Flux<AIPromptConfig> getAllConfigs() {
+            return adminService.getAllConfigs();
+        }
+
+        @PostMapping("/items/config")
+        public Mono<ResponseEntity<AIPromptConfig>> createConfig(@RequestBody AIPromptConfig config) {
+            log.info("➕ Creating new AI config: {}", config.getItemId());
+            return adminService.createConfig(config)
+                .map(ResponseEntity::ok);
+        }
+
+        @PutMapping("/items/config/{itemId}")
+        public Mono<ResponseEntity<AIPromptConfig>> updateConfig(@PathVariable String itemId,
+                                                               @RequestBody AIPromptConfig config) {
+            log.info("✏️ Updating AI config: {}", itemId);
+            return adminService.updateConfig(itemId, config)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+        }
+
+        @DeleteMapping("/items/config/{itemId}")
+        public Mono<ResponseEntity<Void>> deleteConfig(@PathVariable String itemId) {
+            log.info("🗑️ Deleting AI config: {}", itemId);
+            return adminService.deleteConfig(itemId)
+                .map(deleted -> deleted ? ResponseEntity.ok().<Void>build() :
+                              ResponseEntity.notFound().<Void>build());
+        }
+
+        @GetMapping("/items/tabs")
+        public Flux<String> getAvailableTabs() {
+            return adminService.getAvailableTabs();
+        }
+
+        @PostMapping("/items/tab")
+        public Mono<ResponseEntity<String>> createTab(@RequestBody Map<String, String> request) {
+            return adminService.createTab(request.get("tabName"))
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.badRequest().build());
+        }
+
+        @GetMapping("/prompts/templates")
+        public Flux<Map<String, String>> getPromptTemplates() {
+            return adminService.getPromptTemplates();
+        }
+    }
+
+    // ========================================
+    // 🔧 SERVICES
+    // ========================================
+
+    @Service
+    public static class TestHistoryService {
+
+        private static final Logger log = LoggerFactory.getLogger(TestHistoryService.class);
+        private final CopyOnWriteArrayList<String> testHistory = new CopyOnWriteArrayList<>();
+        private final ConcurrentHashMap<String, Boolean> processedTests = new ConcurrentHashMap<>();
+        private SSEController sseController;
+
+        public TestHistoryService() {}
+
+        public void setSseController(SSEController sseController) {
+            this.sseController = sseController;
+        }
+
+        public Mono<Void> addToHistory(String testId) {
+            return Mono.fromRunnable(() -> {
+                if (processedTests.putIfAbsent(testId, true) == null) {
+                    testHistory.add(0, testId);
+                    log.info("📝 Added test to history: {}", testId);
+
+                    if (sseController != null) {
+                        NotificationDTO notification = NotificationDTO.builder()
+                            .type("history_updated")
+                            .message("New test added to history: " + testId)
+                            .timestamp(LocalDateTime.now())
+                            .data(testHistory)
+                            .build();
+
+                        sseController.emitHistoryUpdate(notification);
+                    }
+                }
+            });
+        }
+
+        public Flux<String> getHistory() {
+            return Flux.fromIterable(testHistory);
+        }
+
+        public Mono<Boolean> isFirstTimeAccess(String testId) {
+            return Mono.just(!processedTests.containsKey(testId));
+        }
+    }
+
+    @Service
+    public static class JiraService {
+
+        private static final Logger log = LoggerFactory.getLogger(JiraService.class);
+        private final WebClient webClient;
+
+        public JiraService(WebClient.Builder webClientBuilder) {
+            this.webClient = webClientBuilder
+                .baseUrl("https://your-jira-instance.atlassian.net")
+                .build();
+        }
+
+        public Flux<String> getAllVersions(String testId) {
+            return webClient.get()
+                .uri("/rest/api/3/test/{testId}/allVersions", testId)
+                .retrieve()
+                .bodyToFlux(String.class)
+                .onErrorResume(throwable -> {
+                    log.warn("⚠️ Jira API error, using mock versions for: {}", testId);
+                    return createMockVersions(testId);
+                })
+                .switchIfEmpty(createMockVersions(testId));
+        }
+
+        public Mono<JiraTestDTO> getTestDetails(String testId, String version) {
+            return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                    .path("/rest/api/3/test/{testId}")
+                    .queryParam("fields", "objective,name,author,status,steps,precondition")
+                    .queryParam("version", version)
+                    .build(testId))
+                .retrieve()
+                .bodyToMono(JiraTestDTO.class)
+                .onErrorReturn(createMockTestDetails(testId))
+                .subscribeOn(Schedulers.boundedElastic());
+        }
+
+        public Flux<Map<String, Object>> getTestRuns(String testId) {
+            return webClient.get()
+                .uri("/rest/api/3/test/{testId}/runs", testId)
+                .retrieve()
+                .bodyToFlux(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .onErrorResume(throwable -> createMockRuns(testId))
+                .switchIfEmpty(createMockRuns(testId));
+        }
+
+        public Mono<Boolean> checkForChanges(String testId, String lastKnownVersion) {
+            return getAllVersions(testId)
+                .collectList()
+                .map(versions -> !versions.isEmpty() &&
+                    !versions.get(0).equals(lastKnownVersion))
+                .defaultIfEmpty(false);
+        }
+
+        private Flux<String> createMockVersions(String testId) {
+            return Flux.just("v1.0", "v1.1", "v2.0")
+                .delayElements(Duration.ofMillis(100));
+        }
+
+        private JiraTestDTO createMockTestDetails(String testId) {
+            log.info("🎭 Creating mock test details for: {}", testId);
+            return JiraTestDTO.builder()
+                .id(testId)
+                .name("Mock Test Case - " + testId)
+                .objective("Verify that the system functions correctly")
+                .steps(List.of(
+                    "Step 1: Open application",
+                    "Step 2: Enter test data",
+                    "Step 3: Verify results"
+                ))
+                .author("test.user@company.com")
+                .status("Draft")
+                .precondition("System is running")
+                .build();
+        }
+
+        private Flux<Map<String, Object>> createMockRuns(String testId) {
+            return Flux.just(
+                Map.of("runId", "run1", "status", "PASSED", "date", "2025-09-23"),
+                Map.of("runId", "run2", "status", "FAILED", "date", "2025-09-22")
+            );
+        }
+    }
+
+    @Service
+    public static class AIService {
+
+        private static final Logger log = LoggerFactory.getLogger(AIService.class);
+        private SSEController sseController;
+        private final Map<String, TestItem.ItemStatus> itemStatuses = new ConcurrentHashMap<>();
+
+        public AIService() {}
+
+        public void setSseController(SSEController sseController) {
+            this.sseController = sseController;
+        }
+
+        public Mono<Void> processTestItems(String testId, Map<String, Object> testData,
+                                         List<AIPromptConfig> configs) {
+            log.info("🤖 Processing {} AI items for test: {}", configs.size(), testId);
+            return Flux.fromIterable(configs)
+                .flatMap(config -> processItem(testId, config, testData))
+                .then();
+        }
+
+        private Mono<Void> processItem(String testId, AIPromptConfig config, Map<String, Object> testData) {
+            String itemKey = testId + "_" + config.getItemId();
+
+            return Mono.fromRunnable(() -> {
+                itemStatuses.put(itemKey, TestItem.ItemStatus.CHECKING);
+                emitStatusUpdate(testId, config.getItemId(), TestItem.ItemStatus.CHECKING);
+                log.info("⏳ Starting AI analysis for: {}", config.getItemId());
+            })
+            .then(callAIModel(config, testData))
+            .map(result -> {
+                TestItem.ItemStatus newStatus = result ?
+                    TestItem.ItemStatus.COMPLIANT : TestItem.ItemStatus.NON_COMPLIANT;
+                itemStatuses.put(itemKey, newStatus);
+                emitStatusUpdate(testId, config.getItemId(), newStatus);
+                log.info("✅ AI analysis complete for {} - Result: {}", config.getItemId(), (result ? "COMPLIANT" : "NON_COMPLIANT"));
+                return newStatus;
+            })
+            .subscribeOn(Schedulers.boundedElastic())
+            .then();
+        }
+
+        private Mono<Boolean> callAIModel(AIPromptConfig config, Map<String, Object> testData) {
+            return Mono.delay(Duration.ofSeconds(2 + (int)(Math.random() * 5)))
+                .map(tick -> Math.random() > 0.3); // 70% compliance rate
+        }
+
+        private void emitStatusUpdate(String testId, String itemId, TestItem.ItemStatus status) {
+            if (sseController != null) {
+                NotificationDTO notification = NotificationDTO.builder()
+                    .type("item_status_changed")
+                    .message(String.format("Item %s status changed to %s", itemId, status))
+                    .timestamp(LocalDateTime.now())
+                    .data(Map.of(
+                        "testId", testId,
+                        "itemId", itemId,
+                        "status", status.name(),
+                        "statusColor", getStatusColor(status)
+                    ))
+                    .build();
+
+                sseController.emitItemStatusUpdate(notification);
+            }
+        }
+
+        private String getStatusColor(TestItem.ItemStatus status) {
+            return switch (status) {
+                case CHECKING -> "checking";
+                case COMPLIANT -> "compliant";
+                case NON_COMPLIANT -> "non-compliant";
+            };
+        }
+
+        public TestItem.ItemStatus getItemStatus(String testId, String itemId) {
+            return itemStatuses.get(testId + "_" + itemId);
+        }
+    }
+
+    @Service
+    public static class TestItemService {
+
+        private static final Logger log = LoggerFactory.getLogger(TestItemService.class);
+        private AIService aiService;
+        private final Map<String, Sinks.Many<NotificationDTO>> testItemSinks = new ConcurrentHashMap<>();
+        private final Map<String, List<TestItem>> testItems = new ConcurrentHashMap<>();
+
+        public TestItemService() {}
+
+        public void setAiService(AIService aiService) {
+            this.aiService = aiService;
+        }
+
+        public Mono<Void> initializeTestItems(String testId, Map<String, Object> testData) {
+            return Mono.fromRunnable(() -> {
+                List<TestItem> items = createDefaultTestItems(testId);
+                testItems.put(testId, items);
+
+                Sinks.Many<NotificationDTO> sink = Sinks.many().multicast().directBestEffort();
+                testItemSinks.put(testId, sink);
+
+                log.info("🏗️ Initialized {} test items for: {}", items.size(), testId);
+            })
+            .then(processAllItems(testId, testData));
+        }
+
+        private List<TestItem> createDefaultTestItems(String testId) {
+            return List.of(
+                TestItem.builder()
+                    .testId(testId).itemId("details_objective").tabName("details")
+                    .name("Objective Validation").status(TestItem.ItemStatus.CHECKING).build(),
+                TestItem.builder()
+                    .testId(testId).itemId("details_name").tabName("details")
+                    .name("Name Consistency").status(TestItem.ItemStatus.CHECKING).build(),
+                TestItem.builder()
+                    .testId(testId).itemId("steps_completeness").tabName("steps")
+                    .name("Steps Completeness").status(TestItem.ItemStatus.CHECKING).build(),
+                TestItem.builder()
+                    .testId(testId).itemId("steps_clarity").tabName("steps")
+                    .name("Steps Clarity").status(TestItem.ItemStatus.CHECKING).build(),
+                TestItem.builder()
+                    .testId(testId).itemId("exec_history").tabName("executions")
+                    .name("Execution History Analysis").status(TestItem.ItemStatus.CHECKING).build(),
+                TestItem.builder()
+                    .testId(testId).itemId("attach_relevance").tabName("attachments")
+                    .name("Attachment Relevance").status(TestItem.ItemStatus.CHECKING).build(),
+                TestItem.builder()
+                    .testId(testId).itemId("history_changes").tabName("history")
+                    .name("Change Log Analysis").status(TestItem.ItemStatus.CHECKING).build()
+            );
+        }
+
+        private Mono<Void> processAllItems(String testId, Map<String, Object> testData) {
+            List<AIPromptConfig> configs = createDefaultPromptConfigs();
+            if (aiService != null) {
+                return aiService.processTestItems(testId, testData, configs);
+            }
+            return Mono.empty();
+        }
+
+        private List<AIPromptConfig> createDefaultPromptConfigs() {
+            return List.of(
+                AIPromptConfig.builder()
+                    .itemId("details_objective")
+                    .prompt("Analyze if the test objective is clear and testable. Data: {{objective}} {{name}}")
+                    .dataFields(List.of("objective", "name")).build(),
+                AIPromptConfig.builder()
+                    .itemId("steps_completeness")
+                    .prompt("Check if test steps are complete and cover the objective. Data: {{objective}} {{steps}}")
+                    .dataFields(List.of("objective", "steps")).build()
+            );
+        }
+
+        public Flux<NotificationDTO> getTestItemUpdates(String testId) {
+            Sinks.Many<NotificationDTO> sink = testItemSinks.get(testId);
+            if (sink != null) {
+                return sink.asFlux();
+            }
+            return Flux.empty();
+        }
+
+        public void markItemsAsChanged(String testId, List<String> changedFields) {
+            List<TestItem> items = testItems.get(testId);
+            if (items != null) {
+                log.info("🔴 Marking items as changed for test: {}", testId);
+                items.stream()
+                    .filter(item -> itemUsesChangedField(item, changedFields))
+                    .forEach(item -> {
+                        NotificationDTO notification = NotificationDTO.builder()
+                            .type("item_field_changed")
+                            .message("Item affected by field changes")
+                            .timestamp(LocalDateTime.now())
+                            .data(Map.of(
+                                "testId", testId,
+                                "itemId", item.getItemId(),
+                                "highlight", "red"
+                            ))
+                            .build();
+
+                        Sinks.Many<NotificationDTO> sink = testItemSinks.get(testId);
+                        if (sink != null) {
+                            sink.tryEmitNext(notification);
+                        }
+                    });
+            }
+        }
+
+        private boolean itemUsesChangedField(TestItem item, List<String> changedFields) {
+            return !changedFields.isEmpty();
+        }
+    }
+
+    public static class ScheduledPollingService {
+
+        private static final Logger log = LoggerFactory.getLogger(ScheduledPollingService.class);
+        private final JiraService jiraService;
+        private TestItemService testItemService;
+        private SSEController sseController;
+        private final Map<String, String> lastKnownVersions = new ConcurrentHashMap<>();
+        private final Map<String, Map<String, Object>> lastKnownTestData = new ConcurrentHashMap<>();
+
+        public ScheduledPollingService(JiraService jiraService) {
+            this.jiraService = jiraService;
+        }
+
+        public void setTestItemService(TestItemService testItemService) {
+            this.testItemService = testItemService;
+        }
+
+        public void setSseController(SSEController sseController) {
+            this.sseController = sseController;
+        }
+
+        @org.springframework.scheduling.annotation.Scheduled(fixedRate = 10000)
+        public void checkForTestChanges() {
+            if (!lastKnownVersions.isEmpty()) {
+                log.info("🔄 Checking for changes in {} monitored tests", lastKnownVersions.size());
+                Flux.fromIterable(lastKnownVersions.keySet())
+                    .flatMap(this::checkTestForChanges)
+                    .subscribe();
+            }
+        }
+
+        private Mono<Void> checkTestForChanges(String testId) {
+            String lastVersion = lastKnownVersions.get(testId);
+
+            return jiraService.checkForChanges(testId, lastVersion)
+                .filter(hasChanges -> hasChanges)
+                .flatMap(hasChanges -> handleNewVersionAvailable(testId))
+                .then(checkForFieldChanges(testId));
+        }
+
+        private Mono<Void> handleNewVersionAvailable(String testId) {
+            return jiraService.getAllVersions(testId)
+                .next()
+                .doOnNext(latestVersion -> {
+                    lastKnownVersions.put(testId, latestVersion);
+                    log.info("🆕 New version available for test: {} - {}", testId, latestVersion);
+
+                    if (sseController != null) {
+                        NotificationDTO notification = NotificationDTO.builder()
+                            .type("new_version_available")
+                            .message("New version available for test " + testId)
+                            .timestamp(LocalDateTime.now())
+                            .data(Map.of(
+                                "testId", testId,
+                                "newVersion", latestVersion,
+                                "action", "show_notification"
+                            ))
+                            .build();
+
+                        sseController.emitChangeNotification(notification);
+                    }
+                })
+                .then();
+        }
+
+        private Mono<Void> checkForFieldChanges(String testId) {
+            String currentVersion = lastKnownVersions.get(testId);
+
+            return jiraService.getTestDetails(testId, currentVersion)
+                .doOnNext(currentData -> {
+                    Map<String, Object> lastData = lastKnownTestData.get(testId);
+                    if (lastData != null) {
+                        List<String> changedFields = detectChangedFields(lastData, currentData.toMap());
+                        if (!changedFields.isEmpty() && testItemService != null) {
+                            log.info("🔄 Fields changed for test {}: {}", testId, changedFields);
+                            testItemService.markItemsAsChanged(testId, changedFields);
+                        }
+                    }
+                    lastKnownTestData.put(testId, currentData.toMap());
+                })
+                .then();
+        }
+
+        private List<String> detectChangedFields(Map<String, Object> oldData, Map<String, Object> newData) {
+            return oldData.entrySet().stream()
+                .filter(entry -> !entry.getValue().equals(newData.get(entry.getKey())))
+                .map(Map.Entry::getKey)
+                .toList();
+        }
+
+        public void startMonitoring(String testId, String version) {
+            lastKnownVersions.put(testId, version);
+            log.info("👁️ Started monitoring test: {} version: {}", testId, version);
+
+            jiraService.getTestDetails(testId, version)
+                .subscribe(testData ->
+                    lastKnownTestData.put(testId, testData.toMap())
+                );
+        }
+
+        public void stopMonitoring(String testId) {
+            lastKnownVersions.remove(testId);
+            lastKnownTestData.remove(testId);
+            log.info("🛑 Stopped monitoring test: {}", testId);
+        }
+    }
+
+    @Service
+    public static class AdminService {
+
+        private static final Logger log = LoggerFactory.getLogger(AdminService.class);
+        private final Map<String, AIPromptConfig> configs = new ConcurrentHashMap<>();
+        private final List<String> availableTabs = List.of("details", "steps", "executions", "attachments", "history");
+
+        public AdminService() {
+            initializeDefaultConfigs();
+        }
+
+        private void initializeDefaultConfigs() {
+            log.info("⚙️ Initializing default AI prompt configurations");
+
+            configs.put("details_objective", AIPromptConfig.builder()
+                .itemId("details_objective").tabName("details").name("Objective Validation")
+                .prompt("Analyze the test objective for clarity and testability. " +
+                       "Test objective: {{objective}} Test name: {{name}} " +
+                       "Determine if the objective is specific, measurable, and achievable.")
+                .dataFields(List.of("objective", "name")).build());
+
+            configs.put("details_name", AIPromptConfig.builder()
+                .itemId("details_name").tabName("details").name("Name Consistency")
+                .prompt("Check if the test name accurately reflects the objective. " +
+                       "Name: {{name}} Objective: {{objective}} Verify consistency and clarity.")
+                .dataFields(List.of("name", "objective")).build());
+
+            configs.put("steps_completeness", AIPromptConfig.builder()
+                .itemId("steps_completeness").tabName("steps").name("Steps Completeness")
+                .prompt("Evaluate if the test steps completely cover the objective. " +
+                       "Objective: {{objective}} Steps: {{steps}} Check for gaps or missing coverage.")
+                .dataFields(List.of("objective", "steps")).build());
+        }
+
+        public Flux<AIPromptConfig> getAllConfigs() {
+            return Flux.fromIterable(configs.values());
+        }
+
+        public Mono<AIPromptConfig> createConfig(AIPromptConfig config) {
+            return Mono.fromSupplier(() -> {
+                configs.put(config.getItemId(), config);
+                log.info("➕ Created new AI config: {}", config.getItemId());
+                return config;
+            });
+        }
+
+        public Mono<AIPromptConfig> updateConfig(String itemId, AIPromptConfig config) {
+            return Mono.fromSupplier(() -> {
+                if (configs.containsKey(itemId)) {
+                    configs.put(itemId, config);
+                    log.info("✏️ Updated AI config: {}", itemId);
+                    return config;
+                }
+                return null;
+            });
+        }
+
+        public Mono<Boolean> deleteConfig(String itemId) {
+            return Mono.fromSupplier(() -> {
+                boolean deleted = configs.remove(itemId) != null;
+                if (deleted) {
+                    log.info("🗑️ Deleted AI config: {}", itemId);
+                }
+                return deleted;
+            });
+        }
+
+        public Flux<String> getAvailableTabs() {
+            return Flux.fromIterable(availableTabs);
+        }
+
+        public Mono<String> createTab(String tabName) {
+            if (tabName != null && !tabName.trim().isEmpty()) {
+                return Mono.just(tabName);
+            }
+            return Mono.empty();
+        }
+
+        public Flux<Map<String, String>> getPromptTemplates() {
+            return Flux.just(
+                Map.of("name", "Objective Analysis",
+                       "template", "Analyze the objective: {{objective}} for clarity and testability."),
+                Map.of("name", "Steps Validation",
+                       "template", "Validate test steps: {{steps}} against objective: {{objective}}."),
+                Map.of("name", "Completeness Check",
+                       "template", "Check completeness of {{field}} in relation to {{objective}}.")
+            );
+        }
+
+        public AIPromptConfig getConfigById(String itemId) {
+            return configs.get(itemId);
+        }
+    }
+
+    // ========================================
+    // ⚙️ CONFIGURATION
+    // ========================================
+
+    @Configuration
+    @EnableWebFlux
+    public static class WebFluxConfig implements WebFluxConfigurer {
+
+        private static final Logger log = LoggerFactory.getLogger(WebFluxConfig.class);
+
+        @Bean
+        public WebClient.Builder webClientBuilder() {
+            return WebClient.builder()
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1024));
+        }
+
+        @Override
+        public void addCorsMappings(CorsRegistry registry) {
+            registry.addMapping("/api/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE")
+                .allowedHeaders("*")
+                .allowCredentials(true);
+        }
+
+        @Bean
+        public AIService aiService(SSEController sseController) {
+            log.info("🔧 Configuring AI Service");
+            AIService service = new AIService();
+            service.setSseController(sseController);
+            return service;
+        }
+
+        @Bean
+        public TestItemService testItemService(AIService aiService, SSEController sseController) {
+            log.info("🔧 Configuring Test Item Service");
+            TestItemService service = new TestItemService();
+            service.setAiService(aiService);
+            sseController.setItemService(service); // ВАЖНО!
+            return service;
+        }
+
+        @Bean
+        public ScheduledPollingService scheduledPollingService(JiraService jiraService,
+                                                              TestItemService testItemService,
+                                                              SSEController sseController) {
+            log.info("🔧 Configuring Scheduled Polling Service");
+            ScheduledPollingService service = new ScheduledPollingService(jiraService);
+            service.setTestItemService(testItemService);
+            service.setSseController(sseController);
+            return service;
+        }
+
+        @Override
+        public void addResourceHandlers(ResourceHandlerRegistry registry) {
+            // Отключаем автоматическое обслуживание статических файлов
+            registry.addResourceHandler("/**").addResourceLocations("classpath:/static/");
+        }
+    }
+
+    @Controller
+    public static class StaticForwardController {
+        @GetMapping("/")
+        public Mono<Void> redirectToSearch(ServerHttpResponse response) {
+            response.setStatusCode(HttpStatus.FOUND);
+            response.getHeaders().setLocation(URI.create("/search-page.html"));
+            return response.setComplete();
+        }
+
+        @GetMapping("/search-page")
+        public Mono<Void> searchPage(ServerHttpResponse response) {
+            response.setStatusCode(HttpStatus.FOUND);
+            response.getHeaders().setLocation(URI.create("/search-page.html"));
+            return response.setComplete();
+        }
+
+        @GetMapping("/test-details")
+        public Mono<Void> testDetails(ServerHttpResponse response) {
+            response.setStatusCode(HttpStatus.FOUND);
+            response.getHeaders().setLocation(URI.create("/test-details.html"));
+            return response.setComplete();
+        }
+        // и так далее для других страниц
+    }
+
+
+    @RestController
+    public static class HealthCheckController {
+        @GetMapping("/health")
+        public String health() {
+            System.out.println("HealthCheckController");
+            // Возвращаем имя файла, который будет автоматически найден в папке static
+            return "ok";
+        }
+    }
+}

@@ -1,0 +1,54 @@
+# Single File Test Service Configuration
+server:
+  port: 8080
+
+spring:
+  application:
+    name: single-file-test-service
+  webflux:
+    base-path: /
+  main:
+    banner-mode: console
+
+# Jira Configuration (заглушка)
+jira:
+  base-url: https://your-jira-instance.atlassian.net
+  username: ${JIRA_USERNAME:demo}
+  password: ${JIRA_PASSWORD:demo}
+  api-token: ${JIRA_API_TOKEN:demo-token}
+
+# AI Configuration (заглушка)
+ai:
+  model:
+    type: mock
+    endpoint: http://localhost:11434/api/generate
+    model-name: mock-ai
+
+# Scheduling Configuration
+scheduling:
+  polling-interval: 10000 # 10 секунд
+  thread-pool-size: 5
+
+# SSE Configuration
+sse:
+  retry-timeout: 3000
+  heartbeat-interval: 30000
+
+# Logging
+logging:
+  level:
+    com.testservice: INFO
+    reactor.netty: INFO
+    org.springframework: WARN
+  pattern:
+    console: "%d{HH:mm:ss} %clr([%level]) %clr(%logger{36}){cyan} - %msg%n"
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
