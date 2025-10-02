@@ -39,7 +39,10 @@ dependencies {
     // Development
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
+    compileOnly 'org.projectlombok:lombok'
+
     // Annotation Processing
+    annotationProcessor 'org.projectlombok:lombok'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
     // Testing
