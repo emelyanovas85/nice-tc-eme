@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Test System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background: #f0f0f0;
+            border-right: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        
+        .tab {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 5px;
+            background: white;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            text-align: left;
+        }
+        
+        .tab:hover {
+            background: #e9e9e9;
+        }
+        
+        .tab.active {
+            background: #007acc;
+            color: white;
+        }
+        
+        .tab-left {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .tab-status {
+            margin-right: 10px;
+            font-size: 14px;
+            min-width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .tab-spinner {
+            margin-left: 10px;
+            min-width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .checks-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .check-tile {
+            position: relative;
+            padding: 15px 20px;
+            background: #f8f8f8;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            min-width: 120px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .check-tile:hover {
+            background: #e8e8e8;
+        }
+        
+        .check-tile.active {
+            border-color: #007acc;
+            background: #e6f3ff;
+        }
+        
+        .check-tile-status {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 14px;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .check-tile-spinner {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 14px;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .prompt-section {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .prompt-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f8f8;
+            border-bottom: 1px solid #ddd;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .prompt-title {
+            font-weight: bold;
+        }
+        
+        .collapse-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: auto;
+        }
+        
+        .prompt-content {
+            padding: 10px;
+        }
+        
+        .prompt-content.collapsed {
+            display: none;
+        }
+        
+        .prompt-input {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+        
+        .fields-container {
+            padding: 10px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .fields-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .field-item {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 2px;
+            background: #007acc;
+            color: white;
+            border-radius: 3px;
+            cursor: grab;
+            user-select: none;
+        }
+        
+        .field-item:hover {
+            background: #005a9e;
+        }
+        
+        .field-item.selected {
+            background: #ff6b35;
+        }
+        
+        .field-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        
+        .json-viewer {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        
+        .json-viewer-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .json-content {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        
+        .chat-input-area {
+            border-top: 1px solid #ccc;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+        
+        .chat-input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .chat-input {
+            flex: 1;
+            min-height: 40px;
+            max-height: 120px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: none;
+            font-family: inherit;
+            overflow-y: auto;
+        }
+        
+        .chat-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .chat-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            min-width: 70px;
+        }
+        
+        .send-btn {
+            background: #007acc;
+            color: white;
+        }
+        
+        .send-btn:hover:not(:disabled) {
+            background: #005a9e;
+        }
+        
+        .send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .stop-btn {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .stop-btn:hover {
+            background: #c82333;
+        }
+        
+        .stop-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .chat-message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .chat-message.user {
+            background: #e3f2fd;
+            text-align: right;
+        }
+        
+        .chat-message.system {
+            background: #f3e5f5;
+        }
+        
+        .chat-message.comment {
+            background: #fff3cd;
+            font-style: italic;
+            color: #856404;
+        }
+        
+        .chat-message.match {
+            background: #d4edda;
+            color: #155724;
+            font-weight: bold;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        /* Индикаторы статуса */
+        .status-success {
+            color: #28a745;
+        }
+        
+        .status-error {
+            color: #dc3545;
+        }
+        
+        .status-warning {
+            color: #ffc107;
+        }
+        
+        .status-processing {
+            color: #007bff;
+        }
+        
+        .status-matched {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        /* Спиннер */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Статус подключения SSE */
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        
+        .connection-status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .connection-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .connection-status.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status connecting" id="connection-status">Подключение...</div>
+    
+    <div class="sidebar">
+        <div id="tabs-container"></div>
+    </div>
+    
+    <div class="main-content">
+        <div id="content-area" class="hidden">
+            <div class="checks-container" id="checks-container"></div>
+            
+            <div id="details-section" class="hidden">
+                <div class="prompt-section">
+                    <div class="prompt-header" onclick="testSystem.togglePromptSection()">
+                        <span class="prompt-title">Настройка промпта</span>
+                        <button class="collapse-btn" id="collapse-btn">▼</button>
+                    </div>
+                    <div class="prompt-content" id="prompt-content">
+                        <textarea 
+                            id="prompt-input" 
+                            class="prompt-input" 
+                            placeholder="Введите промпт..."
+                        ></textarea>
+                        
+                        <div class="fields-container">
+                            <div class="fields-title">Доступные плейсхолдеры (перетащите в поле выше):</div>
+                            <div id="fields-list"></div>
+                        </div>
+                        
+                        <div class="json-viewer">
+                            <div class="json-viewer-title">Значение плейсхолдера:</div>
+                            <div class="json-content" id="json-content">Выберите плейсхолдер для просмотра его значения</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-area" id="chat-area">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-message system">Выберите проверку и введите промпт для начала чата</div>
+                    </div>
+                    <div class="chat-input-area">
+                        <div class="chat-input-container">
+                            <textarea 
+                                id="chat-input" 
+                                class="chat-input" 
+                                placeholder="Введите сообщение... (Ctrl+Enter для отправки)"
+                                rows="1"
+                            ></textarea>
+                            <div class="chat-buttons">
+                                <button id="send-btn" class="chat-btn send-btn">Отправить</button>
+                                <button id="stop-btn" class="chat-btn stop-btn hidden">Остановить</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Основной класс системы тестов с сохранением данных
+        class TestSystem {
+            constructor() {
+                this.tests = [];
+                this.checks = [];
+                this.fields = [];
+                this.currentTest = null;
+                this.currentCheck = null;
+                
+                // Сохраняемые данные для каждой комбинации тест+проверка
+                this.savedData = {
+                    prompts: {}, // testId_checkId: prompt
+                    chats: {},   // testId_checkId: messages[]
+                    statuses: {
+                        tests: {},   // testId: status
+                        checks: {},  // checkId: status
+                        processing: { // testId_checkId: boolean
+                            tests: {},
+                            checks: {}
+                        }
+                    }
+                };
+                
+                // Восстанавливаем данные из localStorage
+                this.loadFromStorage();
+                
+                this.init();
+            }
+            
+            async init() {
+                await this.loadTests();
+                await this.loadChecks();
+                await this.loadFields();
+                this.setupEventListeners();
+                this.initSSE();
+            }
+            
+            // Сохранение/загрузка данных
+            saveToStorage() {
+                try {
+                    localStorage.setItem('testSystemData', JSON.stringify(this.savedData));
+                } catch (error) {
+                    console.warn('Не удалось сохранить данные в localStorage:', error);
+                }
+            }
+            
+            loadFromStorage() {
+                try {
+                    const saved = localStorage.getItem('testSystemData');
+                    if (saved) {
+                        this.savedData = { ...this.savedData, ...JSON.parse(saved) };
+                    }
+                } catch (error) {
+                    console.warn('Не удалось загрузить данные из localStorage:', error);
+                }
+            }
+            
+            // Получение ключа для сохранения данных
+            getDataKey(testId, checkId) {
+                return `${testId}_${checkId}`;
+            }
+            
+            async loadTests() {
+                try {
+                    // В реальном приложении: const response = await fetch('/tests');
+                    const mockTests = [
+                        { id: 1, name: 'Тест базовой функциональности' },
+                        { id: 2, name: 'Тест производительности' },
+                        { id: 3, name: 'Тест безопасности' },
+                        { id: 4, name: 'Тест интеграции' }
+                    ];
+                    
+                    this.tests = mockTests;
+                    
+                    // Инициализируем статусы по умолчанию, если их нет
+                    mockTests.forEach(test => {
+                        if (!(test.id in this.savedData.statuses.tests)) {
+                            this.savedData.statuses.tests[test.id] = 'warning';
+                        }
+                    });
+                    
+                    this.renderTabs();
+                } catch (error) {
+                    console.error('Ошибка загрузки тестов:', error);
+                }
+            }
+            
+            async loadChecks() {
+                try {
+                    // В реальном приложении: const response = await fetch('/checks');
+                    const mockChecks = [
+                        { id: 1, name: 'Проверка A' },
+                        { id: 2, name: 'Проверка B' },
+                        { id: 3, name: 'Проверка C' },
+                        { id: 4, name: 'Проверка D' }
+                    ];
+                    
+                    this.checks = mockChecks;
+                    
+                    // Инициализируем статусы по умолчанию
+                    mockChecks.forEach(check => {
+                        if (!(check.id in this.savedData.statuses.checks)) {
+                            this.savedData.statuses.checks[check.id] = 'warning';
+                        }
+                    });
+                } catch (error) {
+                    console.error('Ошибка загрузки проверок:', error);
+                }
+            }
+            
+            async loadFields() {
+                try {
+                    // В реальном приложении: const response = await fetch('/fields');
+                    const mockFields = [
+                        { 
+                            id: 1, 
+                            name: '{user_name}', 
+                            description: 'Имя пользователя',
+                            value: {
+                                "type": "string",
+                                "example": "Иван Иванов",
+                                "source": "user_profile"
+                            }
+                        },
+                        { 
+                            id: 2, 
+                            name: '{user_email}', 
+                            description: 'Email пользователя',
+                            value: {
+                                "type": "string",
+                                "format": "email",
+                                "example": "ivan.ivanov@example.com",
+                                "validation": "required"
+                            }
+                        },
+                        { 
+                            id: 3, 
+                            name: '{current_date}', 
+                            description: 'Текущая дата',
+                            value: {
+                                "type": "datetime",
+                                "format": "ISO 8601",
+                                "example": "2025-09-28T10:30:00Z",
+                                "timezone": "UTC"
+                            }
+                        },
+                        { 
+                            id: 4, 
+                            name: '{system_version}', 
+                            description: 'Версия системы',
+                            value: {
+                                "type": "string",
+                                "current": "v2.4.1",
+                                "release_date": "2025-09-15",
+                                "changelog_url": "/api/changelog"
+                            }
+                        },
+                        { 
+                            id: 5, 
+                            name: '{request_id}', 
+                            description: 'ID запроса',
+                            value: {
+                                "type": "uuid",
+                                "format": "UUID v4",
+                                "example": "123e4567-e89b-12d3-a456-426614174000",
+                                "auto_generated": true
+                            }
+                        }
+                    ];
+                    
+                    this.fields = mockFields;
+                    this.renderFields();
+                } catch (error) {
+                    console.error('Ошибка загрузки полей:', error);
+                }
+            }
+            
+            renderTabs() {
+                const container = document.getElementById('tabs-container');
+                container.innerHTML = '';
+                
+                this.tests.forEach(test => {
+                    const tab = document.createElement('button');
+                    tab.className = 'tab';
+                    if (this.currentTest && this.currentTest.id === test.id) {
+                        tab.classList.add('active');
+                    }
+                    tab.onclick = () => this.selectTest(test);
+                    
+                    const leftPart = document.createElement('div');
+                    leftPart.className = 'tab-left';
+                    
+                    const status = document.createElement('span');
+                    status.className = 'tab-status';
+                    status.innerHTML = this.getStatusIcon(this.savedData.statuses.tests[test.id]);
+                    
+                    const content = document.createElement('span');
+                    content.textContent = test.name;
+                    
+                    const spinner = document.createElement('span');
+                    spinner.className = 'tab-spinner';
+                    if (this.savedData.statuses.processing.tests[test.id]) {
+                        spinner.innerHTML = '<div class="spinner"></div>';
+                    }
+                    
+                    leftPart.appendChild(status);
+                    leftPart.appendChild(content);
+                    tab.appendChild(leftPart);
+                    tab.appendChild(spinner);
+                    
+                    container.appendChild(tab);
+                });
+            }
+            
+            selectTest(test) {
+                // Сохраняем текущие данные перед переключением
+                this.saveCurrentData();
+                
+                this.currentTest = test;
+                this.currentCheck = null;
+                
+                // Обновляем активную вкладку
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                event.target.closest('.tab').classList.add('active');
+                
+                this.renderChecks();
+                document.getElementById('content-area').classList.remove('hidden');
+                document.getElementById('details-section').classList.add('hidden');
+            }
+            
+            renderChecks() {
+                const container = document.getElementById('checks-container');
+                container.innerHTML = '';
+                
+                this.checks.forEach(check => {
+                    const tile = document.createElement('div');
+                    tile.className = 'check-tile';
+                    if (this.currentCheck && this.currentCheck.id === check.id) {
+                        tile.classList.add('active');
+                    }
+                    tile.onclick = () => this.selectCheck(check);
+                    
+                    const content = document.createTextNode(check.name);
+                    tile.appendChild(content);
+                    
+                    const status = document.createElement('span');
+                    status.className = 'check-tile-status';
+                    status.innerHTML = this.getStatusIcon(this.savedData.statuses.checks[check.id]);
+                    tile.appendChild(status);
+                    
+                    const spinner = document.createElement('span');
+                    spinner.className = 'check-tile-spinner';
+                    const key = this.getDataKey(this.currentTest.id, check.id);
+                    if (this.savedData.statuses.processing.checks[key]) {
+                        spinner.innerHTML = '<div class="spinner"></div>';
+                    }
+                    tile.appendChild(spinner);
+                    
+                    container.appendChild(tile);
+                });
+            }
+            
+            async selectCheck(check) {
+                // Сохраняем текущие данные
+                this.saveCurrentData();
+                
+                this.currentCheck = check;
+                
+                // Обновляем активную плитку
+                document.querySelectorAll('.check-tile').forEach(tile => tile.classList.remove('active'));
+                event.target.classList.add('active');
+                
+                // Загружаем сохраненные данные для данной комбинации
+                this.loadCurrentData();
+                
+                document.getElementById('details-section').classList.remove('hidden');
+            }
+            
+            // Сохранение текущих данных промпта и чата
+            saveCurrentData() {
+                if (!this.currentTest || !this.currentCheck) return;
+                
+                const key = this.getDataKey(this.currentTest.id, this.currentCheck.id);
+                
+                // Сохраняем промпт
+                const promptInput = document.getElementById('prompt-input');
+                if (promptInput) {
+                    this.savedData.prompts[key] = promptInput.value;
+                }
+                
+                // Сохраняем чат
+                const chatMessages = document.getElementById('chat-messages');
+                if (chatMessages) {
+                    const messages = Array.from(chatMessages.children).map(msg => ({
+                        type: msg.className.split(' ')[1] || 'system',
+                        text: msg.textContent
+                    }));
+                    this.savedData.chats[key] = messages;
+                }
+                
+                this.saveToStorage();
+            }
+            
+            // Загрузка сохраненных данных для текущей комбинации
+            loadCurrentData() {
+                if (!this.currentTest || !this.currentCheck) return;
+                
+                const key = this.getDataKey(this.currentTest.id, this.currentCheck.id);
+                
+                // Загружаем промпт
+                const promptInput = document.getElementById('prompt-input');
+                if (promptInput) {
+                    promptInput.value = this.savedData.prompts[key] || '';
+                }
+                
+                // Загружаем чат
+                const chatMessages = document.getElementById('chat-messages');
+                if (chatMessages) {
+                    const messages = this.savedData.chats[key] || [
+                        { type: 'system', text: 'Чат готов к работе' }
+                    ];
+                    
+                    chatMessages.innerHTML = '';
+                    messages.forEach(msg => {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `chat-message ${msg.type}`;
+                        messageDiv.textContent = msg.text;
+                        chatMessages.appendChild(messageDiv);
+                    });
+                    
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            }
+            
+            renderFields() {
+                const container = document.getElementById('fields-list');
+                container.innerHTML = '';
+                
+                this.fields.forEach(field => {
+                    const fieldElement = document.createElement('span');
+                    fieldElement.className = 'field-item';
+                    fieldElement.textContent = field.name;
+                    fieldElement.draggable = true;
+                    fieldElement.title = field.description;
+                    
+                    // Клик для просмотра JSON
+                    fieldElement.addEventListener('click', () => {
+                        this.showFieldJson(field);
+                        document.querySelectorAll('.field-item').forEach(item => 
+                            item.classList.remove('selected')
+                        );
+                        fieldElement.classList.add('selected');
+                    });
+                    
+                    fieldElement.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', field.name);
+                        fieldElement.classList.add('dragging');
+                    });
+                    
+                    fieldElement.addEventListener('dragend', () => {
+                        fieldElement.classList.remove('dragging');
+                    });
+                    
+                    container.appendChild(fieldElement);
+                });
+            }
+            
+            showFieldJson(field) {
+                const jsonContent = document.getElementById('json-content');
+                const jsonViewer = document.querySelector('.json-viewer-title');
+                
+                jsonViewer.textContent = `Значение плейсхолдера ${field.name}:`;
+                const formattedJson = JSON.stringify(field.value, null, 2);
+                jsonContent.textContent = formattedJson;
+            }
+            
+            togglePromptSection() {
+                const content = document.getElementById('prompt-content');
+                const btn = document.getElementById('collapse-btn');
+                
+                if (content.classList.contains('collapsed')) {
+                    content.classList.remove('collapsed');
+                    btn.textContent = '▼';
+                } else {
+                    content.classList.add('collapsed');
+                    btn.textContent = '▲';
+                }
+            }
+            
+            setupEventListeners() {
+                const promptInput = document.getElementById('prompt-input');
+                
+                // Drag and drop для textarea
+                promptInput.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    promptInput.style.backgroundColor = '#f0f8ff';
+                });
+                
+                promptInput.addEventListener('dragleave', () => {
+                    promptInput.style.backgroundColor = '';
+                });
+                
+                promptInput.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    promptInput.style.backgroundColor = '';
+                    
+                    const placeholder = e.dataTransfer.getData('text/plain');
+                    const cursorPos = promptInput.selectionStart;
+                    const textBefore = promptInput.value.substring(0, cursorPos);
+                    const textAfter = promptInput.value.substring(cursorPos);
+                    
+                    promptInput.value = textBefore + placeholder + textAfter;
+                    promptInput.selectionStart = promptInput.selectionEnd = cursorPos + placeholder.length;
+                    promptInput.focus();
+                    
+                    // Автосохранение
+                    this.saveCurrentData();
+                });
+                
+                // Автосохранение при изменении промпта
+                promptInput.addEventListener('input', () => {
+                    this.saveCurrentData();
+                });
+                
+                // Enter для отправки из промпта
+                promptInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                        this.sendPromptToChat();
+                    }
+                });
+                
+                // Настройка чата
+                this.setupChatListeners();
+                
+                // Сохранение данных при закрытии страницы
+                window.addEventListener('beforeunload', () => {
+                    this.saveCurrentData();
+                });
+                
+                // Автосохранение каждые 10 секунд
+                setInterval(() => {
+                    this.saveCurrentData();
+                }, 10000);
+            }
+            
+            setupChatListeners() {
+                const chatInput = document.getElementById('chat-input');
+                const sendBtn = document.getElementById('send-btn');
+                const stopBtn = document.getElementById('stop-btn');
+                
+                // Авто-ресайз textarea
+                chatInput.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+                });
+                
+                // Отправка по Ctrl+Enter
+                chatInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault();
+                        this.sendChatMessage();
+                    }
+                });
+                
+                // Кнопка отправки
+                sendBtn.addEventListener('click', () => {
+                    this.sendChatMessage();
+                });
+                
+                // Кнопка остановки
+                stopBtn.addEventListener('click', () => {
+                    this.stopChatResponse();
+                });
+            }
+            
+            sendPromptToChat() {
+                const promptInput = document.getElementById('prompt-input');
+                const message = promptInput.value.trim();
+                
+                if (!message || !this.currentCheck) return;
+                
+                ChatManager.sendMessage(message, this.currentTest, this.currentCheck);
+            }
+            
+            sendChatMessage() {
+                const chatInput = document.getElementById('chat-input');
+                const message = chatInput.value.trim();
+                
+                if (!message || !this.currentCheck) return;
+                
+                ChatManager.sendMessage(message, this.currentTest, this.currentCheck);
+                chatInput.value = '';
+                chatInput.style.height = 'auto';
+            }
+            
+            stopChatResponse() {
+                ChatManager.stopResponse();
+            }
+            
+            addChatMessage(message, type, testId, checkId) {
+                const key = this.getDataKey(testId, checkId);
+                
+                // Добавляем в сохраненные данные
+                if (!this.savedData.chats[key]) {
+                    this.savedData.chats[key] = [];
+                }
+                this.savedData.chats[key].push({ type, text: message });
+                
+                // Проверяем на соответствие и обновляем статус
+                if (message.toLowerCase().includes('соответствует')) {
+                    this.savedData.statuses.checks[checkId] = 'success';
+                    this.savedData.statuses.tests[testId] = 'success';
+                }
+                
+                // Если это текущий активный чат, добавляем визуально
+                if (this.currentTest && this.currentCheck && 
+                    this.currentTest.id === testId && this.currentCheck.id === checkId) {
+                    
+                    const chatMessages = document.getElementById('chat-messages');
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `chat-message ${type}`;
+                    
+                    // Специальный класс для сообщений с "Соответствует"
+                    if (message.toLowerCase().includes('соответствует')) {
+                        messageDiv.className += ' match';
+                    }
+                    
+                    messageDiv.textContent = message;
+                    chatMessages.appendChild(messageDiv);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+                
+                // Обновляем индикаторы
+                this.updateIndicators();
+                this.saveToStorage();
+                
+                return Date.now(); // Возвращаем ID сообщения
+            }
+            
+            // Получение иконки статуса
+            getStatusIcon(status) {
+                switch(status) {
+                    case 'success':
+                        return '<span class="status-success">✓</span>';
+                    case 'error':
+                        return '<span class="status-error">✗</span>';
+                    case 'warning':
+                        return '<span class="status-warning">●</span>';
+                    case 'matched':
+                        return '<span class="status-matched">✓</span>';
+                    default:
+                        return '<span class="status-warning">●</span>';
+                }
+            }
+            
+            // Обновление индикаторов статуса
+            updateIndicators() {
+                // Обновляем вкладки
+                document.querySelectorAll('.tab').forEach((tab, index) => {
+                    const test = this.tests[index];
+                    if (test) {
+                        const statusEl = tab.querySelector('.tab-status');
+                        if (statusEl) {
+                            statusEl.innerHTML = this.getStatusIcon(this.savedData.statuses.tests[test.id]);
+                        }
+                        
+                        const spinnerEl = tab.querySelector('.tab-spinner');
+                        if (spinnerEl) {
+                            spinnerEl.innerHTML = this.savedData.statuses.processing.tests[test.id] ? 
+                                '<div class="spinner"></div>' : '';
+                        }
+                    }
+                });
+                
+                // Обновляем плитки (только если выбран тест)
+                if (this.currentTest) {
+                    document.querySelectorAll('.check-tile').forEach((tile, index) => {
+                        const check = this.checks[index];
+                        if (check) {
+                            const statusEl = tile.querySelector('.check-tile-status');
+                            if (statusEl) {
+                                statusEl.innerHTML = this.getStatusIcon(this.savedData.statuses.checks[check.id]);
+                            }
+                            
+                            const spinnerEl = tile.querySelector('.check-tile-spinner');
+                            if (spinnerEl) {
+                                const key = this.getDataKey(this.currentTest.id, check.id);
+                                spinnerEl.innerHTML = this.savedData.statuses.processing.checks[key] ? 
+                                    '<div class="spinner"></div>' : '';
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // Установка статуса обработки
+            setProcessingStatus(isProcessing, testId, checkId) {
+                const key = this.getDataKey(testId, checkId);
+                
+                this.savedData.statuses.processing.tests[testId] = isProcessing;
+                this.savedData.statuses.processing.checks[key] = isProcessing;
+                
+                this.updateIndicators();
+                this.saveToStorage();
+            }
+            
+            // Инициализация SSE подключения
+            initSSE() {
+                SSEManager.connect();
+            }
+        }
+    </script>
+
+    <script>
+        // Менеджер чата с поддержкой фонового режима
+        class ChatManager {
+            static activeRequests = new Map(); // testId_checkId -> AbortController
+            
+            static async sendMessage(message, test, check) {
+                const key = testSystem.getDataKey(test.id, check.id);
+                
+                // Проверяем, не идет ли уже обработка для данной комбинации
+                if (this.activeRequests.has(key)) {
+                    return;
+                }
+                
+                const controller = new AbortController();
+                this.activeRequests.set(key, controller);
+                
+                // Обновляем кнопки только для активного чата
+                if (testSystem.currentTest && testSystem.currentCheck && 
+                    testSystem.currentTest.id === test.id && testSystem.currentCheck.id === check.id) {
+                    this.updateButtons(true);
+                }
+                
+                // Устанавливаем статус обработки
+                testSystem.setProcessingStatus(true, test.id, check.id);
+                
+                // Добавляем сообщение пользователя
+                testSystem.addChatMessage(message, 'user', test.id, check.id);
+                
+                // Добавляем комментарий о начале обработки
+                testSystem.addChatMessage(
+                    `Начинаю обработку для теста "${test.name}", проверка "${check.name}"...`, 
+                    'comment', test.id, check.id
+                );
+                
+                try {
+                    await this.processMessage(message, test, check, controller);
+                } catch (error) {
+                    console.error('Ошибка отправки сообщения:', error);
+                    testSystem.addChatMessage(
+                        'Ошибка при отправке сообщения. Попробуйте еще раз.', 
+                        'system', test.id, check.id
+                    );
+                } finally {
+                    this.activeRequests.delete(key);
+                    
+                    // Обновляем кнопки только для активного чата
+                    if (testSystem.currentTest && testSystem.currentCheck && 
+                        testSystem.currentTest.id === test.id && testSystem.currentCheck.id === check.id) {
+                        this.updateButtons(false);
+                    }
+                    
+                    // Убираем статус обработки
+                    testSystem.setProcessingStatus(false, test.id, check.id);
+                }
+            }
+            
+            static async processMessage(message, test, check, controller) {
+                const typingId = testSystem.addChatMessage('Печатает...', 'system', test.id, check.id);
+                
+                try {
+                    // Имитация API запроса (замените на реальный fetch)
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            if (controller.signal.aborted) {
+                                reject(new Error('Запрос отменен'));
+                                return;
+                            }
+                            resolve();
+                        }, 3000);
+                        
+                        controller.signal.addEventListener('abort', () => {
+                            clearTimeout(timeout);
+                            reject(new Error('Запрос отменен'));
+                        });
+                    });
+                    
+                    // Удаляем индикатор печатания
+                    this.removeTypingMessage(typingId, test.id, check.id);
+                    
+                    // Генерируем ответ
+                    const response = this.generateMockResponse(message, test, check);
+                    testSystem.addChatMessage(response, 'system', test.id, check.id);
+                    
+                    // Добавляем комментарий о завершении
+                    testSystem.addChatMessage(
+                        `Обработка завершена для проверки "${check.name}"`, 
+                        'comment', test.id, check.id
+                    );
+                    
+                } catch (error) {
+                    this.removeTypingMessage(typingId, test.id, check.id);
+                    
+                    if (error.message === 'Запрос отменен') {
+                        testSystem.addChatMessage(
+                            'Запрос был остановлен пользователем.', 
+                            'comment', test.id, check.id
+                        );
+                    } else {
+                        testSystem.addChatMessage(
+                            'Произошла ошибка при получении ответа.', 
+                            'system', test.id, check.id
+                        );
+                    }
+                }
+            }
+            
+            static generateMockResponse(message, test, check) {
+                const responses = [
+                    `Анализирую ваш запрос для теста "${test.name}", проверка "${check.name}"...`,
+                    `Выполняю проверку "${check.name}" с параметрами: ${message.substring(0, 100)}...`,
+                    `Результат проверки "${check.name}": Найдено 3 совпадения, 1 предупреждение.`,
+                    `Проверка "${check.name}" соответствует требованиям. Все тесты пройдены.`,
+                    `Обнаружена потенциальная проблема в тесте "${test.name}". Рекомендую проверить параметры.`
+                ];
+                
+                return responses[Math.floor(Math.random() * responses.length)];
+            }
+            
+            static removeTypingMessage(messageId, testId, checkId) {
+                const key = testSystem.getDataKey(testId, checkId);
+                
+                // Удаляем из сохраненных данных
+                if (testSystem.savedData.chats[key]) {
+                    testSystem.savedData.chats[key] = testSystem.savedData.chats[key]
+                        .filter(msg => msg.text !== 'Печатает...');
+                }
+                
+                // Если это активный чат, удаляем визуально
+                if (testSystem.currentTest && testSystem.currentCheck && 
+                    testSystem.currentTest.id === testId && testSystem.currentCheck.id === checkId) {
+                    
+                    const chatMessages = document.getElementById('chat-messages');
+                    const typingMessages = Array.from(chatMessages.children)
+                        .filter(msg => msg.textContent === 'Печатает...');
+                    typingMessages.forEach(msg => msg.remove());
+                }
+            }
+            
+            static stopResponse() {
+                if (!testSystem.currentTest || !testSystem.currentCheck) return;
+                
+                const key = testSystem.getDataKey(testSystem.currentTest.id, testSystem.currentCheck.id);
+                const controller = this.activeRequests.get(key);
+                
+                if (controller) {
+                    controller.abort();
+                }
+            }
+            
+            static updateButtons(isProcessing) {
+                const sendBtn = document.getElementById('send-btn');
+                const stopBtn = document.getElementById('stop-btn');
+                
+                if (sendBtn && stopBtn) {
+                    if (isProcessing) {
+                        sendBtn.classList.add('hidden');
+                        stopBtn.classList.remove('hidden');
+                        stopBtn.disabled = false;
+                    } else {
+                        sendBtn.classList.remove('hidden');
+                        stopBtn.classList.add('hidden');
+                        sendBtn.disabled = false;
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script>
+        // Менеджер SSE подключения
+        class SSEManager {
+            static eventSource = null;
+            static reconnectTimeout = null;
+            static reconnectDelay = 5000;
+            
+            static connect() {
+                const statusEl = document.getElementById('connection-status');
+                
+                try {
+                    // В реальном приложении замените на ваш SSE endpoint
+                    // this.eventSource = new EventSource('/api/sse');
+                    
+                    // Имитация SSE подключения
+                    this.simulateSSE();
+                    
+                    statusEl.textContent = 'Подключено';
+                    statusEl.className = 'connection-status connected';
+                    
+                } catch (error) {
+                    console.error('Ошибка подключения SSE:', error);
+                    this.handleDisconnect();
+                }
+            }
+            
+            static simulateSSE() {
+                // Имитация получения обновлений через SSE
+                setInterval(() => {
+                    if (Math.random() < 0.1) { // 10% шанс получить обновление
+                        this.handleUpdate({
+                            type: 'chat_message',
+                            data: {
+                                testId: Math.floor(Math.random() * 4) + 1,
+                                checkId: Math.floor(Math.random() * 4) + 1,
+                                message: 'Автоматическое обновление из системы',
+                                messageType: 'system'
+                            }
+                        });
+                    }
+                }, 10000); // Каждые 10 секунд
+            }
+            
+            static handleUpdate(event) {
+                try {
+                    const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                    
+                    switch (event.type || data.type) {
+                        case 'chat_message':
+                            this.handleChatMessage(data);
+                            break;
+                            
+                        case 'status_update':
+                            this.handleStatusUpdate(data);
+                            break;
+                            
+                        case 'processing_start':
+                            testSystem.setProcessingStatus(true, data.testId, data.checkId);
+                            break;
+                            
+                        case 'processing_end':
+                            testSystem.setProcessingStatus(false, data.testId, data.checkId);
+                            break;
+                            
+                        default:
+                            console.log('Неизвестный тип события SSE:', event.type);
+                    }
+                } catch (error) {
+                    console.error('Ошибка обработки SSE события:', error);
+                }
+            }
+            
+            static handleChatMessage(data) {
+                if (data.testId && data.checkId && data.message) {
+                    testSystem.addChatMessage(
+                        data.message, 
+                        data.messageType || 'system', 
+                        data.testId, 
+                        data.checkId
+                    );
+                }
+            }
+            
+            static handleStatusUpdate(data) {
+                if (data.testId && data.status) {
+                    testSystem.savedData.statuses.tests[data.testId] = data.status;
+                }
+                
+                if (data.checkId && data.status) {
+                    testSystem.savedData.statuses.checks[data.checkId] = data.status;
+                }
+                
+                testSystem.updateIndicators();
+                testSystem.saveToStorage();
+            }
+            
+            static handleDisconnect() {
+                const statusEl = document.getElementById('connection-status');
+                statusEl.textContent = 'Отключено';
+                statusEl.className = 'connection-status disconnected';
+                
+                // Попытка переподключения
+                if (this.reconnectTimeout) {
+                    clearTimeout(this.reconnectTimeout);
+                }
+                
+                this.reconnectTimeout = setTimeout(() => {
+                    statusEl.textContent = 'Переподключение...';
+                    statusEl.className = 'connection-status connecting';
+                    this.connect();
+                }, this.reconnectDelay);
+            }
+            
+            static disconnect() {
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                }
+                
+                if (this.reconnectTimeout) {
+                    clearTimeout(this.reconnectTimeout);
+                    this.reconnectTimeout = null;
+                }
+            }
+        }
+        
+        // Инициализация приложения
+        document.addEventListener('DOMContentLoaded', () => {
+            window.testSystem = new TestSystem();
+        });
+        
+        // Отключение SSE при закрытии страницы
+        window.addEventListener('beforeunload', () => {
+            SSEManager.disconnect();
+        });
+    </script>
+</body>
+</html>
