@@ -30,4 +30,12 @@ public class JiraService {
     public CompletableFuture<List<JiraTestVersionDTO>> readRunAsUsedTestVersionsAsync(String runId) {
         return CompletableFuture.supplyAsync(() -> jira.readRunAsUsedTestVersions(runId));
     }
+
+    protected static final List<JiraFieldDTO> CACHED_FIELDS = List.of(
+            new JiraFieldDTO("1", "name", JiraTestDTO::getName)
+    );
+
+    public List<JiraFieldDTO> getFields() {
+        return CACHED_FIELDS;
+    }
 }

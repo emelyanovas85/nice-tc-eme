@@ -490,8 +490,80 @@
             </div>
         </div>
     </div>
-
+    <div id="app-data-storage" style="display: none;"></div>
     <script>
+        // Моки данных
+        const MockData = {
+            tests: [
+                { id: 1, name: 'Тест базовой функциональности' },
+                { id: 2, name: 'Тест производительности' },
+                { id: 3, name: 'Тест безопасности' },
+                { id: 4, name: 'Тест интеграции' }
+            ],
+            
+            checks: [
+                { id: 1, name: 'Проверка A' },
+                { id: 2, name: 'Проверка B' },
+                { id: 3, name: 'Проверка C' },
+                { id: 4, name: 'Проверка D' }
+            ],
+            
+            fields: [
+                { 
+                    id: 1, 
+                    name: 'user_name', 
+                    value: {
+                        "type": "string",
+                        "example": "Иван Иванов",
+                        "source": "user_profile"
+                    }
+                },
+                { 
+                    id: 2, 
+                    name: 'user_email', 
+                    value: {
+                        "type": "string",
+                        "format": "email",
+                        "example": "ivan.ivanov@example.com",
+                        "validation": "required"
+                    }
+                },
+                { 
+                    id: 3, 
+                    name: 'current_date', 
+                    value: {
+                        "type": "datetime",
+                        "format": "ISO 8601",
+                        "example": "2025-09-28T10:30:00Z",
+                        "timezone": "UTC"
+                    }
+                },
+                { 
+                    id: 4, 
+                    name: 'system_version', 
+                    value: {
+                        "type": "string",
+                        "current": "v2.4.1",
+                        "release_date": "2025-09-15",
+                        "changelog_url": "/api/changelog"
+                    }
+                },
+                { 
+                    id: 5, 
+                    name: 'request_id', 
+                    value: {
+                        "type": "uuid",
+                        "format": "UUID v4",
+                        "example": "123e4567-e89b-12d3-a456-426614174000",
+                        "auto_generated": true
+                    }
+                }
+            ]
+        };
+        
+        // Проверка на использование моков
+        const useMocks = new URLSearchParams(window.location.search).get('mocks') === 'true';
+        
         // Основной класс системы тестов с сохранением данных
         class TestSystem {
             constructor() {
@@ -522,9 +594,11 @@
             }
             
             async init() {
-                await this.loadTests();
-                await this.loadChecks();
-                await this.loadFields();
+                await Promise.all([
+                    this.loadTests(),
+                    this.loadChecks(),
+                    this.loadFields()
+                ]);
                 this.setupEventListeners();
                 this.initSSE();
             }
@@ -532,20 +606,27 @@
             // Сохранение/загрузка данных
             saveToStorage() {
                 try {
-                    localStorage.setItem('testSystemData', JSON.stringify(this.savedData));
-                } catch (error) {
-                    console.warn('Не удалось сохранить данные в localStorage:', error);
-                }
-            }
-            
-            loadFromStorage() {
-                try {
-                    const saved = localStorage.getItem('testSystemData');
-                    if (saved) {
-                        this.savedData = { ...this.savedData, ...JSON.parse(saved) };
+                    // Сохраняем данные в памяти (объект this.savedData уже содержит все данные)
+                    // Дополнительно можно сохранить в скрытый элемент на странице
+                    const dataElement = document.getElementById('app-data-storage');
+                    if (dataElement) {
+                        dataElement.textContent = JSON.stringify(this.savedData);
                     }
                 } catch (error) {
-                    console.warn('Не удалось загрузить данные из localStorage:', error);
+                    console.warn('Не удалось сохранить данные:', error);
+                }
+            }
+
+            loadFromStorage() {
+                try {
+                    // Загружаем данные из скрытого элемента на странице
+                    const dataElement = document.getElementById('app-data-storage');
+                    if (dataElement && dataElement.textContent) {
+                        const saved = JSON.parse(dataElement.textContent);
+                        this.savedData = { ...this.savedData, ...saved };
+                    }
+                } catch (error) {
+                    console.warn('Не удалось загрузить данные:', error);
                 }
             }
             
@@ -554,122 +635,73 @@
                 return `${testId}_${checkId}`;
             }
             
+            // - получение списка тестов без деталей
+            // - отрисовка сайдбара со списком тестов
             async loadTests() {
-                try {
-                    // В реальном приложении: const response = await fetch('/tests');
-                    const mockTests = [
-                        { id: 1, name: 'Тест базовой функциональности' },
-                        { id: 2, name: 'Тест производительности' },
-                        { id: 3, name: 'Тест безопасности' },
-                        { id: 4, name: 'Тест интеграции' }
-                    ];
-                    
-                    this.tests = mockTests;
-                    
-                    // Инициализируем статусы по умолчанию, если их нет
-                    mockTests.forEach(test => {
-                        if (!(test.id in this.savedData.statuses.tests)) {
-                            this.savedData.statuses.tests[test.id] = 'warning';
-                        }
-                    });
-                    
-                    this.renderTabs();
-                } catch (error) {
-                    console.error('Ошибка загрузки тестов:', error);
+                if (useMocks) {
+                    this.tests = MockData.tests;
+                    this.renderLeftSidebar();
+                } else {
+                    fetch('/api/jira/tests') // TODO: брать список id из урла 
+                        .then(r => r.json())
+                        .then(tests => {
+                            this.tests = tests;
+                            // Инициализируем статусы по умолчанию, если их нет
+                            this.tests.forEach(test => {
+                                if (!(test.id in this.savedData.statuses.tests)) {
+                                    this.savedData.statuses.tests[test.id] = 'warning';
+                                }
+                            });
+                            
+                            this.renderLeftSidebar();
+                        })
+                        .catch(error => {
+                            console.error('Ошибка загрузки тестов:', error);
+                        });
                 }
             }
             
+            // плитки проверок (1.1, .., N)
             async loadChecks() {
-                try {
-                    // В реальном приложении: const response = await fetch('/checks');
-                    const mockChecks = [
-                        { id: 1, name: 'Проверка A' },
-                        { id: 2, name: 'Проверка B' },
-                        { id: 3, name: 'Проверка C' },
-                        { id: 4, name: 'Проверка D' }
-                    ];
-                    
-                    this.checks = mockChecks;
-                    
-                    // Инициализируем статусы по умолчанию
-                    mockChecks.forEach(check => {
-                        if (!(check.id in this.savedData.statuses.checks)) {
-                            this.savedData.statuses.checks[check.id] = 'warning';
-                        }
-                    });
-                } catch (error) {
-                    console.error('Ошибка загрузки проверок:', error);
+                if (useMocks) {
+                    this.checks = MockData.checks;
+                } else {
+                    fetch('/api/system/checks')   //TODO: добавить контроллер
+                        .then(r => r.json())
+                        .then(checks => {
+                            this.checks = checks;
+                            // Инициализируем статусы по умолчанию, если их нет
+                            this.checks.forEach(check => {
+                                if (!(check.id in this.savedData.statuses.checks)) {
+                                    this.savedData.statuses.checks[check.id] = 'warning';
+                                }
+                            });
+                            // renderChecks() вызывается в тестах
+                        })
+                        .catch(error => {
+                            console.error('Ошибка загрузки проверок:', error);
+                        });
                 }
             }
             
+            // данные теста (name, objective, steps, ...)
             async loadFields() {
-                try {
-                    // В реальном приложении: const response = await fetch('/fields');
-                    const mockFields = [
-                        { 
-                            id: 1, 
-                            name: '{user_name}', 
-                            description: 'Имя пользователя',
-                            value: {
-                                "type": "string",
-                                "example": "Иван Иванов",
-                                "source": "user_profile"
-                            }
-                        },
-                        { 
-                            id: 2, 
-                            name: '{user_email}', 
-                            description: 'Email пользователя',
-                            value: {
-                                "type": "string",
-                                "format": "email",
-                                "example": "ivan.ivanov@example.com",
-                                "validation": "required"
-                            }
-                        },
-                        { 
-                            id: 3, 
-                            name: '{current_date}', 
-                            description: 'Текущая дата',
-                            value: {
-                                "type": "datetime",
-                                "format": "ISO 8601",
-                                "example": "2025-09-28T10:30:00Z",
-                                "timezone": "UTC"
-                            }
-                        },
-                        { 
-                            id: 4, 
-                            name: '{system_version}', 
-                            description: 'Версия системы',
-                            value: {
-                                "type": "string",
-                                "current": "v2.4.1",
-                                "release_date": "2025-09-15",
-                                "changelog_url": "/api/changelog"
-                            }
-                        },
-                        { 
-                            id: 5, 
-                            name: '{request_id}', 
-                            description: 'ID запроса',
-                            value: {
-                                "type": "uuid",
-                                "format": "UUID v4",
-                                "example": "123e4567-e89b-12d3-a456-426614174000",
-                                "auto_generated": true
-                            }
-                        }
-                    ];
-                    
-                    this.fields = mockFields;
-                    this.renderFields();
-                } catch (error) {
-                    console.error('Ошибка загрузки полей:', error);
+                if (useMocks) {
+                    this.fields = MockData.fields;
+                } else {
+                    fetch('/api/jira/fields')
+                        .then(r => r.json())
+                        .then(fields => {
+                            this.fields = fields;
+                            this.renderFields();
+                        })
+                        .catch(error => {
+                            console.error('Ошибка загрузки полей:', error);
+                        });
                 }
             }
             
-            renderTabs() {
+            renderLeftSidebar() {
                 const container = document.getElementById('tabs-container');
                 container.innerHTML = '';
                 
@@ -835,7 +867,6 @@
                     fieldElement.className = 'field-item';
                     fieldElement.textContent = field.name;
                     fieldElement.draggable = true;
-                    fieldElement.title = field.description;
                     
                     // Клик для просмотра JSON
                     fieldElement.addEventListener('click', () => {
@@ -1067,7 +1098,7 @@
                 });
                 
                 // Обновляем плитки (только если выбран тест)
-                if (this.currentTest) {
+                if (this.currentTest) {    // TODO: разобраться, зачем проверять это
                     document.querySelectorAll('.check-tile').forEach((tile, index) => {
                         const check = this.checks[index];
                         if (check) {
@@ -1091,8 +1122,8 @@
             setProcessingStatus(isProcessing, testId, checkId) {
                 const key = this.getDataKey(testId, checkId);
                 
-                this.savedData.statuses.processing.tests[testId] = isProcessing;
-                this.savedData.statuses.processing.checks[key] = isProcessing;
+                this.savedData.statuses.processing.tests[testId] = isProcessing;  // TODO: проверить, не testId ли
+                this.savedData.statuses.processing.checks[key] = isProcessing;  // TODO: проверить, не checkId ли
                 
                 this.updateIndicators();
                 this.saveToStorage();
@@ -1140,7 +1171,7 @@
                 );
                 
                 try {
-                    await this.processMessage(message, test, check, controller);
+                    await this.processMessage(message, test, check, controller); // TODO: рассмотреть использование .then()
                 } catch (error) {
                     console.error('Ошибка отправки сообщения:', error);
                     testSystem.addChatMessage(
@@ -1161,54 +1192,79 @@
                 }
             }
             
-            static async processMessage(message, test, check, controller) {
+            static processMessage(message, test, check, controller) {
                 const typingId = testSystem.addChatMessage('Печатает...', 'system', test.id, check.id);
                 
-                try {
-                    // Имитация API запроса (замените на реальный fetch)
-                    await new Promise((resolve, reject) => {
+                let promise;
+                
+                if (useMocks) {
+                    // Имитация API запроса
+                    promise = new Promise((resolve, reject) => {
                         const timeout = setTimeout(() => {
                             if (controller.signal.aborted) {
                                 reject(new Error('Запрос отменен'));
                                 return;
                             }
                             resolve();
-                        }, 3000);
+                        }, 15000);
                         
                         controller.signal.addEventListener('abort', () => {
                             clearTimeout(timeout);
                             reject(new Error('Запрос отменен'));
                         });
+                    })
+                    .then(() => {
+                        // Генерируем мок-ответ
+                        return this.generateMockResponse(message, test, check);
                     });
-                    
-                    // Удаляем индикатор печатания
-                    this.removeTypingMessage(typingId, test.id, check.id);
-                    
-                    // Генерируем ответ
-                    const response = this.generateMockResponse(message, test, check);
-                    testSystem.addChatMessage(response, 'system', test.id, check.id);
-                    
-                    // Добавляем комментарий о завершении
-                    testSystem.addChatMessage(
-                        `Обработка завершена для проверки "${check.name}"`, 
-                        'comment', test.id, check.id
-                    );
-                    
-                } catch (error) {
-                    this.removeTypingMessage(typingId, test.id, check.id);
-                    
-                    if (error.message === 'Запрос отменен') {
+                } else {
+                    // Реальный API запрос
+                    promise = fetch('/api/ai/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            testId: test.id,
+                            checkId: check.id
+                        }),
+                        signal: controller.signal
+                    })
+                    .then(response => response.json())
+                    .then(data => data.response);
+                }
+                
+                // Общая обработка результата для обоих случаев
+                return promise
+                    .then(response => {
+                        // Удаляем индикатор печатания
+                        this.removeTypingMessage(typingId, test.id, check.id);
+                        
+                        // Добавляем ответ
+                        testSystem.addChatMessage(response, 'system', test.id, check.id);
+                        
+                        // Добавляем комментарий о завершении
                         testSystem.addChatMessage(
-                            'Запрос был остановлен пользователем.', 
+                            `Обработка завершена для проверки "${check.name}"`, 
                             'comment', test.id, check.id
                         );
-                    } else {
-                        testSystem.addChatMessage(
-                            'Произошла ошибка при получении ответа.', 
-                            'system', test.id, check.id
-                        );
-                    }
-                }
+                    })
+                    .catch(error => {
+                        this.removeTypingMessage(typingId, test.id, check.id);
+                        
+                        if (error.message === 'Запрос отменен') {
+                            testSystem.addChatMessage(
+                                'Запрос был остановлен пользователем.', 
+                                'comment', test.id, check.id
+                            );
+                        } else {
+                            testSystem.addChatMessage(
+                                'Произошла ошибка при получении ответа.', 
+                                'system', test.id, check.id
+                            );
+                        }
+                    });
             }
             
             static generateMockResponse(message, test, check) {
@@ -1284,14 +1340,29 @@
                 const statusEl = document.getElementById('connection-status');
                 
                 try {
-                    // В реальном приложении замените на ваш SSE endpoint
-                    // this.eventSource = new EventSource('/api/sse');
-                    
-                    // Имитация SSE подключения
-                    this.simulateSSE();
-                    
-                    statusEl.textContent = 'Подключено';
-                    statusEl.className = 'connection-status connected';
+                    if (useMocks) {
+                        // Имитация SSE подключения
+                        this.simulateSSE();
+                        
+                        statusEl.textContent = 'Подключено (моки)';
+                        statusEl.className = 'connection-status connected';
+                    } else {
+                        // Реальное SSE подключение
+                        this.eventSource = new EventSource('/api/sse');
+                        
+                        this.eventSource.onopen = () => {
+                            statusEl.textContent = 'Подключено';
+                            statusEl.className = 'connection-status connected';
+                        };
+                        
+                        this.eventSource.onmessage = (event) => {
+                            this.handleUpdate(event);
+                        };
+                        
+                        this.eventSource.onerror = () => {
+                            this.handleDisconnect();
+                        };
+                    }
                     
                 } catch (error) {
                     console.error('Ошибка подключения SSE:', error);

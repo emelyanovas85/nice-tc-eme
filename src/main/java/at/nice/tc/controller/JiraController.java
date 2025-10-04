@@ -1,5 +1,6 @@
 package at.nice.tc.controller;
 
+import at.nice.tc.dto.JiraFieldDTO;
 import at.nice.tc.dto.JiraTestDTO;
 import at.nice.tc.dto.JiraTestVersionDTO;
 import at.nice.tc.service.JiraService;
@@ -24,6 +25,21 @@ public class JiraController {
         this.jiraService = jiraService;
     }
 
+
+    /**
+     * Возвращает список полей теста
+     */
+    @GetMapping("/fields")
+    public ResponseEntity<List<JiraFieldDTO>> getFields() {
+        try {
+            List<JiraFieldDTO> fields = jiraService.getFields();
+            if (fields == null)
+                return ResponseEntity.notFound().build(); // 404 Not Found
+            return ResponseEntity.ok(fields);
+        } catch (Throwable t) {
+            return ResponseEntity.internalServerError().build(); // 500
+        }
+    }
 
     /**
      * @param id идентификатор определенной версии (12345), а не теста (ABCDE-T777)

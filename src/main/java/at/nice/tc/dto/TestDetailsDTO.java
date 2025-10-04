@@ -1,6 +1,5 @@
 package at.nice.tc.dto;
 
-import at.nice.tc.Program;
 import lombok.Builder;
 import lombok.Data;
 
