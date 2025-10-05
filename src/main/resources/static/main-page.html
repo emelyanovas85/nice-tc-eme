@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Test System</title>
+    <link rel="stylesheet" href="css/banner.css">
     <style>
         * {
             margin: 0;
@@ -433,8 +434,18 @@
     </style>
 </head>
 <body>
+    <!-- Баннер -->
+    <div id="topBanner">
+        <div class="banner-content">
+            <div class="banner-text" id="bannerText"></div>
+            <button class="banner-close" onclick="hideBanner()" aria-label="Закрыть">&times;</button>
+        </div>
+    </div>
+
+    <!-- SSE -->
     <div class="connection-status connecting" id="connection-status">Подключение...</div>
-    
+
+    <!-- Контент страницы -->
     <div class="sidebar">
         <div id="tabs-container"></div>
     </div>
@@ -491,7 +502,13 @@
         </div>
     </div>
     <div id="app-data-storage" style="display: none;"></div>
+
+    <script src="api/jira.js"></script>
+    <script src="js/banner.js"></script>
+    <script src="js/scheduler.js"></script>
     <script>
+        // import Jira from ./api/jira.js
+
         // Моки данных
         const MockData = {
             tests: [
@@ -646,7 +663,7 @@
                     // Инициализируем статусы по умолчанию, если их нет
                     this.tests.forEach(test => {
                         if (!(test.id in this.savedData.statuses.tests)) {
-                            this.savedData.statuses.tests[test.id] = 'warning';
+                            this.savedData.statuses.tests[test.id] = 'pending';
                         }
                     });
                     
@@ -666,7 +683,7 @@
                             // Инициализируем статусы по умолчанию, если их нет
                             this.checks.forEach(check => {
                                 if (!(check.id in this.savedData.statuses.checks)) {
-                                    this.savedData.statuses.checks[check.id] = 'warning';
+                                    this.savedData.statuses.checks[check.id] = 'pending';
                                 }
                             });
                             // renderChecks() вызывается в тестах
@@ -682,8 +699,7 @@
                 if (useMocks) {
                     this.fields = MockData.fields;
                 } else {
-                    fetch('/api/jira/fields')
-                        .then(r => r.json())
+                    Jira.getFields()
                         .then(fields => {
                             this.fields = fields;
                             this.renderFields();
@@ -728,6 +744,12 @@
                     tab.appendChild(spinner);
                     
                     container.appendChild(tab);
+
+                    Jira.readTest(test.id)
+                        .then(dto => {
+                            this.savedData.statuses.processing.tests[test.id] = 'warning'; // TODO: что-то не то
+                            spinner.innerHTML = '';
+                        })
                 });
             }
             
@@ -1062,8 +1084,8 @@
                         return '<span class="status-success">✓</span>';
                     case 'error':
                         return '<span class="status-error">✗</span>';
-                    case 'warning':
-                        return '<span class="status-warning">●</span>';
+                    case 'pending':
+                        return '<span class="status-pending">●</span>';
                     case 'matched':
                         return '<span class="status-matched">✓</span>';
                     default:

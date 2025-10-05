@@ -1,108 +1,165 @@
-/**
- * Управление хранением данных без Thymeleaf
- */
+// Storage управление - сохранение и загрузка данных
+console.log('💾 Загрузка Storage модуля...');
 
-TestSystemApp.prototype.exportReport = function() {
-    try {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        const filename = `test-report-no-thymeleaf-${timestamp}.html`;
-
-        const htmlContent = document.documentElement.outerHTML;
-        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        link.click();
-
-        URL.revokeObjectURL(url);
-        this.showBanner(`Отчет экспортирован: ${filename}`, 'success');
-
-    } catch (error) {
-        console.error('Ошибка экспорта отчета:', error);
-        this.showBanner('Ошибка экспорта отчета', 'error');
-    }
-};
-
-TestSystemApp.prototype.importReport = function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith('.html')) {
-        this.showBanner('Можно импортировать только HTML файлы', 'error');
-        return;
+class StorageManager {
+    constructor() {
+        this.storageKey = 'testSystemData';
+        console.log('💾 StorageManager инициализирован');
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    // Сохранение данных в localStorage
+    save(data) {
         try {
-            this.processImportedHTML(e.target.result, file.name);
+            const dataToSave = {
+                ...data,
+                timestamp: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            localStorage.setItem(this.storageKey, JSON.stringify(dataToSave));
+            console.log('💾 Данные сохранены в localStorage');
+            return true;
         } catch (error) {
-            console.error('Ошибка импорта отчета:', error);
-            this.showBanner('Ошибка импорта отчета', 'error');
+            console.error('❌ Ошибка сохранения данных:', error);
+            return false;
         }
-    };
-
-    reader.readAsText(file);
-    event.target.value = '';
-};
-
-TestSystemApp.prototype.processImportedHTML = function(htmlContent, filename) {
-    if (confirm(`Импортировать отчет "${filename}"?\nВерсия: без Thymeleaf`)) {
-        this.showBanner('Отчет успешно импортирован', 'success');
     }
-};
 
-TestSystemApp.prototype.showBanner = function(message, type = 'info') {
-    const banner = document.getElementById('notification-banner');
-    const bannerText = document.getElementById('banner-text');
-
-    if (!banner || !bannerText) return;
-
-    bannerText.textContent = message;
-    banner.classList.remove('hidden');
-
-    setTimeout(() => {
-        this.hideBanner();
-    }, 10000);
-};
-
-TestSystemApp.prototype.hideBanner = function() {
-    const banner = document.getElementById('notification-banner');
-    if (banner) {
-        banner.classList.add('hidden');
+    // Загрузка данных из localStorage
+    load() {
+        try {
+            const savedData = localStorage.getItem(this.storageKey);
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                console.log('📦 Данные загружены из localStorage');
+                return data;
+            }
+            return null;
+        } catch (error) {
+            console.error('❌ Ошибка загрузки данных:', error);
+            return null;
+        }
     }
-};
 
-TestSystemApp.prototype.setProcessing = function(testId, checkId, isProcessing) {
-    const key = `${testId}-${checkId}`;
-
-    if (isProcessing) {
-        this.state.processing.add(key);
-    } else {
-        this.state.processing.delete(key);
+    // Очистка localStorage
+    clear() {
+        try {
+            localStorage.removeItem(this.storageKey);
+            console.log('🗑️ localStorage очищен');
+            return true;
+        } catch (error) {
+            console.error('❌ Ошибка очистки localStorage:', error);
+            return false;
+        }
     }
-};
 
-TestSystemApp.prototype.stopProcessing = async function() {
-    try {
-        const response = await fetch(`${this.apiBase}/ai/stop`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                testId: this.state.currentTest,
-                checkId: this.state.currentCheck
-            })
+    // Экспорт данных в файл
+    export() {
+        try {
+            const data = this.load();
+            if (!data) {
+                console.warn('⚠️ Нет данных для экспорта');
+                return false;
+            }
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `test-system-export-${timestamp}.json`;
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], {
+                type: 'application/json'
+            });
+
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.style.display = 'none';
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            URL.revokeObjectURL(url);
+
+            console.log('📄 Данные экспортированы:', filename);
+            return true;
+        } catch (error) {
+            console.error('❌ Ошибка экспорта данных:', error);
+            return false;
+        }
+    }
+
+    // Импорт данных из файла
+    import(file) {
+        return new Promise((resolve, reject) => {
+            if (!file) {
+                reject(new Error('Файл не выбран'));
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const success = this.save(data);
+
+                    if (success) {
+                        console.log('📁 Данные импортированы из файла');
+                        resolve(data);
+                    } else {
+                        reject(new Error('Ошибка сохранения импортированных данных'));
+                    }
+                } catch (error) {
+                    console.error('❌ Ошибка парсинга импортированного файла:', error);
+                    reject(error);
+                }
+            };
+
+            reader.onerror = () => {
+                reject(new Error('Ошибка чтения файла'));
+            };
+
+            reader.readAsText(file);
         });
-
-        if (response.ok) {
-            console.log('Обработка остановлена через REST API');
-        }
-
-    } catch (error) {
-        console.error('Ошибка остановки обработки:', error);
     }
-};
+
+    // Получение статистики хранилища
+    getStats() {
+        try {
+            const data = this.load();
+            if (!data) {
+                return {
+                    hasData: false,
+                    size: 0,
+                    timestamp: null
+                };
+            }
+
+            const jsonString = JSON.stringify(data);
+            return {
+                hasData: true,
+                size: jsonString.length,
+                sizeKB: Math.round(jsonString.length / 1024 * 100) / 100,
+                timestamp: data.timestamp,
+                version: data.version,
+                keys: Object.keys(data).length
+            };
+        } catch (error) {
+            console.error('❌ Ошибка получения статистики:', error);
+            return { hasData: false, error: error.message };
+        }
+    }
+}
+
+// Глобальный экземпляр менеджера хранилища
+window.storageManager = new StorageManager();
+
+// Автосохранение каждые 30 секунд
+setInterval(() => {
+    if (window.testSystem && window.testSystem.savedData) {
+        window.storageManager.save(window.testSystem.savedData);
+    }
+}, 30000);
+
+console.log('✅ Storage модуль загружен');

@@ -10,6 +10,11 @@ import java.util.List;
 public interface Jira {
 
     /**
+     * @return {true} - jira доступна
+     */
+    boolean isAvailable();
+
+    /**
      * Данные теста
      * @param id вида '12345'
      */
@@ -32,6 +37,11 @@ public interface Jira {
     @Repository
     class Impl implements Jira {
 // TODO:        private JiraClient client;
+
+        @Override
+        public boolean isAvailable() {
+            return false; // FIXME: use client
+        }
 
         @Override
         public JiraTestDTO readTestFromJira(String id) {

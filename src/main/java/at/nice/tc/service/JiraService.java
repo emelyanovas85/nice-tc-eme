@@ -1,6 +1,7 @@
 package at.nice.tc.service;
 
 import at.nice.tc.dao.Jira;
+import at.nice.tc.dto.JiraFieldDTO;
 import at.nice.tc.dto.JiraTestDTO;
 import at.nice.tc.dto.JiraTestVersionDTO;
 import at.nice.tc.utils.AsyncUtils;
@@ -18,6 +19,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class JiraService {
     private final ConcurrentHashMap<String, CompletableFuture<JiraTestDTO>> tests;
     private final Jira jira;
+
+
+    public CompletableFuture<Boolean> isAvailable() {
+        return CompletableFuture.supplyAsync(jira::isAvailable);
+    }
 
     public CompletableFuture<JiraTestDTO> readTestAsync(String id) {
         return tests.computeIfAbsent(id, AsyncUtils.asCompletableFuture(jira::readTestFromJira));

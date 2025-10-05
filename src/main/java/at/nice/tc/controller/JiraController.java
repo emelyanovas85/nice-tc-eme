@@ -4,6 +4,7 @@ import at.nice.tc.dto.JiraFieldDTO;
 import at.nice.tc.dto.JiraTestDTO;
 import at.nice.tc.dto.JiraTestVersionDTO;
 import at.nice.tc.service.JiraService;
+import at.nice.tc.utils.ThrowableUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,19 @@ public class JiraController {
         this.jiraService = jiraService;
     }
 
+
+    /**
+     * Получить статус соединения с Jira
+     */
+    @GetMapping("/status")
+    public CompletableFuture<ResponseEntity<?>> getStatus() {
+        return jiraService.isAvailable()
+                .handle((isConnected, throwable) -> {
+                    if (throwable != null)
+                        return ResponseEntity.status(500).body(ThrowableUtils.asString(throwable));
+                    return ResponseEntity.ok(isConnected ? "connected" : "disconnected");
+                });
+    }
 
     /**
      * Возвращает список полей теста

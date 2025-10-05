@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test Search</title>
+    <link rel="stylesheet" href="css/banner.css">
     <style>
         * {
             margin: 0;
@@ -116,358 +117,370 @@
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="input-wrapper">
-        <input type="text" id="searchInput" placeholder="Введите ID теста (XXXXX-T777) или прогона (XXXXX-C777)">
-        <div class="loader" id="loader"></div>
+    <!-- Баннер -->
+    <div id="topBanner">
+        <div class="banner-content">
+            <div class="banner-text" id="bannerText"></div>
+            <button class="banner-close" onclick="hideBanner()" aria-label="Закрыть">&times;</button>
+        </div>
     </div>
-    <div class="autocomplete" id="autocomplete"></div>
-    <div class="message" id="message"></div>
 
-    <div class="history">
-        <div id="historyList"></div>
+    <!-- Контент страницы -->
+    <div class="container">
+        <div class="input-wrapper">
+            <input type="text" id="searchInput" placeholder="Введите ID теста (XXXXX-T777) или прогона (XXXXX-C777)">
+            <div class="loader" id="loader"></div>
+        </div>
+        <div class="autocomplete" id="autocomplete"></div>
+        <div class="message" id="message"></div>
+
+        <div class="history">
+            <div id="historyList"></div>
+        </div>
     </div>
-</div>
 
-<script>
-    // Глобальное состояние и DOM элементы
-    const input = document.getElementById('searchInput');
-    const message = document.getElementById('message');
-    const autocomplete = document.getElementById('autocomplete');
-    const loader = document.getElementById('loader');
-    const historyList = document.getElementById('historyList');
+    <script src="api/jira.js"></script>
+    <script src="js/banner.js"></script>
+    <script src="js/scheduler.js"></script>
+    <script>
+        // Глобальное состояние и DOM элементы
+        const input = document.getElementById('searchInput');
+        const message = document.getElementById('message');
+        const autocomplete = document.getElementById('autocomplete');
+        const loader = document.getElementById('loader');
+        const historyList = document.getElementById('historyList');
 
-    let versions = [];
-    let currentType = null;
-    let currentId = null;
-    let userEnteredVersion = false;
+        let versions = [];
+        let currentType = null;
+        let currentId = null;
+        let userEnteredVersion = false;
 
-    // Кэш результатов запросов
-    const cache = {
-        tests: {}, // { "ASDCO-T777": [...versions] }
-        runs: {}   // { "ASDCO-C777": [...runData] }
-    };
-
-    // Счетчик активных запросов для управления индикатором
-    let activeRequests = 0;
-
-    // Утилиты для работы с индикатором загрузки
-    function showLoader() {
-        activeRequests++;
-        loader.classList.add('active');
-    }
-
-    function hideLoader() {
-        activeRequests--;
-        if (activeRequests <= 0) {
-            activeRequests = 0;
-            loader.classList.remove('active');
-        }
-    }
-
-    function resetState() {
-        versions = [];
-        currentType = null;
-        currentId = null;
-    }
-
-    // API запросы
-    async function fetchTestVersions(testId) {
-        // Проверяем кэш
-        if (cache.tests[testId]) {
-            versions = cache.tests[testId];
-            return;
-        }
-
-        try {
-            showLoader();
-            message.textContent = 'Загрузка...';
-            message.className = 'message';
-            const response = await fetch(`/api/jira/tests/${testId}`);
-
-            if (!response.ok) {
-                throw new Error('Ошибка запроса', response);
-            }
-
-            const data = await response.json();
-
-            // Сохраняем в кэш
-            cache.tests[testId] = data;
-            versions = data;
-
-            if (versions.length === 0) {
-                message.textContent = 'Тест не найден';
-                message.className = 'message error';
-            } else {
-                message.textContent = '';
-            }
-        } catch (error) {
-            message.textContent = 'Ошибка при загрузке данных';
-            message.className = 'message error';
-            versions = [];
-            console.error('Ошибка при загрузке данных', error);
-        } finally {
-            hideLoader();
-        }
-    }
-
-    async function fetchRunVersions(runId) {
-        // Проверяем кэш
-        if (cache.runs[runId]) {
-            const runData = cache.runs[runId];
-            if (runData.length > 0) {
-                message.textContent = 'Нажмите Enter для перехода';
-                message.className = 'message success';
-            }
-            return;
-        }
-
-        try {
-            showLoader();
-            message.textContent = 'Загрузка...';
-            message.className = 'message';
-            const response = await fetch(`/api/jira/runs/${runId}`);
-
-            if (!response.ok) {
-                throw new Error('Ошибка запроса');
-            }
-
-            const runData = await response.json();
-
-            // Сохраняем в кэш
-            cache.runs[runId] = runData;
-
-            if (runData.length === 0) {
-                message.textContent = 'Прогон не найден';
-                message.className = 'message error';
-            } else {
-                message.textContent = 'Нажмите Enter для перехода';
-                message.className = 'message success';
-            }
-        } catch (error) {
-            message.textContent = 'Ошибка при загрузке данных';
-            message.className = 'message error';
-            console.error('Ошибка при загрузке данных', error);
-        } finally {
-            hideLoader();
-        }
-    }
-
-    // Обработчики ввода
-    async function handleInput(e) {
-        const value = e.target.value?.trim().toUpperCase();
-        message.textContent = '';
-        message.className = 'message';
-        autocomplete.innerHTML = '';
-        userEnteredVersion = false;
-
-        if (!value) {
-            resetState();
-            return;
-        }
-
-        const testWithVersionMatch = value.match(/^(\w+-T\d+)\s+\(?(\d+)\.?0?\)?$/);
-        const testMatch = value.match(/^\w+-T\d+$/);
-        const runMatch = value.match(/^\w+-C\d+$/);
-
-        if (testWithVersionMatch) {
-            await handleTestWithVersion(testWithVersionMatch);
-        } else if (testMatch) {
-            await handleTest(value);
-        } else if (runMatch) {
-            await handleRun(value);
-        }
-    }
-
-    async function handleTestWithVersion(match) {
-        const testId = match[1];
-        const ver = parseInt(match[2]);
-        userEnteredVersion = true;
-
-        if (currentId !== testId) {
-            currentId = testId;
-            currentType = 'test';
-            await fetchTestVersions(testId);
-        } else {
-            // Используем кэшированные данные
-            versions = cache.tests[testId] || [];
-        }
-
-        if (versions.length > 0) {
-            const version = versions.find(v => v.ver === ver);
-            if (version) {
-                message.textContent = 'Нажмите Enter для перехода';
-                message.className = 'message success';
-            } else {
-                showAutocomplete();
-                message.textContent = 'Версия не найдена. Выберите из списка';
-                message.className = 'message error';
-            }
-        }
-    }
-
-    async function handleTest(testId) {
-        if (currentId !== testId) {
-            currentId = testId;
-            currentType = 'test';
-            await fetchTestVersions(testId);
-        } else {
-            // Используем кэшированные данные
-            versions = cache.tests[testId] || [];
-        }
-
-        if (!userEnteredVersion && versions.length > 0) {
-            showAutocomplete();
-        }
-    }
-
-    async function handleRun(runId) {
-        if (currentId !== runId) {
-            currentId = runId;
-            currentType = 'run';
-            await fetchRunVersions(runId);
-        } else {
-            // Используем кэшированные данные
-            const runData = cache.runs[runId];
-            if (runData && runData.length > 0) {
-                message.textContent = 'Нажмите Enter для перехода';
-                message.className = 'message success';
-            }
-        }
-    }
-
-    // Автокомплит и редирект
-    function showAutocomplete() {
-        const items = versions.map(v => {
-            const div = document.createElement('div');
-            div.className = 'autocomplete-item';
-            div.textContent = `Версия ${v.ver}.0`;
-            div.onclick = () => selectVersion(v.ver);
-            return div;
-        });
-
-        const container = document.createElement('div');
-        container.className = 'autocomplete-items';
-        items.forEach(item => container.appendChild(item));
-
-        autocomplete.innerHTML = '';
-        autocomplete.appendChild(container);
-    }
-
-    function selectVersion(ver) {
-        input.value = `${currentId} (${ver}.0)`;
-        autocomplete.innerHTML = '';
-        message.textContent = 'Нажмите Enter для перехода';
-        message.className = 'message success';
-        userEnteredVersion = true;
-    }
-
-    function redirectToMainPage(data) {
-        const params = new URLSearchParams();
-        params.set('tests', JSON.stringify(data));
-        window.location.href = `/main-page.html?${params.toString()}`;
-    }
-
-    // История поиска (localStorage)
-    function addToHistory(id, ver, type, data) {
-        let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
-
-        // Удаляем дубликаты
-        history = history.filter(item => {
-            if (type === 'test') {
-                return !(item.id === id && item.ver === ver);
-            } else {
-                return !(item.id === id && item.type === 'run');
-            }
-        });
-
-        // Добавляем новый элемент в начало
-        const newItem = {
-            id,
-            ver: ver || null,
-            type,
-            timestamp: Date.now(),
-            label: type === 'test' ? `${id} ${ver}.0` : id
+        // Кэш результатов запросов
+        const cache = {
+            tests: {}, // { "ASDCO-T777": [...versions] }
+            runs: {}   // { "ASDCO-C777": [...runData] }
         };
 
-        history.unshift(newItem);
+        // Счетчик активных запросов для управления индикатором
+        let activeRequests = 0;
 
-        // Ограничиваем до 10 элементов
-        history = history.slice(0, 10);
-
-        localStorage.setItem('searchHistory', JSON.stringify(history));
-        renderHistory();
-    }
-
-    function renderHistory() {
-        const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
-
-        if (history.length === 0) {
-            historyList.innerHTML = '<div class="history-empty">История пуста</div>';
-            return;
+        // Утилиты для работы с индикатором загрузки
+        function showLoader() {
+            activeRequests++;
+            loader.classList.add('active');
         }
 
-        historyList.innerHTML = '';
-        history.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'history-item';
-            div.textContent = item.label;
-            div.onclick = () => {
-                input.value = item.label;
-                input.dispatchEvent(new Event('input'));
-            };
-            historyList.appendChild(div);
-        });
-    }
+        function hideLoader() {
+            activeRequests--;
+            if (activeRequests <= 0) {
+                activeRequests = 0;
+                loader.classList.remove('active');
+            }
+        }
 
-    // Обработчик Enter
-    function handleEnterKey() {
-        const value = input.value?.trim().toUpperCase();
+        function resetState() {
+            versions = [];
+            currentType = null;
+            currentId = null;
+        }
 
-        if (!value) return;
+        // API запросы
+        async function fetchTestVersions(testId) {
+            // Проверяем кэш
+            if (cache.tests[testId]) {
+                versions = cache.tests[testId];
+                return;
+            }
 
-        const testWithVersionMatch = value.match(/^(\w+-T\d+)\s+\(?(\d+)\.?0?\)?$/);
-        const runMatch = value.match(/^\w+-C\d+$/);
-        
-        if (testWithVersionMatch) {
-            const testId = testWithVersionMatch[1];
-            const ver = parseInt(testWithVersionMatch[2]);
-            const version = versions.find(v => v.ver === ver);
+            try {
+                showLoader();
+                message.textContent = 'Загрузка...';
+                message.className = 'message';
+                const response = await fetch(`/api/jira/tests/${testId}`);
 
-            if (version) {
-                addToHistory(testId, ver, 'test', [version]);
-                redirectToMainPage([version]);
-            } else {
-                message.textContent = 'Версия не найдена';
+                if (!response.ok) {
+                    throw new Error('Ошибка запроса', response);
+                }
+
+                const data = await response.json();
+
+                // Сохраняем в кэш
+                cache.tests[testId] = data;
+                versions = data;
+
+                if (versions.length === 0) {
+                    message.textContent = 'Тест не найден';
+                    message.className = 'message error';
+                } else {
+                    message.textContent = '';
+                }
+            } catch (error) {
+                message.textContent = 'Ошибка при загрузке данных';
                 message.className = 'message error';
-            }
-        } else if (runMatch && cache.runs[value]) {
-            const runData = cache.runs[value];
-            if (runData.length > 0) {
-                addToHistory(value, null, 'run', runData);
-                redirectToMainPage(runData);
+                versions = [];
+                console.error('Ошибка при загрузке данных', error);
+            } finally {
+                hideLoader();
             }
         }
-    }
 
-    // Инициализация
-    input.addEventListener('input', handleInput);
+        async function fetchRunVersions(runId) {
+            // Проверяем кэш
+            if (cache.runs[runId]) {
+                const runData = cache.runs[runId];
+                if (runData.length > 0) {
+                    message.textContent = 'Нажмите Enter для перехода';
+                    message.className = 'message success';
+                }
+                return;
+            }
 
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            handleEnterKey();
+            try {
+                showLoader();
+                message.textContent = 'Загрузка...';
+                message.className = 'message';
+                const response = await fetch(`/api/jira/runs/${runId}`);
+
+                if (!response.ok) {
+                    throw new Error('Ошибка запроса');
+                }
+
+                const runData = await response.json();
+
+                // Сохраняем в кэш
+                cache.runs[runId] = runData;
+
+                if (runData.length === 0) {
+                    message.textContent = 'Прогон не найден';
+                    message.className = 'message error';
+                } else {
+                    message.textContent = 'Нажмите Enter для перехода';
+                    message.className = 'message success';
+                }
+            } catch (error) {
+                message.textContent = 'Ошибка при загрузке данных';
+                message.className = 'message error';
+                console.error('Ошибка при загрузке данных', error);
+            } finally {
+                hideLoader();
+            }
         }
-    });
 
-    // Слушаем изменения localStorage из других вкладок
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'searchHistory') {
+        // Обработчики ввода
+        async function handleInput(e) {
+            const value = e.target.value?.trim().toUpperCase();
+            message.textContent = '';
+            message.className = 'message';
+            autocomplete.innerHTML = '';
+            userEnteredVersion = false;
+
+            if (!value) {
+                resetState();
+                return;
+            }
+
+            const testWithVersionMatch = value.match(/^(\w+-T\d+)\s+\(?(\d+)\.?0?\)?$/);
+            const testMatch = value.match(/^\w+-T\d+$/);
+            const runMatch = value.match(/^\w+-C\d+$/);
+
+            if (testWithVersionMatch) {
+                await handleTestWithVersion(testWithVersionMatch);
+            } else if (testMatch) {
+                await handleTest(value);
+            } else if (runMatch) {
+                await handleRun(value);
+            }
+        }
+
+        async function handleTestWithVersion(match) {
+            const testId = match[1];
+            const ver = parseInt(match[2]);
+            userEnteredVersion = true;
+
+            if (currentId !== testId) {
+                currentId = testId;
+                currentType = 'test';
+                await fetchTestVersions(testId);
+            } else {
+                // Используем кэшированные данные
+                versions = cache.tests[testId] || [];
+            }
+
+            if (versions.length > 0) {
+                const version = versions.find(v => v.ver === ver);
+                if (version) {
+                    message.textContent = 'Нажмите Enter для перехода';
+                    message.className = 'message success';
+                } else {
+                    showAutocomplete();
+                    message.textContent = 'Версия не найдена. Выберите из списка';
+                    message.className = 'message error';
+                }
+            }
+        }
+
+        async function handleTest(testId) {
+            if (currentId !== testId) {
+                currentId = testId;
+                currentType = 'test';
+                await fetchTestVersions(testId);
+            } else {
+                // Используем кэшированные данные
+                versions = cache.tests[testId] || [];
+            }
+
+            if (!userEnteredVersion && versions.length > 0) {
+                showAutocomplete();
+            }
+        }
+
+        async function handleRun(runId) {
+            if (currentId !== runId) {
+                currentId = runId;
+                currentType = 'run';
+                await fetchRunVersions(runId);
+            } else {
+                // Используем кэшированные данные
+                const runData = cache.runs[runId];
+                if (runData && runData.length > 0) {
+                    message.textContent = 'Нажмите Enter для перехода';
+                    message.className = 'message success';
+                }
+            }
+        }
+
+        // Автокомплит и редирект
+        function showAutocomplete() {
+            const items = versions.map(v => {
+                const div = document.createElement('div');
+                div.className = 'autocomplete-item';
+                div.textContent = `Версия ${v.ver}.0`;
+                div.onclick = () => selectVersion(v.ver);
+                return div;
+            });
+
+            const container = document.createElement('div');
+            container.className = 'autocomplete-items';
+            items.forEach(item => container.appendChild(item));
+
+            autocomplete.innerHTML = '';
+            autocomplete.appendChild(container);
+        }
+
+        function selectVersion(ver) {
+            input.value = `${currentId} (${ver}.0)`;
+            autocomplete.innerHTML = '';
+            message.textContent = 'Нажмите Enter для перехода';
+            message.className = 'message success';
+            userEnteredVersion = true;
+        }
+
+        function redirectToMainPage(data) {
+            const params = new URLSearchParams();
+            params.set('tests', JSON.stringify(data));
+            window.location.href = `/main-page.html?${params.toString()}`;
+        }
+
+        // История поиска (localStorage)
+        function addToHistory(id, ver, type, data) {
+            let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+
+            // Удаляем дубликаты
+            history = history.filter(item => {
+                if (type === 'test') {
+                    return !(item.id === id && item.ver === ver);
+                } else {
+                    return !(item.id === id && item.type === 'run');
+                }
+            });
+
+            // Добавляем новый элемент в начало
+            const newItem = {
+                id,
+                ver: ver || null,
+                type,
+                timestamp: Date.now(),
+                label: type === 'test' ? `${id} ${ver}.0` : id
+            };
+
+            history.unshift(newItem);
+
+            // Ограничиваем до 10 элементов
+            history = history.slice(0, 10);
+
+            localStorage.setItem('searchHistory', JSON.stringify(history));
             renderHistory();
         }
-    });
 
-    // Загружаем историю при открытии страницы
-    renderHistory();
-</script>
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+
+            if (history.length === 0) {
+                historyList.innerHTML = '<div class="history-empty">История пуста</div>';
+                return;
+            }
+
+            historyList.innerHTML = '';
+            history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.textContent = item.label;
+                div.onclick = () => {
+                    input.value = item.label;
+                    input.dispatchEvent(new Event('input'));
+                };
+                historyList.appendChild(div);
+            });
+        }
+
+        // Обработчик Enter
+        function handleEnterKey() {
+            const value = input.value?.trim().toUpperCase();
+
+            if (!value) return;
+
+            const testWithVersionMatch = value.match(/^(\w+-T\d+)\s+\(?(\d+)\.?0?\)?$/);
+            const runMatch = value.match(/^\w+-C\d+$/);
+
+            if (testWithVersionMatch) {
+                const testId = testWithVersionMatch[1];
+                const ver = parseInt(testWithVersionMatch[2]);
+                const version = versions.find(v => v.ver === ver);
+
+                if (version) {
+                    addToHistory(testId, ver, 'test', [version]);
+                    redirectToMainPage([version]);
+                } else {
+                    message.textContent = 'Версия не найдена';
+                    message.className = 'message error';
+                }
+            } else if (runMatch && cache.runs[value]) {
+                const runData = cache.runs[value];
+                if (runData.length > 0) {
+                    addToHistory(value, null, 'run', runData);
+                    redirectToMainPage(runData);
+                }
+            }
+        }
+
+        // Инициализация
+        input.addEventListener('input', handleInput);
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleEnterKey();
+            }
+        });
+
+        // Слушаем изменения localStorage из других вкладок
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'searchHistory') {
+                renderHistory();
+            }
+        });
+
+        // Загружаем историю при открытии страницы
+        renderHistory();
+    </script>
 </body>
 </html>
