@@ -642,22 +642,15 @@
                     this.tests = MockData.tests;
                     this.renderLeftSidebar();
                 } else {
-                    fetch('/api/jira/tests') // TODO: брать список id из урла 
-                        .then(r => r.json())
-                        .then(tests => {
-                            this.tests = tests;
-                            // Инициализируем статусы по умолчанию, если их нет
-                            this.tests.forEach(test => {
-                                if (!(test.id in this.savedData.statuses.tests)) {
-                                    this.savedData.statuses.tests[test.id] = 'warning';
-                                }
-                            });
-                            
-                            this.renderLeftSidebar();
-                        })
-                        .catch(error => {
-                            console.error('Ошибка загрузки тестов:', error);
-                        });
+                    this.tests = JSON.parse(new URLSearchParams(window.location.search).get('tests'));
+                    // Инициализируем статусы по умолчанию, если их нет
+                    this.tests.forEach(test => {
+                        if (!(test.id in this.savedData.statuses.tests)) {
+                            this.savedData.statuses.tests[test.id] = 'warning';
+                        }
+                    });
+                    
+                    this.renderLeftSidebar();
                 }
             }
             
