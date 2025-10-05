@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Search</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f5f5f5;
+        }
+        .container {
+            text-align: center;
+            width: 400px;
+        }
+        .input-wrapper {
+            position: relative;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            padding-right: 40px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        .loader {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        .loader.active {
+            display: block;
+        }
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
+        }
+        .message {
+            margin-top: 10px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+        .error {
+            color: #f44336;
+        }
+        .autocomplete {
+            position: relative;
+            margin-top: 5px;
+        }
+        .autocomplete-items {
+            border: 1px solid #ccc;
+            border-top: none;
+            background: white;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .autocomplete-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .autocomplete-item:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="input-wrapper">
+            <input type="text" id="searchInput" placeholder="Введите ID теста (ASDCO-T777) или прогона (ASDCO-C777)">
+            <div class="loader" id="loader"></div>
+        </div>
+        <div class="autocomplete" id="autocomplete"></div>
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        const input = document.getElementById('searchInput');
+        const message = document.getElementById('message');
+        const autocomplete = document.getElementById('autocomplete');
+        const loader = document.getElementById('loader');
+        
+        let versions = [];
+        let currentType = null;
+        let currentId = null;
+        let userEnteredVersion = false;
+
+        input.addEventListener('input', handleInput);
+
+        async function handleInput(e) {
+            const value = e.target.value?.trim().toUpperCase();
+            message.textContent = '';
+            message.className = 'message';
+            autocomplete.innerHTML = '';
+            userEnteredVersion = false;
+
+            if (!value) {
+                resetState();
+                return;
+            }
+
+            const testWithVersionMatch = value.match(/^(\w+-T\d+)\s+\(?(\d+)\.?0?\)?$/);
+            const testMatch = value.match(/^\w+-T\d+$/);
+            const runMatch = value.match(/^\w+-C\d+$/);
+
+            if (testWithVersionMatch) {
+                await handleTestWithVersion(testWithVersionMatch);
+            } else if (testMatch) {
+                await handleTest(value);
+            } else if (runMatch) {
+                await handleRun(value);
+            }
+        }
+
+        function resetState() {
+            versions = [];
+            currentType = null;
+            currentId = null;
+        }
+
+        async function handleTestWithVersion(match) {
+            const testId = match[1];
+            const ver = parseInt(match[2]);
+            userEnteredVersion = true;
+
+            if (currentId !== testId) {
+                currentId = testId;
+                currentType = 'test';
+                await fetchTestVersions(testId);
+            
+                if (versions.length > 0 && versions.every(v => v.ver !== ver)) {
+                    showAutocomplete();
+                }
+            } else {
+                // Используем кэшированные данные
+                versions = cache.tests[testId] || [];
+            }
+
+            checkAndRedirect(ver);
+        }
+
+        async function handleTest(testId) {
+            if (currentId !== testId) {
+                currentId = testId;
+                currentType = 'test';
+                await fetchTestVersions(testId);
+            } else {
+                // Используем кэшированные данные
+                versions = cache.tests[testId] || [];
+            }
+            
+            if (!userEnteredVersion && versions.length > 0) {
+                showAutocomplete();
+            }
+        }
+
+        async function handleRun(runId) {
+            if (currentId !== runId) {
+                currentId = runId;
+                currentType = 'run';
+                await fetchRunVersions(runId);
+            }
+            // Если ID тот же, используем кэшированные данные (редирект уже произошел или будет)
+        }
+
+
+        
+        // Кэш результатов запросов
+        const cache = {
+            tests: {}, // { "ASDCO-T777": [...versions] }
+            runs: {}   // { "ASDCO-C777": [...runData] }
+        };
+        
+        // Счетчик активных запросов для управления индикатором
+        let activeRequests = 0;
+
+        function showLoader() {
+            activeRequests++;
+            loader.classList.add('active');
+        }
+
+        function hideLoader() {
+            activeRequests--;
+            if (activeRequests <= 0) {
+                activeRequests = 0;
+                loader.classList.remove('active');
+            }
+        }
+
+        async function fetchTestVersions(testId) {
+            // Проверяем кэш
+            if (cache.tests[testId]) {
+                versions = cache.tests[testId];
+                return;
+            }
+
+            try {
+                showLoader();
+                message.textContent = 'Загрузка...';
+                const response = await fetch(`/api/jira/tests/${testId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Ошибка запроса', response);
+                }
+                
+                const data = await response.json();
+                
+                // Сохраняем в кэш
+                cache.tests[testId] = data;
+                versions = data;
+                
+                if (versions.length === 0) {
+                    message.textContent = 'Тест не найден';
+                    message.className = 'message error';
+                } else {
+                    message.textContent = '';
+                }
+            } catch (error) {
+                message.textContent = 'Ошибка при загрузке данных';
+                message.className = 'message error';
+                versions = [];
+                console.error('Ошибка при загрузке данных', error);
+                // Не сохраняем ошибки в кэш
+            } finally {
+                hideLoader();
+            }
+        }
+
+        async function fetchRunVersions(runId) {
+            // Проверяем кэш
+            if (cache.runs[runId]) {
+                const runData = cache.runs[runId];
+                if (runData.length > 0) {
+                    window.location.href = '/main-page.html';
+                }
+                return;
+            }
+
+            try {
+                showLoader();
+                message.textContent = 'Загрузка...';
+                const response = await fetch(`/api/jira/runs/${runId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Ошибка запроса');
+                }
+                
+                const runData = await response.json();
+                
+                // Сохраняем в кэш
+                cache.runs[runId] = runData;
+                
+                if (runData.length === 0) {
+                    message.textContent = 'Прогон не найден';
+                    message.className = 'message error';
+                } else {
+                    message.textContent = '';
+                    window.location.href = '/main-page.html';
+                }
+            } catch (error) {
+                message.textContent = 'Ошибка при загрузке данных';
+                message.className = 'message error';
+                // Не сохраняем ошибки в кэш
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function showAutocomplete() {
+            const items = versions.map(v => {
+                const div = document.createElement('div');
+                div.className = 'autocomplete-item';
+                div.textContent = `Версия ${v.ver}.0`;
+                div.onclick = () => selectVersion(v.ver);
+                return div;
+            });
+
+            const container = document.createElement('div');
+            container.className = 'autocomplete-items';
+            items.forEach(item => container.appendChild(item));
+            
+            autocomplete.innerHTML = '';
+            autocomplete.appendChild(container);
+        }
+
+        function selectVersion(ver) {
+            input.value = `${currentId} ${ver}.0`;
+            autocomplete.innerHTML = '';
+            checkAndRedirect(ver);
+        }
+
+        function checkAndRedirect(ver) {
+            const version = versions.find(v => v.ver === ver);
+            
+            if (version) {
+                window.location.href = '/main-page.html';
+            } else {
+                message.textContent = 'Версия не найдена';
+                message.className = 'message error';
+                autocomplete.innerHTML = '';
+            }
+        }
+    </script>
+</body>
+</html>
