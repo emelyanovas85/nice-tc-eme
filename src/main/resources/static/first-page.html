@@ -84,6 +84,32 @@
         .autocomplete-item:hover {
             background: #f0f0f0;
         }
+        .history {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .history-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .history-item {
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .history-item:hover {
+            background: #f0f0f0;
+        }
+        .history-empty {
+            font-size: 14px;
+            color: #999;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -94,99 +120,25 @@
         </div>
         <div class="autocomplete" id="autocomplete"></div>
         <div class="message" id="message"></div>
+        
+        <div class="history">
+            <div id="historyList"></div>
+        </div>
     </div>
 
+    <!-- Глобальное состояние и DOM элементы -->
     <script>
         const input = document.getElementById('searchInput');
         const message = document.getElementById('message');
         const autocomplete = document.getElementById('autocomplete');
         const loader = document.getElementById('loader');
+        const historyList = document.getElementById('historyList');
         
         let versions = [];
         let currentType = null;
         let currentId = null;
         let userEnteredVersion = false;
 
-        input.addEventListener('input', handleInput);
-
-        async function handleInput(e) {
-            const value = e.target.value?.trim().toUpperCase();
-            message.textContent = '';
-            message.className = 'message';
-            autocomplete.innerHTML = '';
-            userEnteredVersion = false;
-
-            if (!value) {
-                resetState();
-                return;
-            }
-
-            const testWithVersionMatch = value.match(/^(\w+-T\d+)\s+\(?(\d+)\.?0?\)?$/);
-            const testMatch = value.match(/^\w+-T\d+$/);
-            const runMatch = value.match(/^\w+-C\d+$/);
-
-            if (testWithVersionMatch) {
-                await handleTestWithVersion(testWithVersionMatch);
-            } else if (testMatch) {
-                await handleTest(value);
-            } else if (runMatch) {
-                await handleRun(value);
-            }
-        }
-
-        function resetState() {
-            versions = [];
-            currentType = null;
-            currentId = null;
-        }
-
-        async function handleTestWithVersion(match) {
-            const testId = match[1];
-            const ver = parseInt(match[2]);
-            userEnteredVersion = true;
-
-            if (currentId !== testId) {
-                currentId = testId;
-                currentType = 'test';
-                await fetchTestVersions(testId);
-            
-                if (versions.length > 0 && versions.every(v => v.ver !== ver)) {
-                    showAutocomplete();
-                }
-            } else {
-                // Используем кэшированные данные
-                versions = cache.tests[testId] || [];
-            }
-
-            checkAndRedirect(ver);
-        }
-
-        async function handleTest(testId) {
-            if (currentId !== testId) {
-                currentId = testId;
-                currentType = 'test';
-                await fetchTestVersions(testId);
-            } else {
-                // Используем кэшированные данные
-                versions = cache.tests[testId] || [];
-            }
-            
-            if (!userEnteredVersion && versions.length > 0) {
-                showAutocomplete();
-            }
-        }
-
-        async function handleRun(runId) {
-            if (currentId !== runId) {
-                currentId = runId;
-                currentType = 'run';
-                await fetchRunVersions(runId);
-            }
-            // Если ID тот же, используем кэшированные данные (редирект уже произошел или будет)
-        }
-
-
-        
         // Кэш результатов запросов
         const cache = {
             tests: {}, // { "ASDCO-T777": [...versions] }
@@ -195,7 +147,10 @@
         
         // Счетчик активных запросов для управления индикатором
         let activeRequests = 0;
+    </script>
 
+    <!-- Утилиты для работы с индикатором загрузки -->
+    <script>
         function showLoader() {
             activeRequests++;
             loader.classList.add('active');
@@ -209,6 +164,15 @@
             }
         }
 
+        function resetState() {
+            versions = [];
+            currentType = null;
+            currentId = null;
+        }
+    </script>
+
+    <!-- API запросы -->
+    <script>
         async function fetchTestVersions(testId) {
             // Проверяем кэш
             if (cache.tests[testId]) {
@@ -253,7 +217,8 @@
             if (cache.runs[runId]) {
                 const runData = cache.runs[runId];
                 if (runData.length > 0) {
-                    window.location.href = '/main-page.html';
+                    addToHistory(runId, null, 'run', runData);
+                    redirectToMainPage(runData);
                 }
                 return;
             }
@@ -277,7 +242,8 @@
                     message.className = 'message error';
                 } else {
                     message.textContent = '';
-                    window.location.href = '/main-page.html';
+                    addToHistory(runId, null, 'run', runData);
+                    redirectToMainPage(runData);
                 }
             } catch (error) {
                 message.textContent = 'Ошибка при загрузке данных';
@@ -287,7 +253,84 @@
                 hideLoader();
             }
         }
+    </script>
 
+    <!-- Обработчики ввода -->
+    <script>
+        async function handleInput(e) {
+            const value = e.target.value?.trim().toUpperCase();
+            message.textContent = '';
+            message.className = 'message';
+            autocomplete.innerHTML = '';
+            userEnteredVersion = false;
+
+            if (!value) {
+                resetState();
+                return;
+            }
+
+            const testWithVersionMatch = value.match(/^(\w+-T\d+)\s+\(?(\d+)\.?0?\)?$/);
+            const testMatch = value.match(/^\w+-T\d+$/);
+            const runMatch = value.match(/^\w+-C\d+$/);
+
+            if (testWithVersionMatch) {
+                await handleTestWithVersion(testWithVersionMatch);
+            } else if (testMatch) {
+                await handleTest(value);
+            } else if (runMatch) {
+                await handleRun(value);
+            }
+        }
+
+        async function handleTestWithVersion(match) {
+            const testId = match[1];
+            const ver = parseInt(match[2]);
+            userEnteredVersion = true;
+
+            if (currentId !== testId) {
+                currentId = testId;
+                currentType = 'test';
+                await fetchTestVersions(testId);
+            } else {
+                // Используем кэшированные данные
+                versions = cache.tests[testId] || [];
+            }
+
+            // Проверка и показ автокомплита вынесены за пределы условия
+            if (versions.length > 0 && versions.every(v => v.ver !== ver)) {
+                showAutocomplete();
+            }
+
+            checkAndRedirect(ver);
+        }
+
+        async function handleTest(testId) {
+            if (currentId !== testId) {
+                currentId = testId;
+                currentType = 'test';
+                await fetchTestVersions(testId);
+            } else {
+                // Используем кэшированные данные
+                versions = cache.tests[testId] || [];
+            }
+            
+            if (!userEnteredVersion && versions.length > 0) {
+                showAutocomplete();
+            }
+        }
+
+        async function handleRun(runId) {
+            if (currentId !== runId) {
+                currentId = runId;
+                currentType = 'run';
+                await fetchRunVersions(runId);
+            }
+            // Если ID тот же, используем кэшированные данные (редирект уже произошел или будет)
+        }
+    </script>
+
+    <!-- Автокомплит и редирект -->
+    <script>
         function showAutocomplete() {
             const items = versions.map(v => {
                 const div = document.createElement('div');
@@ -315,13 +358,99 @@
             const version = versions.find(v => v.ver === ver);
             
             if (version) {
-                window.location.href = '/main-page.html';
+                addToHistory(currentId, ver, 'test', [version]);
+                redirectToMainPage([version]);
             } else {
                 message.textContent = 'Версия не найдена';
                 message.className = 'message error';
                 autocomplete.innerHTML = '';
             }
         }
+
+        function redirectToMainPage(data) {
+            const params = new URLSearchParams();
+            params.set('tests', JSON.stringify(data));
+            window.location.href = `/main-page.html?${params.toString()}`;
+        }
+    </script>
+
+    <!-- 
+        ИСТОРИЯ ПОИСКА (localStorage):
+        - Хранится в localStorage под ключом 'searchHistory'
+        - Формат: массив объектов [{ id: "ASDCO-T777", ver: 2, type: "test", timestamp: 123456 }, ...]
+        - При добавлении нового элемента:
+          1. Удаляем дубликаты (по id и ver)
+          2. Добавляем новый элемент в начало массива
+          3. Ограничиваем до 10 последних элементов
+        - При открытии страницы загружаем и отображаем историю
+        - При изменении истории в другой вкладке (storage event) - обновляем отображение
+    -->
+    <script>
+        function addToHistory(id, ver, type, data) {
+            let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+            
+            // Удаляем дубликаты
+            history = history.filter(item => {
+                if (type === 'test') {
+                    return !(item.id === id && item.ver === ver);
+                } else {
+                    return !(item.id === id && item.type === 'run');
+                }
+            });
+            
+            // Добавляем новый элемент в начало
+            const newItem = {
+                id,
+                ver: ver || null,
+                type,
+                timestamp: Date.now(),
+                label: type === 'test' ? `${id} ${ver}.0` : id
+            };
+            
+            history.unshift(newItem);
+            
+            // Ограничиваем до 10 элементов
+            history = history.slice(0, 10);
+            
+            localStorage.setItem('searchHistory', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+            
+            if (history.length === 0) {
+                historyList.innerHTML = '<div class="history-empty">История пуста</div>';
+                return;
+            }
+            
+            historyList.innerHTML = '';
+            history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.textContent = item.label;
+                div.onclick = () => {
+                    input.value = item.label;
+                    input.dispatchEvent(new Event('input'));
+                };
+                historyList.appendChild(div);
+            });
+        }
+    </script>
+
+    <!-- Инициализация -->
+    <script>
+        input.addEventListener('input', handleInput);
+        
+        // Слушаем изменения localStorage из других вкладок
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'searchHistory') {
+                renderHistory();
+            }
+        });
+
+        // Загружаем историю при открытии страницы
+        renderHistory();
     </script>
 </body>
 </html>
