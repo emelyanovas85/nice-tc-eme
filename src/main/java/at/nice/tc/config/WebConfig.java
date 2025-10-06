@@ -29,6 +29,6 @@ public class WebConfig implements WebMvcConfigurer {
 
         // Перенаправляем корневой путь на index.html
         registry.addResourceHandler("/")
-                .addResourceLocations("classpath:/static/index.html");
+                .addResourceLocations("classpath:/static/first-page.html");
     }
 }
