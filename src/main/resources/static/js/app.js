@@ -1,41 +1,3 @@
-// app-oop.js
-class Api {
-    static async getFields() {
-        const res = await fetch('/api/jira/fields');
-        if (!res.ok) throw new Error('fields failed');
-        return res.json(); // [{id, name}]
-    }
-
-    static async getTestFieldValues(testId, fieldIds) {
-        const params = new URLSearchParams();
-        params.set('fields', JSON.stringify(fieldIds));
-        const res = await fetch(`/api/jira/versions/${encodeURIComponent(testId)}?${params}`);
-        if (!res.ok) throw new Error('versions failed');
-        return res.json(); // [values] в порядке fieldIds
-    }
-
-    static async startBatch(testId) {
-        const res = await fetch(`/api/ai/batch/${encodeURIComponent(testId)}`);
-        if (!res.ok) throw new Error('batch failed');
-        return res.json(); // [{id, text}]
-    }
-
-    static async getChecks() {
-        const res = await fetch('/api/ai/checks');
-        if (!res.ok) throw new Error('checks failed');
-        return res.json(); // [{id, description, prompt}]
-    }
-
-    static async chat(payload) {
-        const res = await fetch('/api/ai/chat', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error('chat failed');
-        return res.json(); // {response, ...} или потоковое SSE — здесь простой ответ
-    }
-}
 
 const Status = Object.freeze({
     Pending: 'pending',
@@ -108,16 +70,17 @@ class TestEntity {
         this.active = true;
     }
 
-    computeCheckStatus(text) {
+    static computeCheckStatus(text) {
         const t = (text || '').toLowerCase();
         if (t.includes('не соответствует')) return Status.Error;
-        if (t.includes('соответствует')) return Status.Success;
+        if (t === 'соответствует') return Status.Success;
         return Status.Warning;
     }
 
     computeTestStatus() {
         const statuses = Array.from(this.checkResults.values()).map(v => v.status);
         if (statuses.length === 0) return Status.Pending;
+        if (statuses.some(s => s === Status.Warning)) return Status.Warning;
         if (statuses.some(s => s === Status.Error)) return Status.Error;
         if (statuses.every(s => s === Status.Success)) return Status.Success;
         return Status.Warning;
@@ -356,7 +319,7 @@ class App {
         tests.forEach(t => this.store.tests.set(String(t.id), new TestEntity(t, this.store)));
 
         // 2) Загрузить общий список полей
-        this.store.fields = await Api.getFields();
+        this.store.fields = await Jira.getFields();
 
         // 3) Для каждого теста: получить значения полей
         for (const test of this.tests) {
@@ -365,7 +328,7 @@ class App {
             test.active = false;
             try {
                 const fieldIds = this.store.fields.map(f => String(f.id));
-                const values = await Api.getTestFieldValues(test.id, fieldIds);
+                const values = await Jira.getTestFieldValues(test.id, fieldIds);
                 test.setFieldsWithValues(this.store.fields, values);
             } finally {
                 this.store.endTestProcessing(test.id);
@@ -379,7 +342,7 @@ class App {
             test.status = Status.Pending;
             this.ui.updateAll(this.tests);
             try {
-                const results = await Api.startBatch(test.id); // [{id,text}]
+                const results = await AI.startBatch(test.id); // [{id,text}]
                 test.setBatchResults(results);
                 // Сохранить в чат начальные сообщения для каждой проверки
                 results.forEach(r => {
@@ -394,7 +357,7 @@ class App {
 
         // 5) Если не загружены общие проверки — загрузить
         if (!this.store.checks.length) {
-            this.store.checks = await Api.getChecks(); // [{id,description,prompt}]
+            this.store.checks = await AI.getChecks(); // [{id,description,prompt}]
         }
 
         // 6) Отрисовать левый сайдбар
@@ -467,12 +430,12 @@ class App {
                 check: String(checkId),
                 messages
             };
-            const data = await Api.chat(payload, { signal: controller.signal });
+            const data = await AI.chat(payload, { signal: controller.signal });
             const response = data.response ?? (typeof data === 'string' ? data : JSON.stringify(data));
             this.store.appendChat(testId, checkId, { at: new Date().toISOString(), from: 'assistant', text: response });
 
             // Обновим статус проверки и теста
-            const status = (new TestEntity({}, this.store)).computeCheckStatus(response);
+            const status = TestEntity.computeCheckStatus(response);
             const t = this.getTest(testId);
             t.checkResults.set(String(checkId), { answerText: response, status });
             t.status = t.computeTestStatus();

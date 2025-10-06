@@ -49,6 +49,27 @@ class Jira {
     }
 
     /**
+     * Получение значений полей теста по идентификатору теста
+     * @param {string} testId - Идентификатор теста (например, "ABCDE-T777")
+     * @param {array} fieldIds - Идентификаторы полей
+     * @returns {Promise<Array<Object>>} Массив объектов Object (что высчитывает поле на бэке)
+     */
+    static async getTestFieldValues(testId, fieldIds) {
+        const params = new URLSearchParams();
+        params.set('fields', JSON.stringify(fieldIds));
+        return fetch(`${this.API_BASE_URL}/versions/${encodeURIComponent(testId)}?${params}`)
+            .then(response => {
+                if (response.status === 404) {
+                    throw new Error(`Values not found: test ${testId}, fields ${fieldIds}`);
+                }
+                if (!response.ok) {
+                    throw new Error('Failed to search field values: test ${testId}, fields ${fieldIds}`);
+                }
+                return response.json();
+            });
+    }
+
+    /**
      * Поиск версий теста по идентификатору теста
      * @param {string} testId - Идентификатор теста (например, "ABCDE-T777")
      * @returns {Promise<Array<Object>>} Массив объектов JiraTestVersionDTO
