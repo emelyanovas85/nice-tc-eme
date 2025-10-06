@@ -5,14 +5,13 @@ import at.nice.tc.dto.JiraFieldDTO;
 import at.nice.tc.dto.JiraTestDTO;
 import at.nice.tc.dto.JiraTestVersionDTO;
 import at.nice.tc.utils.AsyncUtils;
+import at.nice.tc.utils.ThrowableUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -54,7 +53,18 @@ public class JiraService {
         return new ArrayList<>(CACHED_FIELDS.values());
     }
 
-    public CompletableFuture<Object> getFieldValue(String testId, String fieldId) {
+    public CompletableFuture<?> getFieldValue(String testId, String fieldId) {
         return tests.get(testId).thenApplyAsync(CACHED_FIELDS.get(fieldId)::getValue);
+    }
+
+    public CompletableFuture<List<?>> getFieldValues(String testId, List<String> fieldIds) {
+        CompletableFuture<?>[] futures = fieldIds.stream()
+                .map(fieldId -> getFieldValue(testId, fieldId))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(futures)
+                .thenApply(v -> Arrays.stream(futures)
+                        .map(CompletableFuture::join) // Безопасно, так как allOf гарантирует завершение всех CompletableFuture
+                        .collect(Collectors.toList())
+                );
     }
 }

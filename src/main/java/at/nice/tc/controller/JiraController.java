@@ -7,13 +7,12 @@ import at.nice.tc.service.JiraService;
 import at.nice.tc.utils.ThrowableUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -41,7 +40,7 @@ public class JiraController {
     }
 
     /**
-     * Возвращает список полей теста
+     * Возвращает список полей, общий для всех тестов
      */
     @GetMapping("/fields")
     public ResponseEntity<List<JiraFieldDTO>> getFields() {
@@ -57,6 +56,8 @@ public class JiraController {
 
     /**
      * Возвращает значение поля для теста
+     * @param id тест вида "12345"
+     * @param fid id поля
      */
     @GetMapping("/versions/{id}/fields/{fid}")
     public CompletableFuture<ResponseEntity<?>> getFieldValue(@PathVariable String id, @PathVariable String fid) {
@@ -69,6 +70,22 @@ public class JiraController {
                     } else {
                         return ResponseEntity.notFound().build(); // 404 Not Found
                     }
+                });
+    }
+
+    /**
+     * Возвращает значения полей для теста
+     * @param id тест вида "12345"
+     * @param fids список id полей
+     */
+    @GetMapping(value = "/versions/{id}", params = "fields")
+    public CompletableFuture<ResponseEntity<?>> getFieldValues(@PathVariable String id,
+                                                               @RequestParam("fields") List<String> fids) {
+        return jiraService.getFieldValues(id, fids)
+                .handle((result, throwable) -> {
+                    if (throwable != null)
+                        return ResponseEntity.internalServerError().body(ThrowableUtils.asString(throwable)); // 500
+                    return ResponseEntity.ok(result); // 200 OK
                 });
     }
 

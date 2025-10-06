@@ -14,9 +14,13 @@ public class JiraFieldDTO {
     @JsonIgnore
     private Function<JiraTestDTO, Object> valueExtractor;
 
+    @SuppressWarnings("unchecked")
     @JsonIgnore
     public <T> T getValue(JiraTestDTO test) {
-        //noinspection unchecked
-        return (T) valueExtractor.apply(test);
+        try {
+            return (T) valueExtractor.apply(test);
+        } catch (Throwable t) {
+            return (T) t;
+        }
     }
 }
