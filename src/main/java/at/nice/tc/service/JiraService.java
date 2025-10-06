@@ -9,9 +9,14 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -37,11 +42,19 @@ public class JiraService {
         return CompletableFuture.supplyAsync(() -> jira.readRunAsUsedTestVersions(runId));
     }
 
-    protected static final List<JiraFieldDTO> CACHED_FIELDS = List.of(
+    protected static final Map<String, JiraFieldDTO> CACHED_FIELDS = Stream.of(
             new JiraFieldDTO("1", "name", JiraTestDTO::getName)
-    );
+    ).collect(Collectors.toUnmodifiableMap(JiraFieldDTO::getId, f -> f));
+
+    public Map<String, JiraFieldDTO> getFieldsMap() {
+        return CACHED_FIELDS;
+    }
 
     public List<JiraFieldDTO> getFields() {
-        return CACHED_FIELDS;
+        return new ArrayList<>(CACHED_FIELDS.values());
+    }
+
+    public CompletableFuture<Object> getFieldValue(String testId, String fieldId) {
+        return tests.get(testId).thenApplyAsync(CACHED_FIELDS.get(fieldId)::getValue);
     }
 }

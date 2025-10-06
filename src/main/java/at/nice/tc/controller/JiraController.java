@@ -56,6 +56,23 @@ public class JiraController {
     }
 
     /**
+     * Возвращает значение поля для теста
+     */
+    @GetMapping("/versions/{id}/fields/{fid}")
+    public CompletableFuture<ResponseEntity<?>> getFieldValue(@PathVariable String id, @PathVariable String fid) {
+        return jiraService.getFieldValue(id, fid)
+                .handle((result, throwable) -> {
+                    if (throwable != null)
+                        return ResponseEntity.internalServerError().body(ThrowableUtils.asString(throwable)); // 500
+                    if (result != null) {
+                        return ResponseEntity.ok(result); // 200 OK
+                    } else {
+                        return ResponseEntity.notFound().build(); // 404 Not Found
+                    }
+                });
+    }
+
+    /**
      * @param id идентификатор определенной версии (12345), а не теста (ABCDE-T777)
      */
     @GetMapping("/versions/{id}")
