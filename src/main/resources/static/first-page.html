@@ -350,7 +350,7 @@
             const items = versions.map(v => {
                 const div = document.createElement('div');
                 div.className = 'autocomplete-item';
-                div.textContent = `Версия ${v.ver}.0`;
+                div.textContent = `${currentId} (${ver}.0)`;
                 div.onclick = () => selectVersion(v.ver);
                 return div;
             });
