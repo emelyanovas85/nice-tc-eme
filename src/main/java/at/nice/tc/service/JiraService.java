@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 @Service
 @AllArgsConstructor
 public class JiraService {
-    private final ConcurrentHashMap<String, CompletableFuture<JiraTestDTO>> tests;
+    private final ConcurrentHashMap<String, CompletableFuture<JiraTestDTO>> tests = new ConcurrentHashMap<>();
     private final Jira jira;
 
 

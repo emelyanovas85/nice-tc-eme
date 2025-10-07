@@ -16,13 +16,10 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @RestController
 @RequestMapping("/api/jira")
+@RequiredArgsConstructor
 public class JiraController {
 
     private final JiraService jiraService;
-
-    public JiraController(JiraService jiraService) {
-        this.jiraService = jiraService;
-    }
 
 
     /**
