@@ -36,7 +36,7 @@ class Jira {
      * @returns {Promise<Object>} Объект JiraTestDTO
      */
     static readTest(versionId) {
-        return fetch(`${this.API_BASE_URL}/versions/${versionId}`)
+        return fetch(`${this.API_BASE_URL}/tests/${versionId}`)
             .then(response => {
                 if (response.status === 404) {
                     throw new Error(`Test version ${versionId} not found`);
