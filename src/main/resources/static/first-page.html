@@ -99,8 +99,10 @@
         }
         .history-item {
             padding: 8px 12px;
-            background: white;
             border: 1px solid #ddd;
+            border-top: none;
+            border-left: none;
+            border-right: none;
             border-radius: 4px;
             margin-bottom: 5px;
             cursor: pointer;
@@ -288,9 +290,11 @@
             userEnteredVersion = true;
 
             if (currentId !== testKey) {
-                currentId = testKey;
-                currentType = 'test';
                 await fetchTestVersions(testKey);
+                if (versions.length) { // если версии получены
+                    currentId = testKey;
+                    currentType = 'test';
+                }
             } else {
                 // Используем кэшированные данные
                 versions = cache.tests[testKey] || [];
@@ -312,9 +316,11 @@
 
         async function handleTest(testKey) {
             if (currentId !== testKey) {
-                currentId = testKey;
-                currentType = 'test';
                 await fetchTestVersions(testKey);
+                if (versions.length) { // если версии получены
+                    currentId = testKey;
+                    currentType = 'test';
+                }
             } else {
                 // Используем кэшированные данные
                 versions = cache.tests[testKey] || [];
@@ -369,6 +375,7 @@
             message.textContent = 'Нажмите Enter для перехода';
             message.className = 'message success';
             userEnteredVersion = true;
+            input.focus();
         }
 
         function redirectToMainPage(data) {
@@ -378,25 +385,25 @@
         }
 
         // История поиска (localStorage)
-        function addToHistory(id, ver, type, data) {
+        function addToHistory(key, ver, type, data) {
             let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
 
             // Удаляем дубликаты
             history = history.filter(item => {
                 if (type === 'test') {
-                    return !(item.id === id && item.version === ver);
+                    return !(item.key === key && item.version === ver);
                 } else {
-                    return !(item.id === id && item.type === 'run');
+                    return !(item.key === key && item.type === 'run');
                 }
             });
 
             // Добавляем новый элемент в начало
             const newItem = {
-                id,
+                key,
                 ver: ver || null,
                 type,
                 timestamp: Date.now(),
-                label: type === 'test' ? `${id} ${ver}.0` : id
+                label: type === 'test' ? `${key} (${ver}.0)` : key
             };
 
             history.unshift(newItem);
@@ -417,10 +424,21 @@
             }
 
             historyList.innerHTML = '';
-            history.forEach(item => {
+            history.sort((i1,i2) => i2.timestamp - t1.timestamp).forEach(item => {
                 const div = document.createElement('div');
+                let date = new Date(item.timestamp);
+                date = [  // "08.10.2025 12:34:56"
+                        String(date.getDate()).padStart(2, '0'),
+                        String(date.getMonth() + 1).padStart(2, '0'),
+                        date.getFullYear()
+                    ].join('.') + ' ' + [
+                        String(date.getHours()).padStart(2, '0'),
+                        String(date.getMinutes()).padStart(2, '0'),
+                        String(date.getSeconds()).padStart(2, '0')
+                    ].join(':');
+
                 div.className = 'history-item';
-                div.textContent = item.label;
+                div.textContent = date + '   ' + item.label;
                 div.onclick = () => {
                     input.value = item.label;
                     input.dispatchEvent(new Event('input'));
@@ -439,12 +457,12 @@
             const runMatch = value.match(/^\w+-C\d+$/);
 
             if (testWithVersionMatch) {
-                const testId = testWithVersionMatch[1];
+                const testKey = testWithVersionMatch[1];
                 const ver = testWithVersionMatch[2];
                 const version = versions.find(v => v.version === ver);
 
                 if (version) {
-                    addToHistory(testId, ver, 'test', [version]);
+                    addToHistory(testKey, ver, 'test', [version]);
                     redirectToMainPage([version]);
                 } else {
                     message.textContent = 'Версия не найдена';

@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -133,7 +134,7 @@ public interface Jira {
             Jira jira;
             try {
                 jira = jiraCache = origin.get();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 jira = null;
             }
             return Optional.ofNullable(jira);
@@ -166,7 +167,10 @@ public interface Jira {
 
         private static <T> T saved(String key) {
             try {
-                return MAPPER.readValue(ROOT.resolve(key + ".json").toFile(), new TypeReference<>() {});
+                File file = ROOT.resolve(key + ".json").toFile();
+                if (!file.exists())
+                    return null;
+                return MAPPER.readValue(file, new TypeReference<>() {});
             } catch (IOException e) {
                 log.warn("Ошибка получения сохраненного значения {}", key, e);
                 return null;

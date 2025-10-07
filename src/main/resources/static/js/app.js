@@ -46,9 +46,10 @@ class Store {
 }
 
 class TestEntity {
-    constructor({ id, name }, store) {
-        this.id = id;
-        this.name = name || String(id);
+    constructor({ id, testKey, version }, store) {
+        this.id = String(id);
+        this.name = String(version);
+        this.testKey = testKey;
         this.store = store;
         this.fields = [];         // [{id,name,value}]
         this.checkResults = new Map(); // checkId -> {answerText, status}
@@ -125,7 +126,7 @@ class UI {
             st.innerHTML = this.statusIcon(test.status);
 
             const title = document.createElement('span');
-            title.textContent = test.name;
+            title.textContent = `${test.testKey} (${test.version}.0)`;
 
             const spin = document.createElement('span');
             spin.className = 'tab-spinner';
@@ -315,7 +316,7 @@ class App {
     async init() {
         // 1) Получить список тестов из URL
         const testsParam = new URLSearchParams(window.location.search).get('tests');
-        const tests = JSON.parse(testsParam || '[]'); // [{id,name}]
+        const tests = JSON.parse(testsParam || '[]'); // [{ id, testKey, version }]
         tests.forEach(t => this.store.tests.set(String(t.id), new TestEntity(t, this.store)));
 
         // 2) Загрузить общий список полей
