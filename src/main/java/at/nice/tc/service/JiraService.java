@@ -5,13 +5,14 @@ import at.nice.tc.dto.JiraFieldDTO;
 import at.nice.tc.dto.JiraTestDTO;
 import at.nice.tc.dto.JiraTestVersionDTO;
 import at.nice.tc.utils.AsyncUtils;
-import at.nice.tc.utils.ThrowableUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -33,12 +34,12 @@ public class JiraService {
         return tests.computeIfAbsent(id, AsyncUtils.asCompletableFuture(jira::readTestFromJira));
     }
 
-    public CompletableFuture<List<JiraTestVersionDTO>> searchVersionsAsync(String testId) {
-        return CompletableFuture.supplyAsync(() -> jira.searchVersions(testId));
+    public CompletableFuture<List<JiraTestVersionDTO>> searchVersionsAsync(String testKey) {
+        return CompletableFuture.supplyAsync(() -> jira.searchVersions(testKey));
     }
 
-    public CompletableFuture<List<JiraTestVersionDTO>> readRunAsUsedTestVersionsAsync(String runId) {
-        return CompletableFuture.supplyAsync(() -> jira.readRunAsUsedTestVersions(runId));
+    public CompletableFuture<List<JiraTestVersionDTO>> readRunAsUsedTestVersionsAsync(String runKey) {
+        return CompletableFuture.supplyAsync(() -> jira.readRunAsUsedTestVersions(runKey));
     }
 
     protected static final Map<String, JiraFieldDTO> CACHED_FIELDS = Stream.of(

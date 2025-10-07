@@ -49,7 +49,7 @@ test-system/
 
 ### Jira Integration
 ```
-GET  /api/jira/tests/{testId}      # Получить версии теста
+GET  /api/jira/tests/{testKey}      # Получить версии теста
 GET  /api/jira/runs/{runId}        # Получить тесты из прогона  
 GET  /api/jira/versions/{id}       # Получить данные версии
 GET  /api/jira/status              # Статус подключения к Jira
@@ -57,7 +57,7 @@ GET  /api/jira/status              # Статус подключения к Jira
 
 ### AI Integration  
 ```
-POST /api/ai/batch/{testId}        # Пакетная обработка промптов
+POST /api/ai/batch/{testKey}       # Пакетная обработка промптов
 POST /api/ai/chat                  # Отправить сообщение в чат
 POST /api/ai/stop                  # Остановить обработку
 GET  /api/ai/status                # Статус AI сервиса
@@ -88,7 +88,7 @@ fetch('/api/ai/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-        testId: 'T123',
+        testKey: 'T123',
         checkId: '1.0', 
         message: 'Проверить требование',
         placeholders: { requirement: 'Функция X' }

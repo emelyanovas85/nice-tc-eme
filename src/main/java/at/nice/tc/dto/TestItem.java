@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 @Builder
 public class TestItem {
-    private String testId;
+    private String testKey;
     private String itemId;
     private String tabName;
     private String name;

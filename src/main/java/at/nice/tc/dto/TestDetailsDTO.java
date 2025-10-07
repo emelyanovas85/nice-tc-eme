@@ -9,7 +9,7 @@ import java.util.Map;
 @Data
 @Builder
 public class TestDetailsDTO {
-    private String testId;
+    private String testKey;
     private String version;
     private JiraTestDTO testData;
     private List<TestItemStatusDTO> itemStatuses;

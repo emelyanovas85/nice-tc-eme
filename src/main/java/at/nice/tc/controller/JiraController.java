@@ -5,14 +5,13 @@ import at.nice.tc.dto.JiraTestDTO;
 import at.nice.tc.dto.JiraTestVersionDTO;
 import at.nice.tc.service.JiraService;
 import at.nice.tc.utils.ThrowableUtils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -92,9 +91,9 @@ public class JiraController {
     /**
      * @param id идентификатор определенной версии (12345), а не теста (ABCDE-T777)
      */
-    @GetMapping("/versions/{id}")
-    public CompletableFuture<ResponseEntity<JiraTestDTO>> readTest(@PathVariable String id) {
-        return jiraService.readTestAsync(id)
+    @GetMapping("/tests/{id:\\d+}")
+    public CompletableFuture<ResponseEntity<JiraTestDTO>> readTest(@PathVariable Integer id) {
+        return jiraService.readTestAsync(String.valueOf(id))
                 .handle((result, throwable) -> {
                     if (throwable != null)
                         return ResponseEntity.internalServerError().build(); // 500
@@ -107,11 +106,11 @@ public class JiraController {
     }
 
     /**
-     * @param testId идентификатор теста (ABCDE-T777)
+     * @param testKey идентификатор теста (ABCDE-T777)
      */
-    @GetMapping("/tests/{id}")
-    public CompletableFuture<ResponseEntity<List<JiraTestVersionDTO>>> searchVersions(@PathVariable String testId) {
-        return jiraService.searchVersionsAsync(testId)
+    @GetMapping("/tests/{testKey}")
+    public CompletableFuture<ResponseEntity<List<JiraTestVersionDTO>>> searchVersions(@PathVariable String testKey) {
+        return jiraService.searchVersionsAsync(testKey)
                 .handle((result, throwable) -> {
                     if (throwable != null)
                         return ResponseEntity.internalServerError().build(); // 500
@@ -125,11 +124,11 @@ public class JiraController {
 
     /**
      * Возвращает список id тестов (вида 12345) в порядке использования в прогоне  TODO: на фронте можно посчитать и отрисовать вкладки на сайдбаре, а каждый тест запросить через /versions/{id}
-     * @param runId идентификатор прогона (ABCDE-С777)
+     * @param runKey идентификатор прогона (ABCDE-С777)
      */
-    @GetMapping("/runs/{id}")
-    public CompletableFuture<ResponseEntity<List<JiraTestVersionDTO>>> searchRun(@PathVariable String runId) {
-        return jiraService.readRunAsUsedTestVersionsAsync(runId)
+    @GetMapping("/runs/{runKey}")
+    public CompletableFuture<ResponseEntity<List<JiraTestVersionDTO>>> searchRun(@PathVariable String runKey) {
+        return jiraService.readRunAsUsedTestVersionsAsync(runKey)
                 .handle((result, throwable) -> {
                     if (throwable != null)
                         return ResponseEntity.internalServerError().build(); // 500

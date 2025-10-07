@@ -22,9 +22,9 @@ public interface Jira {
 
     /**
      * Идентификаторы версий теста
-     * @param testId вида 'T777'
+     * @param testKey вида 'T777'
      */
-    List<JiraTestVersionDTO> searchVersions(String testId);
+    List<JiraTestVersionDTO> searchVersions(String testKey);
 
     /**
      * Идентификаторы версий тестов, использованных в прогоне
@@ -50,7 +50,7 @@ public interface Jira {
         }
 
         @Override
-        public List<JiraTestVersionDTO> searchVersions(String testId) {
+        public List<JiraTestVersionDTO> searchVersions(String testKey) {
             // TODO: use client
             return List.of(JiraTestVersionDTO.builder().build());
         }

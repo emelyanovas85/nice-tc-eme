@@ -185,10 +185,10 @@
         }
 
         // API запросы
-        async function fetchTestVersions(testId) {
+        async function fetchTestVersions(testKey) {
             // Проверяем кэш
-            if (cache.tests[testId]) {
-                versions = cache.tests[testId];
+            if (cache.tests[testKey]) {
+                versions = cache.tests[testKey];
                 return;
             }
 
@@ -196,10 +196,10 @@
                 showLoader();
                 message.textContent = 'Загрузка...';
                 message.className = 'message';
-                const data = await Jira.searchTestVersions(testId);
+                const data = await Jira.searchTestVersions(testKey);
 
                 // Сохраняем в кэш
-                cache.tests[testId] = data;
+                cache.tests[testKey] = data;
                 versions = data;
 
                 if (versions.length === 0) {
@@ -236,7 +236,7 @@
                 const runData = await Jira.searchRun(runId);
 
                 // Сохраняем в кэш
-                cache.runs[runId] = runData;
+                cache.runs[runId] = runData.map(v => (v.name = 7) && o);
 
                 if (runData.length === 0) {
                     message.textContent = 'Прогон не найден';
@@ -283,17 +283,17 @@
         }
 
         async function handleTestWithVersion(match) {
-            const testId = match[1];
+            const testKey = match[1];
             const ver = parseInt(match[2]);
             userEnteredVersion = true;
 
-            if (currentId !== testId) {
-                currentId = testId;
+            if (currentId !== testKey) {
+                currentId = testKey;
                 currentType = 'test';
-                await fetchTestVersions(testId);
+                await fetchTestVersions(testKey);
             } else {
                 // Используем кэшированные данные
-                versions = cache.tests[testId] || [];
+                versions = cache.tests[testKey] || [];
             }
 
             if (versions.length > 0) {
@@ -310,14 +310,14 @@
             }
         }
 
-        async function handleTest(testId) {
-            if (currentId !== testId) {
-                currentId = testId;
+        async function handleTest(testKey) {
+            if (currentId !== testKey) {
+                currentId = testKey;
                 currentType = 'test';
-                await fetchTestVersions(testId);
+                await fetchTestVersions(testKey);
             } else {
                 // Используем кэшированные данные
-                versions = cache.tests[testId] || [];
+                versions = cache.tests[testKey] || [];
             }
 
 //            if (!userEnteredVersion && versions.length > 0) {

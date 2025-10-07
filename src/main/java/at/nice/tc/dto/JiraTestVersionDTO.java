@@ -6,8 +6,7 @@ import lombok.Data;
 @Data
 @Builder
 public class JiraTestVersionDTO {
-    private String testId;
-    private String id;
-    private String version;
-    // TODO: задать правильные поля
+    private String testKey;    // key "XXXXX-T777"
+    private String id;        // id "12345"
+    private String version;   // majorVersion "2"
 }

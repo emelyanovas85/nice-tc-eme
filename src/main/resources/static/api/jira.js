@@ -63,7 +63,7 @@ class Jira {
                     throw new Error(`Values not found: test ${versionId}, fields ${fieldIds}`);
                 }
                 if (!response.ok) {
-                    throw new Error('Failed to search field values: test ${versionId}, fields ${fieldIds}`);
+                    throw new Error(`Failed to search field values: test ${versionId}, fields ${fieldIds}`);
                 }
                 return response.json();
             });
@@ -71,14 +71,14 @@ class Jira {
 
     /**
      * Поиск версий теста по идентификатору теста
-     * @param {string} testId - Идентификатор теста (например, "ABCDE-T777")
+     * @param {string} testKey - Идентификатор теста (например, "ABCDE-T777")
      * @returns {Promise<Array<Object>>} Массив объектов JiraTestVersionDTO
      */
-    static searchTestVersions(testId) {
-        return fetch(`${this.API_BASE_URL}/tests/${testId}`)
+    static searchTestVersions(testKey) {
+        return fetch(`${this.API_BASE_URL}/tests/${testKey}`)
             .then(response => {
                 if (response.status === 404) {
-                    throw new Error(`Test ${testId} not found`);
+                    throw new Error(`Test ${testKey} not found`);
                 }
                 if (!response.ok) {
                     throw new Error('Failed to search test versions');
