@@ -8,7 +8,7 @@ class AI {
     }
 
     static async getChecks() {
-        const res = await fetch(`${this.API_BASE_URL}/checks);
+        const res = await fetch(`${this.API_BASE_URL}/checks`);
         if (!res.ok) throw new Error('checks failed of test ' + testId);
         return res.json(); // [{id, description, prompt}]
     }
