@@ -8,9 +8,11 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Сервис для работы с AI (Deepseek V3.1)
+ */
 @Service
 @RequiredArgsConstructor
 public class AiService {
