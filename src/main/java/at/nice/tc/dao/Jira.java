@@ -123,17 +123,19 @@ public interface Jira {
     @Slf4j
     @AllArgsConstructor
     class Mocking implements Jira {
-        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        private final Optional<Jira> origin;
+        private final Supplier<Jira> origin;
+        private Jira jiraCache;
 
-        public Mocking(Supplier<Jira> originConstructor) {
+        public Optional<Jira> jira() {
+            if (jiraCache != null && jiraCache.isAvailable())
+                return Optional.of(jiraCache);
             Jira jira;
             try {
-                jira = originConstructor.get();
+                jira = jiraCache = origin.get();
             } catch (Exception e) {
                 jira = null;
             }
-            origin = Optional.ofNullable(jira);
+            return Optional.ofNullable(jira);
         }
 
         @Override
@@ -178,7 +180,7 @@ public interface Jira {
         @Override
         public JiraTestDTO readTestFromJira(String id) {
             String key = key("readTestFromJira", id);
-            return origin.map(jira -> jira.readTestFromJira(id))
+            return jira().map(jira -> jira.readTestFromJira(id))
                     .map(saveAs(key))
                     .orElseGet(() -> saved(key));
         }
@@ -186,7 +188,7 @@ public interface Jira {
         @Override
         public List<JiraTestVersionDTO> getAllVersions(String testKey) {
             String key = key("getAllVersions", testKey);
-            return origin.map(jira -> jira.getAllVersions(testKey))
+            return jira().map(jira -> jira.getAllVersions(testKey))
                     .map(saveAs(key))
                     .orElseGet(() -> saved(key));
         }
@@ -194,7 +196,7 @@ public interface Jira {
         @Override
         public List<JiraTestVersionDTO> readRunAsUsedTestVersions(String runId) {
             String key = key("readRunAsUsedTestVersions", runId);
-            return origin.map(jira -> jira.readRunAsUsedTestVersions(runId))
+            return jira().map(jira -> jira.readRunAsUsedTestVersions(runId))
                     .map(saveAs(key))
                     .orElseGet(() -> saved(key));
         }
