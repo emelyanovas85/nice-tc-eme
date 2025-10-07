@@ -7,7 +7,6 @@ import at.nice.tc.dto.JiraTestVersionDTO;
 import at.nice.tc.utils.AsyncUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,10 +18,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
-@Service
 @AllArgsConstructor
 public class JiraService {
-    private final ConcurrentHashMap<String, CompletableFuture<JiraTestDTO>> tests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CompletableFuture<JiraTestDTO>> tests;
     private final Jira jira;
 
 
@@ -34,8 +32,8 @@ public class JiraService {
         return tests.computeIfAbsent(id, AsyncUtils.asCompletableFuture(jira::readTestFromJira));
     }
 
-    public CompletableFuture<List<JiraTestVersionDTO>> searchVersionsAsync(String testKey) {
-        return CompletableFuture.supplyAsync(() -> jira.searchVersions(testKey));
+    public CompletableFuture<List<JiraTestVersionDTO>> getAllVersions(String testKey) {
+        return CompletableFuture.supplyAsync(() -> jira.getAllVersions(testKey));
     }
 
     public CompletableFuture<List<JiraTestVersionDTO>> readRunAsUsedTestVersionsAsync(String runKey) {

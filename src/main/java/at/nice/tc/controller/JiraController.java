@@ -106,8 +106,8 @@ public class JiraController {
      * @param testKey идентификатор теста (ABCDE-T777)
      */
     @GetMapping("/tests/{testKey}")
-    public CompletableFuture<ResponseEntity<List<JiraTestVersionDTO>>> searchVersions(@PathVariable String testKey) {
-        return jiraService.searchVersionsAsync(testKey)
+    public CompletableFuture<ResponseEntity<List<JiraTestVersionDTO>>> getAllVersions(@PathVariable String testKey) {
+        return jiraService.getAllVersions(testKey)
                 .handle((result, throwable) -> {
                     if (throwable != null)
                         return ResponseEntity.internalServerError().build(); // 500
