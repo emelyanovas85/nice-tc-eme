@@ -50,20 +50,20 @@ class Jira {
 
     /**
      * Получение значений полей теста по идентификатору теста
-     * @param {string} testId - Идентификатор теста (например, "ABCDE-T777")
+     * @param {string} versionId - Идентификатор версии (например, "12345")
      * @param {array} fieldIds - Идентификаторы полей
      * @returns {Promise<Array<Object>>} Массив объектов Object (что высчитывает поле на бэке)
      */
-    static async getTestFieldValues(testId, fieldIds) {
+    static async getTestFieldValues(versionId, fieldIds) {
         const params = new URLSearchParams();
         params.set('fields', JSON.stringify(fieldIds));
-        return fetch(`${this.API_BASE_URL}/versions/${encodeURIComponent(testId)}?${params}`)
+        return fetch(`${this.API_BASE_URL}/versions/${encodeURIComponent(versionId)}?${params}`)
             .then(response => {
                 if (response.status === 404) {
-                    throw new Error(`Values not found: test ${testId}, fields ${fieldIds}`);
+                    throw new Error(`Values not found: test ${versionId}, fields ${fieldIds}`);
                 }
                 if (!response.ok) {
-                    throw new Error('Failed to search field values: test ${testId}, fields ${fieldIds}`);
+                    throw new Error('Failed to search field values: test ${versionId}, fields ${fieldIds}`);
                 }
                 return response.json();
             });

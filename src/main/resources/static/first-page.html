@@ -196,13 +196,7 @@
                 showLoader();
                 message.textContent = 'Загрузка...';
                 message.className = 'message';
-                const response = await fetch(`/api/jira/tests/${testId}`);
-
-                if (!response.ok) {
-                    throw new Error('Ошибка запроса', response);
-                }
-
-                const data = await response.json();
+                const data = await Jira.searchTestVersions(testId);
 
                 // Сохраняем в кэш
                 cache.tests[testId] = data;
@@ -239,13 +233,7 @@
                 showLoader();
                 message.textContent = 'Загрузка...';
                 message.className = 'message';
-                const response = await fetch(`/api/jira/runs/${runId}`);
-
-                if (!response.ok) {
-                    throw new Error('Ошибка запроса');
-                }
-
-                const runData = await response.json();
+                const runData = await Jira.searchRun(runId);
 
                 // Сохраняем в кэш
                 cache.runs[runId] = runData;
@@ -285,8 +273,10 @@
 
             if (testWithVersionMatch) {
                 await handleTestWithVersion(testWithVersionMatch);
+
             } else if (testMatch) {
                 await handleTest(value);
+
             } else if (runMatch) {
                 await handleRun(value);
             }
@@ -311,7 +301,8 @@
                 if (version) {
                     message.textContent = 'Нажмите Enter для перехода';
                     message.className = 'message success';
-                } else {
+
+                } else { // введенная пользователем версия не найдена в списке версий
                     showAutocomplete();
                     message.textContent = 'Версия не найдена. Выберите из списка';
                     message.className = 'message error';
@@ -329,9 +320,9 @@
                 versions = cache.tests[testId] || [];
             }
 
-            if (!userEnteredVersion && versions.length > 0) {
+//            if (!userEnteredVersion && versions.length > 0) {
                 showAutocomplete();
-            }
+//            }
         }
 
         async function handleRun(runId) {
@@ -349,8 +340,13 @@
             }
         }
 
-        // Автокомплит и редирект
+        // Автокомплит
         function showAutocomplete() {
+            if (!versions.length) {
+                message.textContent = 'Версии не найдены';
+                message.className = 'message error';
+            }
+
             const items = versions.map(v => {
                 const div = document.createElement('div');
                 div.className = 'autocomplete-item';
