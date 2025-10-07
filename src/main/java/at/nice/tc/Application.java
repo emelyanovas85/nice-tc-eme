@@ -24,8 +24,8 @@ public class Application {
     }
 
     @Bean
-    public Jira.JiraImpl jira() {
-        return new Jira.JiraImpl(JiraTestCaseAPI.getDefault(), JiraTestRunAPI.getDefault(), JiraClientSingleton.getJiraClient());
+    public Jira jira() {
+        return new Jira.Mocking(() -> new Jira.JiraImpl(JiraTestCaseAPI.getDefault(), JiraTestRunAPI.getDefault(), JiraClientSingleton.getJiraClient()));
     }
 
     public static void main(String[] args) {

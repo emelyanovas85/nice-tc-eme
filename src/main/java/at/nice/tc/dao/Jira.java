@@ -2,15 +2,27 @@ package at.nice.tc.dao;
 
 import at.nice.tc.dto.JiraTestDTO;
 import at.nice.tc.dto.JiraTestVersionDTO;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dto.testCase.VersionDTO;
 import impl.TestCase;
 import jira.api.testCaseAPI.JiraTestCaseAPI;
 import jira.api.testRunAPI.JiraTestRunAPI;
 import jiraClient.JiraClient;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
 public interface Jira {
 
@@ -51,7 +63,31 @@ public interface Jira {
 
         @Override
         public JiraTestDTO readTestFromJira(String id) {
-            TestCase testCase = testCaseAPI.getTestCase(id);
+            //PERUFR-T5?fields=
+            // id,
+            // projectId,
+            // archived,
+            // key,
+            // name,
+            // objective,
+            // majorVersion,
+            // latestVersion,
+            // precondition,
+            // folder(id,fullName),
+            // status,
+            // priority,
+            // estimatedTime,
+            // averageTime,
+            // componentId,
+            // owner,
+            // labels,
+            // customFieldValues,
+            // testScript(id,text,steps(index,description,text,expectedResult,testData,attachments,customFieldValues,id,stepParameters(id,testCaseParameterId,value),testCase(id,key,name,archived,majorVersion,latestVersion,parameters(id,name,defaultValue,index)))),
+            // testData,
+            // parameters(id,name,defaultValue,index),
+            // paramType
+//            String testCase = testCaseAPI.requestToJira(id, "id","name", "objective", "" );
+            final TestCase testCase = testCaseAPI.getTestCase(id);
             return JiraTestDTO
                     .builder()
                     .id(testCase.getId())
@@ -69,14 +105,98 @@ public interface Jira {
         @Override
         public List<JiraTestVersionDTO> getAllVersions(String testKey) {
             List<VersionDTO> allVersionsTestCaseById = testCaseAPI.getAllVersionsTestCaseById(testKey);
-            return List.of(JiraTestVersionDTO
-                    .builder()
-                    .build());
+            return allVersionsTestCaseById.stream()
+                    .map(v -> JiraTestVersionDTO.builder()
+                            .testKey(testKey)
+                            .id(String.valueOf(v.getId()))
+                            .version(String.valueOf(v.getMajorVersion()))
+                            .build())
+                    .collect(Collectors.toList());
         }
 
         @Override
         public List<JiraTestVersionDTO> readRunAsUsedTestVersions(String runId) {
             return List.of(JiraTestVersionDTO.builder().build());
+        }
+    }
+
+    @Slf4j
+    @AllArgsConstructor
+    class Mocking implements Jira {
+        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+        private final Optional<Jira> origin;
+
+        public Mocking(Supplier<Jira> originConstructor) {
+            Jira jira;
+            try {
+                jira = originConstructor.get();
+            } catch (Exception e) {
+                jira = null;
+            }
+            origin = Optional.ofNullable(jira);
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return true;
+        }
+
+        public static final Path ROOT = Paths.get("mocks");
+        private static final ObjectMapper MAPPER = new ObjectMapper();
+
+
+        static {
+            ROOT.toFile().mkdirs();
+        }
+
+        private static <T> UnaryOperator<T> saveAs(String key) {
+            return obj -> {
+                try {
+                    String value = MAPPER.writeValueAsString(obj);
+                    Files.writeString(ROOT.resolve(key + ".json"), value, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                } catch (IOException e) {
+                    log.warn("Ошибка при маппинге в строку {}", key, e);
+                }
+                return obj;
+            };
+        }
+
+        private static <T> T saved(String key) {
+            try {
+                return MAPPER.readValue(ROOT.resolve(key + ".json").toFile(), new TypeReference<>() {});
+            } catch (IOException e) {
+                log.warn("Ошибка получения сохраненного значения {}", key, e);
+                return null;
+            }
+        }
+
+        private static String key(String methodName, Object arg) {
+            return methodName + "~~" + arg;
+        }
+
+
+        @Override
+        public JiraTestDTO readTestFromJira(String id) {
+            String key = key("readTestFromJira", id);
+            return origin.map(jira -> jira.readTestFromJira(id))
+                    .map(saveAs(key))
+                    .orElseGet(() -> saved(key));
+        }
+
+        @Override
+        public List<JiraTestVersionDTO> getAllVersions(String testKey) {
+            String key = key("getAllVersions", testKey);
+            return origin.map(jira -> jira.getAllVersions(testKey))
+                    .map(saveAs(key))
+                    .orElseGet(() -> saved(key));
+        }
+
+        @Override
+        public List<JiraTestVersionDTO> readRunAsUsedTestVersions(String runId) {
+            String key = key("readRunAsUsedTestVersions", runId);
+            return origin.map(jira -> jira.readRunAsUsedTestVersions(runId))
+                    .map(saveAs(key))
+                    .orElseGet(() -> saved(key));
         }
     }
 }

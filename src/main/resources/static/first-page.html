@@ -284,7 +284,7 @@
 
         async function handleTestWithVersion(match) {
             const testKey = match[1];
-            const ver = parseInt(match[2]);
+            const ver = match[2];
             userEnteredVersion = true;
 
             if (currentId !== testKey) {
@@ -297,7 +297,7 @@
             }
 
             if (versions.length > 0) {
-                const version = versions.find(v => v.ver === ver);
+                const version = versions.find(v => v.version === ver);
                 if (version) {
                     message.textContent = 'Нажмите Enter для перехода';
                     message.className = 'message success';
@@ -350,8 +350,8 @@
             const items = versions.map(v => {
                 const div = document.createElement('div');
                 div.className = 'autocomplete-item';
-                div.textContent = `${currentId} (${ver}.0)`;
-                div.onclick = () => selectVersion(v.ver);
+                div.textContent = `${currentId} (${v.version}.0)`;
+                div.onclick = () => selectVersion(v.version);
                 return div;
             });
 
@@ -384,7 +384,7 @@
             // Удаляем дубликаты
             history = history.filter(item => {
                 if (type === 'test') {
-                    return !(item.id === id && item.ver === ver);
+                    return !(item.id === id && item.version === ver);
                 } else {
                     return !(item.id === id && item.type === 'run');
                 }
@@ -440,8 +440,8 @@
 
             if (testWithVersionMatch) {
                 const testId = testWithVersionMatch[1];
-                const ver = parseInt(testWithVersionMatch[2]);
-                const version = versions.find(v => v.ver === ver);
+                const ver = testWithVersionMatch[2];
+                const version = versions.find(v => v.version === ver);
 
                 if (version) {
                     addToHistory(testId, ver, 'test', [version]);
