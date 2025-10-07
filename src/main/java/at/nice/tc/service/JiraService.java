@@ -32,7 +32,7 @@ public class JiraService {
         return tests.computeIfAbsent(id, AsyncUtils.asCompletableFuture(jira::readTestFromJira));
     }
 
-    public CompletableFuture<List<JiraTestVersionDTO>> getAllVersions(String testKey) {
+    public CompletableFuture<List<JiraTestVersionDTO>> getAllVersionsAsync(String testKey) {
         return CompletableFuture.supplyAsync(() -> jira.getAllVersions(testKey));
     }
 

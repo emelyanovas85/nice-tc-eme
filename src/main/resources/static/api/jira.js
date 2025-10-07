@@ -74,7 +74,7 @@ class Jira {
      * @param {string} testKey - Идентификатор теста (например, "ABCDE-T777")
      * @returns {Promise<Array<Object>>} Массив объектов JiraTestVersionDTO
      */
-    static searchTestVersions(testKey) {
+    static getAllVersions(testKey) {
         return fetch(`${this.API_BASE_URL}/tests/${testKey}`)
             .then(response => {
                 if (response.status === 404) {

@@ -107,7 +107,7 @@ public class JiraController {
      */
     @GetMapping("/tests/{testKey}")
     public CompletableFuture<ResponseEntity<List<JiraTestVersionDTO>>> getAllVersions(@PathVariable String testKey) {
-        return jiraService.getAllVersions(testKey)
+        return jiraService.getAllVersionsAsync(testKey)
                 .handle((result, throwable) -> {
                     if (throwable != null)
                         return ResponseEntity.internalServerError().build(); // 500
@@ -120,7 +120,7 @@ public class JiraController {
     }
 
     /**
-     * Возвращает список id тестов (вида 12345) в порядке использования в прогоне  TODO: на фронте можно посчитать и отрисовать вкладки на сайдбаре, а каждый тест запросить через /versions/{id}
+     * Возвращает список id тестов (вида 12345) в порядке использования в прогоне
      * @param runKey идентификатор прогона (ABCDE-С777)
      */
     @GetMapping("/runs/{runKey}")

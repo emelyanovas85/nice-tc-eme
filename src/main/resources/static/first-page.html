@@ -196,7 +196,7 @@
                 showLoader();
                 message.textContent = 'Загрузка...';
                 message.className = 'message';
-                const data = await Jira.searchTestVersions(testKey);
+                const data = await Jira.getAllVersions(testKey);
 
                 // Сохраняем в кэш
                 cache.tests[testKey] = data;
