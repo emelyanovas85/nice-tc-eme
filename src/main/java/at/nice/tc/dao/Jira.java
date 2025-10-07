@@ -10,6 +10,7 @@ import jira.api.testCaseAPI.JiraTestCaseAPI;
 import jira.api.testRunAPI.JiraTestRunAPI;
 import jiraClient.JiraClient;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -121,7 +122,7 @@ public interface Jira {
     }
 
     @Slf4j
-    @AllArgsConstructor
+    @RequiredArgsConstructor
     class Mocking implements Jira {
         private final Supplier<Jira> origin;
         private Jira jiraCache;
