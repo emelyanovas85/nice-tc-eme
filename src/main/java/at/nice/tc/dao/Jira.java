@@ -133,7 +133,7 @@ public interface Jira {
                 return Optional.of(jiraCache);
             Jira jira;
             try {
-                jira = jiraCache = origin.get();
+                jiraCache = jira = origin.get();
             } catch (Throwable e) {
                 jira = null;
             }
