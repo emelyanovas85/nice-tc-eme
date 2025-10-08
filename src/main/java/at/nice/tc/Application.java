@@ -1,6 +1,8 @@
 package at.nice.tc;
 
-import at.nice.tc.dao.Jira;
+import at.nice.tc.dao.jira.Jira;
+import at.nice.tc.dao.jira.JiraMocking;
+import at.nice.tc.dao.jira.JiraRepo;
 import at.nice.tc.service.JiraService;
 import jira.api.testCaseAPI.JiraTestCaseAPI;
 import jira.api.testRunAPI.JiraTestRunAPI;
@@ -25,7 +27,7 @@ public class Application {
 
     @Bean
     public Jira jira() {
-        return new Jira.Mocking(() -> new Jira.JiraImpl(JiraTestCaseAPI.getDefault(), JiraTestRunAPI.getDefault(), JiraClientSingleton.getJiraClient()));
+        return new JiraMocking(() -> new JiraRepo(JiraTestCaseAPI.getDefault(), JiraTestRunAPI.getDefault(), JiraClientSingleton.getJiraClient()));
     }
 
     public static void main(String[] args) {

@@ -1,7 +1,7 @@
 package at.nice.tc.service;
 
 import at.nice.tc.controller.AiController;
-import at.nice.tc.dao.AI;
+import at.nice.tc.dao.ai.AI;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

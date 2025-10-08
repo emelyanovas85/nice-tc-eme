@@ -1,6 +1,8 @@
 package at.nice.tc.controller;
 
 import at.nice.tc.service.AiService;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -89,96 +91,36 @@ public class AiController {
     }
 
     // Внутренние классы для запросов
+    @Setter
+    @Getter
     public static class BatchProcessRequest {
         private List<CheckPrompt> checks;
 
-        public List<CheckPrompt> getChecks() {
-            return checks;
-        }
-
-        public void setChecks(List<CheckPrompt> checks) {
-            this.checks = checks;
-        }
     }
 
+    @Setter
+    @Getter
     public static class CheckPrompt {
         private String id;
         private String prompt;
 
-        public String getId() {
-            return id;
-        }
-
-        public void setId(String id) {
-            this.id = id;
-        }
-
-        public String getPrompt() {
-            return prompt;
-        }
-
-        public void setPrompt(String prompt) {
-            this.prompt = prompt;
-        }
     }
 
+    @Setter
+    @Getter
     public static class ChatRequest {
         private String testId;
         private String checkId;
         private String message;
         private Map<String, Object> placeholders;
 
-        public String getTestId() {
-            return testId;
-        }
-
-        public void setTestId(String testId) {
-            this.testId = testId;
-        }
-
-        public String getCheckId() {
-            return checkId;
-        }
-
-        public void setCheckId(String checkId) {
-            this.checkId = checkId;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public void setMessage(String message) {
-            this.message = message;
-        }
-
-        public Map<String, Object> getPlaceholders() {
-            return placeholders;
-        }
-
-        public void setPlaceholders(Map<String, Object> placeholders) {
-            this.placeholders = placeholders;
-        }
     }
 
+    @Setter
+    @Getter
     public static class StopRequest {
         private String testId;
         private String checkId;
 
-        public String getTestId() {
-            return testId;
-        }
-
-        public void setTestId(String testId) {
-            this.testId = testId;
-        }
-
-        public String getCheckId() {
-            return checkId;
-        }
-
-        public void setCheckId(String checkId) {
-            this.checkId = checkId;
-        }
     }
 }
