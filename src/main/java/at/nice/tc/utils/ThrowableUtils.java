@@ -14,4 +14,9 @@ public abstract class ThrowableUtils {
         t.printStackTrace(printWriter);
         return stringWriter.toString();
     }
+
+    public static <T extends Throwable, R> R reThrow(Throwable t) throws T {
+        //noinspection unchecked
+        throw (T) t;
+    }
 }

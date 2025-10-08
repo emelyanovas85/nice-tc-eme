@@ -11,19 +11,19 @@ class Store {
         this.fields = [];            // [{id, name}]
         this.checks = [];            // [{id, description, prompt}]
         this.tests = new Map();      // id -> TestEntity
-        this.prompts = new Map();    // key(testId,checkId) -> string
         this.chats = new Map();      // key -> [{at, from, text}]
         this.processing = { tests: new Set(), checks: new Set() }; // keys
     }
 
     key(testId, checkId) { return `${testId}__${checkId}`; }
 
-    setPrompt(testId, checkId, text) {
-        this.prompts.set(this.key(testId, checkId), text || '');
+    setPrompt(checkId, text) {
+        if (!text || !text.length) return;
+        this.checks.find(check => check.id === checkId).prompt = text;
     }
 
-    getPrompt(testId, checkId) {
-        return this.prompts.get(this.key(testId, checkId)) || '';
+    getPrompt(checkId) {
+        return this.checks.find(check => check.id === checkId).prompt || '';
     }
 
     appendChat(testId, checkId, msg) {
@@ -40,9 +40,9 @@ class Store {
     endTestProcessing(testId) { this.processing.tests.delete(String(testId)); }
     isTestProcessing(testId) { return this.processing.tests.has(String(testId)); }
 
-    startCheckProcessing(testId, checkId) { this.processing.checks.add(this.key(testId, checkId)); }
-    endCheckProcessing(testId, checkId) { this.processing.checks.delete(this.key(testId, checkId)); }
-    isCheckProcessing(testId, checkId) { return this.processing.checks.has(this.key(testId, checkId)); }
+    startCheckProcessing(testId, checkId) { this.processing.checks.add(this.key(testId, checkId)); }           // TODO:
+    endCheckProcessing(testId, checkId) { this.processing.checks.delete(this.key(testId, checkId)); }           // TODO:
+    isCheckProcessing(testId, checkId) { return this.processing.checks.has(this.key(testId, checkId)); }           // TODO:
 }
 
 class TestEntity {
@@ -173,7 +173,7 @@ class UI {
     }
 
     renderPrompt(testId, checkId) {
-        const v = this.store.getPrompt(testId, checkId);
+        const v = this.store.getPrompt(checkId);
         this.elements.promptInput.value = v || '';
     }
 
@@ -264,12 +264,12 @@ class UI {
             el.selectionStart = el.selectionEnd = pos + placeholder.length;
             el.focus();
             if (this.currentTestId && this.currentCheckId) {
-                this.store.setPrompt(this.currentTestId, this.currentCheckId, el.value);
+                this.store.setPrompt(this.currentCheckId, el.value);
             }
         });
         el.addEventListener('input', () => {
             if (this.currentTestId && this.currentCheckId) {
-                this.store.setPrompt(this.currentTestId, this.currentCheckId, el.value);
+                this.store.setPrompt(this.currentCheckId, el.value);
             }
         });
     }
@@ -338,27 +338,27 @@ class App {
         }
 
         // 4) Запустить первичные проверки (batch) для каждого теста
-        for (const test of this.tests) {
-            this.store.startTestProcessing(test.id);
-            test.status = Status.Pending;
-            this.ui.updateAll(this.tests);
-            try {
-                const results = await AI.startBatch(test.id); // [{id,text}]
-                test.setBatchResults(results);
-                // Сохранить в чат начальные сообщения для каждой проверки
-                results.forEach(r => {
-                    // первичный промпт — возьмём из общего списка проверок позже; сейчас только ответ
-                    this.store.appendChat(test.id, r.id, { at: new Date().toISOString(), from: 'assistant', text: r.text });
-                });
-            } finally {
-                this.store.endTestProcessing(test.id);
-                this.ui.updateAll(this.tests);
-            }
-        }
+//        for (const test of this.tests) {
+//            this.store.startTestProcessing(test.id);
+//            test.status = Status.Pending;
+//            this.ui.updateAll(this.tests);
+//            try {
+//                const results = await AI.startBatch(test.id); // [{id,text}]
+//                test.setBatchResults(results);
+//                // Сохранить в чат начальные сообщения для каждой проверки
+//                results.forEach(r => {
+//                    // первичный промпт — возьмём из общего списка проверок позже; сейчас только ответ
+//                    this.store.appendChat(test.id, r.id, { at: new Date().toISOString(), from: 'assistant', text: r.text });
+//                });
+//            } finally {
+//                this.store.endTestProcessing(test.id);
+//                this.ui.updateAll(this.tests);
+//            }
+//        }
 
         // 5) Если не загружены общие проверки — загрузить
         if (!this.store.checks.length) {
-            this.store.checks = await AI.getChecks(); // [{id,description,prompt}]
+            this.store.checks = await Checks.getAllChecks(); // [{id, name, description, prompt, type (test,run)}]
         }
 
         // 6) Отрисовать левый сайдбар
@@ -375,8 +375,8 @@ class App {
     onCheckSelected(testId, checkId) {
         // В промпт подставить общий шаблон проверки (если есть) + сохранить
         const base = this.store.checks.find(c => String(c.id) === String(checkId));
-        const current = this.store.getPrompt(testId, checkId) || (base?.prompt || '');
-        this.store.setPrompt(testId, checkId, current);
+        const current = this.store.getPrompt(checkId) || (base?.prompt || '');
+        this.store.setPrompt(checkId, current);
         this.ui.renderPrompt(testId, checkId);
 
         // Сформировать стартовый чат: первичный запрос и ответ из batch, если ещё не были
@@ -399,7 +399,7 @@ class App {
 
         const test = this.getTest(testId);
         const check = this.store.checks.find(c => String(c.id) === String(checkId));
-        const prompt = this.store.getPrompt(testId, checkId);
+        const prompt = this.store.getPrompt(checkId);
         const chatInput = document.getElementById('chat-input');
         const text = (chatInput.value || '').trim();
         if (!text) return;

@@ -7,12 +7,6 @@ class AI {
         return res.json(); // [{id, text}]
     }
 
-    static async getChecks() {
-        const res = await fetch(`${this.API_BASE_URL}/checks`);
-        if (!res.ok) throw new Error('checks failed of test ' + testId);
-        return res.json(); // [{id, description, prompt}]
-    }
-
     static async chat(payload) {
         const res = await fetch(`${this.API_BASE_URL}/chat`, {
             method: 'POST',

@@ -1,0 +1,7 @@
+{
+  "id": "1",
+  "name": "1.2",
+  "description": "This is a sample description for the check 1.2",
+  "prompt": "Generate a response based on the provided input.",
+  "type": "TEST"
+}
