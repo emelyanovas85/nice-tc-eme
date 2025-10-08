@@ -49,9 +49,9 @@ test-system/
 
 ### Jira Integration
 ```
-GET  /api/jira/tests/{testKey}      # Получить версии теста
+GET  /api/jira/tests/{testKey}     # Получить версии теста
 GET  /api/jira/runs/{runId}        # Получить тесты из прогона  
-GET  /api/jira/versions/{id}       # Получить данные версии
+GET  /api/jira/tests/{id}          # Получить данные версии
 GET  /api/jira/status              # Статус подключения к Jira
 ```
 

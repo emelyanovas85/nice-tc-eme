@@ -55,9 +55,7 @@ class Jira {
      * @returns {Promise<Array<Object>>} Массив объектов Object (что высчитывает поле на бэке)
      */
     static async getTestFieldValues(versionId, fieldIds) {
-        const params = new URLSearchParams();
-        params.set('fields', JSON.stringify(fieldIds));
-        return fetch(`${this.API_BASE_URL}/versions/${encodeURIComponent(versionId)}?${params}`)
+        return fetch(`${this.API_BASE_URL}/tests/${encodeURIComponent(versionId)}?fields=${fieldIds.join(',')}`)
             .then(response => {
                 if (response.status === 404) {
                     throw new Error(`Values not found: test ${versionId}, fields ${fieldIds}`);

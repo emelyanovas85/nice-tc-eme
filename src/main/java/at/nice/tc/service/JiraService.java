@@ -53,7 +53,7 @@ public class JiraService {
     }
 
     public CompletableFuture<?> getFieldValue(String testId, String fieldId) {
-        return tests.get(testId).thenApplyAsync(CACHED_FIELDS.get(fieldId)::getValue);
+        return readTestAsync(testId).thenApplyAsync(CACHED_FIELDS.get(fieldId)::getValue);
     }
 
     public CompletableFuture<List<?>> getFieldValues(String testId, List<String> fieldIds) {

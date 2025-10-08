@@ -51,30 +51,11 @@ public class JiraController {
     }
 
     /**
-     * Возвращает значение поля для теста
-     * @param id тест вида "12345"
-     * @param fid id поля
-     */
-    @GetMapping("/versions/{id}/fields/{fid}")
-    public CompletableFuture<ResponseEntity<?>> getFieldValue(@PathVariable String id, @PathVariable String fid) {
-        return jiraService.getFieldValue(id, fid)
-                .handle((result, throwable) -> {
-                    if (throwable != null)
-                        return ResponseEntity.internalServerError().body(ThrowableUtils.asString(throwable)); // 500
-                    if (result != null) {
-                        return ResponseEntity.ok(result); // 200 OK
-                    } else {
-                        return ResponseEntity.notFound().build(); // 404 Not Found
-                    }
-                });
-    }
-
-    /**
      * Возвращает значения полей для теста
      * @param id тест вида "12345"
      * @param fids список id полей
      */
-    @GetMapping(value = "/versions/{id}", params = "fields")
+    @GetMapping(value = "/tests/{id}", params = "fields")
     public CompletableFuture<ResponseEntity<?>> getFieldValues(@PathVariable String id,
                                                                @RequestParam("fields") List<String> fids) {
         return jiraService.getFieldValues(id, fids)
@@ -105,7 +86,7 @@ public class JiraController {
     /**
      * @param testKey идентификатор теста (ABCDE-T777)
      */
-    @GetMapping("/tests/{testKey}")
+    @GetMapping("/tests/{testKey:.*[a-zA-Z].*}")
     public CompletableFuture<ResponseEntity<List<JiraTestVersionDTO>>> getAllVersions(@PathVariable String testKey) {
         return jiraService.getAllVersionsAsync(testKey)
                 .handle((result, throwable) -> {

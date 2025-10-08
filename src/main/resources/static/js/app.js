@@ -48,7 +48,7 @@ class Store {
 class TestEntity {
     constructor({ id, testKey, version }, store) {
         this.id = String(id);
-        this.name = String(version);
+        this.version = String(version);
         this.testKey = testKey;
         this.store = store;
         this.fields = [];         // [{id,name,value}]
