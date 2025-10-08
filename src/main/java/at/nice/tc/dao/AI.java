@@ -18,7 +18,7 @@ public interface AI {
     /**
      * Проверка доступности AI сервиса
      */
-    public boolean isAvailable();
+    boolean isAvailable();
 
     /**
      * Пакетная обработка промптов

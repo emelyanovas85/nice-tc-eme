@@ -20,19 +20,29 @@
             background: #f5f5f5;
         }
         .container {
-            text-align: center;
-            width: 400px;
+            width: 100%;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         .input-wrapper {
             position: relative;
+            width: 100%;
         }
         input {
             width: 100%;
             padding: 12px;
             padding-right: 40px;
-            font-size: 16px;
+            font-size: 1.5em;
+            font-family: Consolas;
             border: 1px solid #ccc;
             border-radius: 4px;
+            background: #f5f5f5;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+            text-align: center;
         }
         input:focus {
             outline: none;
@@ -90,7 +100,8 @@
         }
         .history {
             margin-top: 20px;
-            text-align: left;
+            min-width: 50%;
+            max-width: 60%;
         }
         .history-title {
             font-size: 14px;
@@ -106,10 +117,20 @@
             border-radius: 4px;
             margin-bottom: 5px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 1.2em;
+            font-family: Consolas;
+            display: flex;
+            justify-content: center;
         }
         .history-item:hover {
             background: #f0f0f0;
+        }
+        .history-item .at {
+            margin-right: 1em;
+            color: darkgray;
+        }
+        .history-item .key {
+            margin-left: 1em;
         }
         .history-empty {
             font-size: 14px;
@@ -130,7 +151,7 @@
     <!-- Контент страницы -->
     <div class="container">
         <div class="input-wrapper">
-            <input type="text" id="searchInput" placeholder="Введите ID теста (XXXXX-T777) или прогона (XXXXX-C777)">
+            <input type="text" id="searchInput" placeholder="Введите ID теста (XXXXX-T777) или прогона (XXXXX-C777)" autocomplete="off">
             <div class="loader" id="loader"></div>
         </div>
         <div class="autocomplete" id="autocomplete"></div>
@@ -238,7 +259,7 @@
                 const runData = await Jira.searchRun(runId);
 
                 // Сохраняем в кэш
-                cache.runs[runId] = runData.map(v => (v.name = 7) && o);
+                cache.runs[runId] = runData;
 
                 if (runData.length === 0) {
                     message.textContent = 'Прогон не найден';
@@ -303,6 +324,7 @@
             if (versions.length > 0) {
                 const version = versions.find(v => v.version === ver);
                 if (version) {
+                    selectVersion(version.version);
                     message.textContent = 'Нажмите Enter для перехода';
                     message.className = 'message success';
 
@@ -424,7 +446,7 @@
             }
 
             historyList.innerHTML = '';
-            history.sort((i1,i2) => i2.timestamp - t1.timestamp).forEach(item => {
+            history.sort((i1,i2) => i2.timestamp - i1.timestamp).forEach(item => {
                 const div = document.createElement('div');
                 let date = new Date(item.timestamp);
                 date = [  // "08.10.2025 12:34:56"
@@ -436,9 +458,10 @@
                         String(date.getMinutes()).padStart(2, '0'),
                         String(date.getSeconds()).padStart(2, '0')
                     ].join(':');
+                let timeSpan = document.createElement('span');  div.appendChild(timeSpan);  timeSpan.outerHTML = `<span class="at">${date}</span>`;
+                let keySpan = document.createElement('span');  div.appendChild(keySpan);  keySpan.outerHTML = `<span class="key">${item.label}</span>`;
 
                 div.className = 'history-item';
-                div.textContent = date + '   ' + item.label;
                 div.onclick = () => {
                     input.value = item.label;
                     input.dispatchEvent(new Event('input'));
