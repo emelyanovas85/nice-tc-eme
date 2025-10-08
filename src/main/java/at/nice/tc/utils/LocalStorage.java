@@ -42,15 +42,37 @@ public class LocalStorage {
         }
     }
 
-    public <T> T saved(String key) {
-        try {
-            File file = root.resolve(key + ".json").toFile();
-            if (!file.exists())
+
+    public ResultBuilder getSaved(String key) {
+        File file = root.resolve(key + ".json").toFile();
+        return this.new ResultBuilder(key, file);
+    }
+
+    @Data
+    public class ResultBuilder {
+        private final String key;
+        private final File file;
+
+        public <T> T as(Class<T> cls) {
+            try {
+                if (!file.exists())
+                    return null;
+                return mapper.readValue(file, cls);
+            } catch (IOException e) {
+                log.warn("Ошибка получения сохраненного значения {}", key, e);
                 return null;
-            return mapper.readValue(file, new TypeReference<>() {});
-        } catch (IOException e) {
-            log.warn("Ошибка получения сохраненного значения {}", key, e);
-            return null;
+            }
+        }
+
+        public <T> T as(TypeReference<T> target) {
+            try {
+                if (!file.exists())
+                    return null;
+                return mapper.readValue(file, target);
+            } catch (IOException e) {
+                log.warn("Ошибка получения сохраненного значения {}", key, e);
+                return null;
+            }
         }
     }
 }

@@ -4,20 +4,13 @@ import at.nice.tc.dto.JiraTestDTO;
 import at.nice.tc.dto.JiraTestVersionDTO;
 import at.nice.tc.utils.LocalStorage;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -55,7 +48,7 @@ public class JiraMocking implements Jira {
         String key = key("readTestFromJira", id);
         return jira().map(jira -> jira.readTestFromJira(id))
                 .map(LOCAL_STORAGE.saveAs(key))
-                .orElseGet(() -> LOCAL_STORAGE.saved(key));
+                .orElseGet(() -> LOCAL_STORAGE.getSaved(key).as(JiraTestDTO.class));
     }
 
     @Override
@@ -63,7 +56,7 @@ public class JiraMocking implements Jira {
         String key = key("getAllVersions", testKey);
         return jira().map(jira -> jira.getAllVersions(testKey))
                 .map(LOCAL_STORAGE.saveAs(key))
-                .orElseGet(() -> LOCAL_STORAGE.saved(key));
+                .orElseGet(() -> LOCAL_STORAGE.getSaved(key).as(new TypeReference<>() {}));
     }
 
     @Override
@@ -71,6 +64,6 @@ public class JiraMocking implements Jira {
         String key = key("readRunAsUsedTestVersions", runId);
         return jira().map(jira -> jira.readRunAsUsedTestVersions(runId))
                 .map(LOCAL_STORAGE.saveAs(key))
-                .orElseGet(() -> LOCAL_STORAGE.saved(key));
+                .orElseGet(() -> LOCAL_STORAGE.getSaved(key).as(new TypeReference<>() {}));
     }
 }

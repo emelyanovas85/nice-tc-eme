@@ -6,7 +6,6 @@ import at.nice.tc.utils.ThrowableUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
-import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -47,7 +46,7 @@ public class CheckService {
     }
 
     private CheckDTO readFromLocalStorage(String key) {
-        return LOCAL_STORAGE.saved(key);
+        return LOCAL_STORAGE.getSaved(key).as(CheckDTO.class);
     }
 
     public void updateCheck(String id, String newPrompt) {
