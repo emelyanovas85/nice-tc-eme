@@ -1,9 +1,8 @@
 package at.nice.tc;
 
 import at.nice.tc.dao.jira.Jira;
-import at.nice.tc.dao.jira.JiraMocking;
+import at.nice.tc.dao.jira.JiraMockingAdapter;
 import at.nice.tc.dao.jira.JiraRepo;
-import at.nice.tc.service.CheckService;
 import at.nice.tc.service.JiraService;
 import jira.api.testCaseAPI.JiraTestCaseAPI;
 import jira.api.testRunAPI.JiraTestRunAPI;
@@ -15,8 +14,7 @@ import org.springframework.context.annotation.Bean;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Главный класс приложения (БЕЗ Thymeleaf)
- * Статические ресурсы отдаются из /static/
+ * Главный класс приложения
  */
 @SpringBootApplication
 public class Application {
@@ -27,13 +25,8 @@ public class Application {
     }
 
     @Bean
-    public CheckService checkService() {
-        return new CheckService();
-    }
-
-    @Bean
     public Jira jira() {
-        return new JiraMocking(() -> new JiraRepo(JiraTestCaseAPI.getDefault(), JiraTestRunAPI.getDefault(), JiraClientSingleton.getJiraClient()));
+        return new JiraMockingAdapter(() -> new JiraRepo(JiraTestCaseAPI.getDefault(), JiraTestRunAPI.getDefault(), JiraClientSingleton.getJiraClient()));
     }
 
     public static void main(String[] args) {

@@ -14,7 +14,7 @@ import java.util.function.Supplier;
 
 @Slf4j
 @RequiredArgsConstructor
-public class JiraMocking implements Jira {
+public class JiraMockingAdapter implements Jira {
     private final Supplier<Jira> origin;
     private Jira jiraCache;
 
