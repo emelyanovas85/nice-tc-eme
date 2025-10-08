@@ -1,6 +1,6 @@
 package at.nice.tc.service;
 
-import at.nice.tc.dao.Jira;
+import at.nice.tc.dao.jira.Jira;
 import at.nice.tc.dto.JiraFieldDTO;
 import at.nice.tc.dto.JiraTestDTO;
 import at.nice.tc.dto.JiraTestVersionDTO;
