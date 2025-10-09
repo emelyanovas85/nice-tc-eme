@@ -80,11 +80,7 @@ public class ChatApiClient extends BaseAIApiClient {
      */
     public Map<String, Object> simpleChat(String userMessage, double temperature, int maxTokens)  {
         List<ChatMessage> messages = List.of(ChatMessage.user(userMessage));
-        ChatCompletionRequest request = new ChatCompletionRequest(
-            messages, getModelName(), temperature, maxTokens, null,
-            null, null, null, null, null, null, null, 
-            false, 1, null, null, null, null, null, null, ResponseFormat.text()
-        );
+        ChatCompletionRequest request = ChatCompletionRequest.forTesting(messages);
         return createChatCompletion(request);
     }
 
@@ -96,11 +92,7 @@ public class ChatApiClient extends BaseAIApiClient {
             ChatMessage.system(systemPrompt),
             ChatMessage.user(userMessage)
         );
-        ChatCompletionRequest request = new ChatCompletionRequest(
-            messages, getModelName(), temperature, maxTokens, null,
-            null, null, null, null, null, null, null, 
-            false, 1, null, null, null, null, null, null, ResponseFormat.text()
-        );
+        ChatCompletionRequest request = ChatCompletionRequest.forTesting(messages);
         return createChatCompletion(request);
     }
 

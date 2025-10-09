@@ -20,6 +20,8 @@ public interface AI {
      */
     boolean isAvailable();
 
+
+     startChat(String )
     /**
      * Пакетная обработка промптов
      */
