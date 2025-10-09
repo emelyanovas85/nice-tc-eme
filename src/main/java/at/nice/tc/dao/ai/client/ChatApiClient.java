@@ -39,9 +39,9 @@ public class ChatApiClient extends BaseAIApiClient {
      * 🔥 ОСНОВНОЕ: Создание чат-ответа.
      * POST /v1/chat/completions - Диалог с AI моделью.
      */
-    public Map<String, Object> createChatCompletion(ChatCompletionRequest request) throws AIApiException {
+    public Map<String, Object> createChatCompletion(ChatCompletionRequest request)  {
         String json = toJson(request);
-        String response = post("/v1/chat/completions", json);
+        String response = POST("/v1/chat/completions", json).body();
         return parseJson(response, new TypeReference<>() {});
     }
 
@@ -49,9 +49,9 @@ public class ChatApiClient extends BaseAIApiClient {
      * Создание обычного completion (продолжение текста).
      * POST /v1/completions - Генерация текста на основе промта.
      */
-    public Map<String, Object> createCompletion(CompletionRequest request) throws AIApiException {
+    public Map<String, Object> createCompletion(CompletionRequest request)  {
         String json = toJson(request);
-        String response = post("/v1/completions", json);
+        String response = POST("/v1/completions", json).body();
         return parseJson(response, new TypeReference<>() {});
     }
 
@@ -59,9 +59,9 @@ public class ChatApiClient extends BaseAIApiClient {
      * Токенизация текста или сообщений.
      * POST /tokenize - Преобразование текста в токены.
      */
-    public Map<String, Object> tokenize(TokenizeRequest request) throws AIApiException {
+    public Map<String, Object> tokenize(TokenizeRequest request)  {
         String json = toJson(request);
-        String response = post("/tokenize", json);
+        String response = POST("/tokenize", json).body();
         return parseJson(response, new TypeReference<>() {});
     }
 
@@ -69,16 +69,16 @@ public class ChatApiClient extends BaseAIApiClient {
      * Детокенизация токенов обратно в текст.
      * POST /detokenize - Преобразование токенов в текст.
      */
-    public Map<String, Object> detokenize(DetokenizeRequest request) throws AIApiException {
+    public Map<String, Object> detokenize(DetokenizeRequest request)  {
         String json = toJson(request);
-        String response = post("/detokenize", json);
+        String response = POST("/detokenize", json).body();
         return parseJson(response, new TypeReference<>() {});
     }
 
     /**
      * Простой чат с одним сообщением пользователя.
      */
-    public Map<String, Object> simpleChat(String userMessage, double temperature, int maxTokens) throws AIApiException {
+    public Map<String, Object> simpleChat(String userMessage, double temperature, int maxTokens)  {
         List<ChatMessage> messages = List.of(ChatMessage.user(userMessage));
         ChatCompletionRequest request = new ChatCompletionRequest(
             messages, getModelName(), temperature, maxTokens, null,
@@ -91,7 +91,7 @@ public class ChatApiClient extends BaseAIApiClient {
     /**
      * Чат с системным промтом.
      */
-    public Map<String, Object> systemChat(String systemPrompt, String userMessage, double temperature, int maxTokens) throws AIApiException {
+    public Map<String, Object> systemChat(String systemPrompt, String userMessage, double temperature, int maxTokens)  {
         List<ChatMessage> messages = List.of(
             ChatMessage.system(systemPrompt),
             ChatMessage.user(userMessage)

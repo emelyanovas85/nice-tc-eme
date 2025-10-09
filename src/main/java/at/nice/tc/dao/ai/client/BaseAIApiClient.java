@@ -50,82 +50,91 @@ public class BaseAIApiClient {
     /**
      * Проверка здоровья сервера.
      * GET /health - Доступен во всех моделях
+     *
+     * @return код статуса
      */
-    public String healthCheck() throws AIApiException {
-        return get("/health");
+    public int healthCheck() {
+        return GET("/health").statusCode();
     }
 
     /**
      * Метрики загрузки сервера.
      * GET /load - Доступен во всех моделях
      */
-    public Map<String, Object> getServerLoad() throws AIApiException {
-        String response = get("/load");
-        return parseJson(response, new TypeReference<>() {});
+    public Map<String, Object> getServerLoad() {
+        String response = GET("/load").body();
+        return parseJson(response, new TypeReference<>() {
+        });
     }
 
     /**
      * Ping проверка.
      * GET /ping - Доступен во всех моделях
+     *
+     * @return код статуса
      */
-    public String ping() throws AIApiException {
-        return get("/ping");
+    public int ping() {
+        return GET("/ping").statusCode();
     }
 
     /**
      * Ping проверка (POST).
      * POST /ping - Доступен во всех моделях
+     *
+     * @return код статуса
      */
-    public String pingPost() throws AIApiException {
-        return post("/ping", "{}");
+    public int pingPost() {
+        return POST("/ping", "{}").statusCode();
     }
 
     /**
      * Версия сервера.
      * GET /version - Доступен во всех моделях
+     *
+     * @return версия в формате "0.9.1"
      */
-    public Map<String, Object> getVersion() throws AIApiException {
-        String response = get("/version");
-        return parseJson(response, new TypeReference<>() {
-        });
+    public String getVersion() {
+        String response = GET("/version").body();
+        return parseJson(response, new TypeReference<Map<String, String>>() {
+        }).get("version");
     }
 
     /**
      * Prometheus метрики.
      * GET /metrics - Доступен во всех моделях
      */
-    public String getMetrics() throws AIApiException {
-        return get("/metrics");
+    public String getMetrics() {
+        return GET("/metrics").body();
     }
 
     /**
      * Список доступных моделей.
      * GET /v1/models - Доступен во всех моделях
      */
-    public Map<String, Object> getModels() throws AIApiException {
-        String response = get("/v1/models");
+    public Map<String, Object> getModels() {
+        String response = GET("/v1/models").body();
         return parseJson(response, new TypeReference<>() {
         });
     }
 
     /**
      * Базовые embeddings.
-     * POST /v1/embeddings - Доступен во всех моделях
+     * POST /v1/embeddings - Доступен во всех моделях (кроме 32b)
      */
-    public Map<String, Object> createEmbedding(EmbeddingRequest request) throws AIApiException {
+    public Map<String, Object> createEmbedding(EmbeddingRequest request) {
         String json = toJson(request);
-        String response = post("/v1/embeddings", json);
+        String response = POST("/v1/embeddings", json).body();
         return parseJson(response, new TypeReference<>() {
         });
     }
 
     /**
      * Оценка сходства текстов.
-     * POST /score - Доступен во всех моделях
+     * POST /score - Доступен во всех моделях (кроме 32b)
      */
-    public Map<String, Object> score(ScoreRequest request) throws AIApiException {
+    public Map<String, Object> score(ScoreRequest request) {
         String json = toJson(request);
-        String response = post("/score", json);
+        String response = POST("/score", json).body();
         return parseJson(response, new TypeReference<>() {
         });
     }
@@ -134,32 +143,38 @@ public class BaseAIApiClient {
      * Ранжирование документов.
      * POST /rerank - Доступен во всех моделях
      */
-    public Map<String, Object> rerank(RerankRequest request) throws AIApiException {
+    public Map<String, Object> rerank(RerankRequest request) {
         String json = toJson(request);
-        String response = post("/rerank", json);
+        String response = POST("/rerank", json).body();
         return parseJson(response, new TypeReference<>() {
         });
     }
 
     // === ASYNC ВЕРСИИ ===
 
-    public CompletableFuture<String> healthCheckAsync() {
+    public CompletableFuture<Integer> healthCheckAsync() {
         return CompletableFuture.supplyAsync(() -> {
-            try { return healthCheck(); }
-            catch (Exception e) { throw new CompletionException(e); }
+            try {
+                return healthCheck();
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
         });
     }
 
     public CompletableFuture<Map<String, Object>> getModelsAsync() {
         return CompletableFuture.supplyAsync(() -> {
-            try { return getModels(); }
-            catch (Exception e) { throw new CompletionException(e); }
+            try {
+                return getModels();
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
         });
     }
 
     // === УТИЛИТЫ ===
 
-    protected String get(String path) throws AIApiException {
+    protected HttpResponse<String> GET(String path) {
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + path))
                 .GET();
@@ -178,13 +193,13 @@ public class BaseAIApiClient {
                 throw new AIApiException("HTTP ошибка " + response.statusCode() + " для " + path,
                         modelName, response.statusCode(), response.body());
             }
-            return response.body();
+            return response;
         } catch (IOException | InterruptedException e) {
             throw new AIApiException("Ошибка сети для " + path, modelName, e);
         }
     }
 
-    protected String post(String path, String json) throws AIApiException {
+    protected HttpResponse<String> POST(String path, String json) {
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + path))
                 .header("Content-Type", "application/json")
@@ -204,7 +219,7 @@ public class BaseAIApiClient {
                 throw new AIApiException("HTTP ошибка " + response.statusCode() + " для " + path,
                         modelName, response.statusCode(), response.body());
             }
-            return response.body();
+            return response;
         } catch (IOException | InterruptedException e) {
             throw new AIApiException("Ошибка сети для " + path, modelName, e);
         }
