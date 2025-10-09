@@ -6,6 +6,8 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import java.net.CookieManager;
 import java.net.http.HttpClient;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 
@@ -24,13 +26,9 @@ public final class HttpClientFactory {
      * @throws RuntimeException если не удается создать клиент
      */
     public static HttpClient createClient(CookieManager cookieManager) {
-        try {
-            return buildCommonClientBuilder()
-                    .cookieHandler(cookieManager)
-                    .build();
-        } catch (Exception e) {
-            throw new RuntimeException("Не удалось создать HttpClient с поддержкой cookies", e);
-        }
+        return buildCommonClientBuilder()
+                .cookieHandler(cookieManager)
+                .build();
     }
 
     /**
@@ -40,12 +38,8 @@ public final class HttpClientFactory {
      * @return настроенный HttpClient
      * @throws RuntimeException если не удается создать клиент
      */
-    public static HttpClient createBasicClient() {
-        try {
-            return buildCommonClientBuilder().build();
-        } catch (Exception e) {
-            throw new RuntimeException("Не удалось создать базовый HttpClient", e);
-        }
+    public static HttpClient createClient() {
+        return buildCommonClientBuilder().build();
     }
 
     /**
@@ -53,9 +47,8 @@ public final class HttpClientFactory {
      * Настраивает SSL context, таймауты подключения и политику редиректов.
      *
      * @return настроенный HttpClient.Builder
-     * @throws Exception при ошибках настройки SSL
      */
-    private static HttpClient.Builder buildCommonClientBuilder() throws Exception {
+    private static HttpClient.Builder buildCommonClientBuilder() {
         configureSslSystemProperties();
         SSLContext sslContext = createTrustAllSslContext();
 
@@ -82,7 +75,7 @@ public final class HttpClientFactory {
      * @return настроенный SSLContext
      * @throws Exception при ошибках создания контекста
      */
-    private static SSLContext createTrustAllSslContext() throws Exception {
+    private static SSLContext createTrustAllSslContext() {
         TrustManager[] trustAllCertificates = {
                 new X509ExtendedTrustManager() {
                     @Override
@@ -122,9 +115,13 @@ public final class HttpClientFactory {
                 }
         };
 
-        SSLContext context = SSLContext.getInstance("TLS");
-        context.init(null, trustAllCertificates, new java.security.SecureRandom());
-        return context;
+        try {
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, trustAllCertificates, new java.security.SecureRandom());
+            return context;
+        } catch (KeyManagementException | NoSuchAlgorithmException exception) {
+            throw new RuntimeException("Не удалось создать SSLContext, который доверяет всем сертификатам!", exception);
+        }
     }
 
     /**

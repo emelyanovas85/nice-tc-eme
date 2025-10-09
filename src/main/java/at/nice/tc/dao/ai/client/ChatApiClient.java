@@ -42,7 +42,7 @@ public class ChatApiClient extends BaseAIApiClient {
     public Map<String, Object> createChatCompletion(ChatCompletionRequest request) throws AIApiException {
         String json = toJson(request);
         String response = post("/v1/chat/completions", json);
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {});
     }
 
     /**
@@ -52,7 +52,7 @@ public class ChatApiClient extends BaseAIApiClient {
     public Map<String, Object> createCompletion(CompletionRequest request) throws AIApiException {
         String json = toJson(request);
         String response = post("/v1/completions", json);
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {});
     }
 
     /**
@@ -62,7 +62,7 @@ public class ChatApiClient extends BaseAIApiClient {
     public Map<String, Object> tokenize(TokenizeRequest request) throws AIApiException {
         String json = toJson(request);
         String response = post("/tokenize", json);
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {});
     }
 
     /**
@@ -72,7 +72,7 @@ public class ChatApiClient extends BaseAIApiClient {
     public Map<String, Object> detokenize(DetokenizeRequest request) throws AIApiException {
         String json = toJson(request);
         String response = post("/detokenize", json);
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {});
     }
 
     /**

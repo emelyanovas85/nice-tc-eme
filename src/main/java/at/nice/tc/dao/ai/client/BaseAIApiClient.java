@@ -20,7 +20,7 @@ import java.util.concurrent.CompletionException;
 
 /**
  * Базовый AI API клиент с общими endpoints для всех моделей.
- *
+ * <p>
  * Поддерживает endpoints, доступные во ВСЕХ 5 моделях:
  * • Health checks и метрики
  * • Tokenization операции
@@ -42,7 +42,7 @@ public class BaseAIApiClient {
         this.apiKey = apiKey;
         this.modelName = modelName;
         this.objectMapper = new ObjectMapper();
-        this.httpClient = HttpClientFactory.createBasicClient();
+        this.httpClient = HttpClientFactory.createClient();
     }
 
     // === ОБЩИЕ ENDPOINTS ДЛЯ ВСЕХ МОДЕЛЕЙ ===
@@ -61,7 +61,7 @@ public class BaseAIApiClient {
      */
     public Map<String, Object> getServerLoad() throws AIApiException {
         String response = get("/load");
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {});
     }
 
     /**
@@ -86,7 +86,8 @@ public class BaseAIApiClient {
      */
     public Map<String, Object> getVersion() throws AIApiException {
         String response = get("/version");
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {
+        });
     }
 
     /**
@@ -103,7 +104,8 @@ public class BaseAIApiClient {
      */
     public Map<String, Object> getModels() throws AIApiException {
         String response = get("/v1/models");
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {
+        });
     }
 
     /**
@@ -113,7 +115,8 @@ public class BaseAIApiClient {
     public Map<String, Object> createEmbedding(EmbeddingRequest request) throws AIApiException {
         String json = toJson(request);
         String response = post("/v1/embeddings", json);
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {
+        });
     }
 
     /**
@@ -123,7 +126,8 @@ public class BaseAIApiClient {
     public Map<String, Object> score(ScoreRequest request) throws AIApiException {
         String json = toJson(request);
         String response = post("/score", json);
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {
+        });
     }
 
     /**
@@ -133,7 +137,8 @@ public class BaseAIApiClient {
     public Map<String, Object> rerank(RerankRequest request) throws AIApiException {
         String json = toJson(request);
         String response = post("/rerank", json);
-        return parseJson(response, new TypeReference<Map<String, Object>>() {});
+        return parseJson(response, new TypeReference<>() {
+        });
     }
 
     // === ASYNC ВЕРСИИ ===
