@@ -6,6 +6,7 @@ import at.nice.tc.utils.ThrowableUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,6 +20,7 @@ import java.util.stream.Stream;
  * Сервис для работы с проверками.
  * Все проверки хранятся в проекте (/checks) для версионирования гитом
  */
+@Service
 @Slf4j
 @RequiredArgsConstructor
 public class CheckService {

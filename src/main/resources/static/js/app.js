@@ -137,7 +137,7 @@ class UI {
             btn.appendChild(left);
             btn.appendChild(spin);
 
-            btn.disabled = !test.active;
+       //     btn.disabled = !!this.store.tests.get(test.id);        TODO: смотреть, что загрузились fields
             btn.addEventListener('click', () => this.selectTest(test.id));
 
             c.appendChild(btn);
@@ -151,7 +151,7 @@ class UI {
             const tile = document.createElement('div');
             tile.className = 'check-tile';
             if (String(this.currentCheckId) === String(ch.id)) tile.classList.add('active');
-            tile.addEventListener('click', () => this.selectCheck(test.id, ch.id));
+            tile.addEventListener('click', eve => this.selectCheck(eve, test.id, ch.id));
 
             const status = document.createElement('span');
             status.className = 'check-tile-status';
@@ -162,9 +162,10 @@ class UI {
             spinner.className = 'check-tile-spinner';
             if (this.store.isCheckProcessing(test.id, ch.id)) spinner.innerHTML = '<div class="spinner"></div>';
 
-            tile.appendChild(document.createTextNode(ch.description || ch.name || ch.id));
+            tile.appendChild(document.createTextNode(ch.name));
             tile.appendChild(status);
             tile.appendChild(spinner);
+            tile.title = ch.description;
 
             c.appendChild(tile);
         });
@@ -221,11 +222,13 @@ class UI {
         app.onTestSelected(testId);
     }
 
-    selectCheck(testId, checkId) {
+    selectCheck(event, testId, checkId) {
         this.currentTestId = testId;
         this.currentCheckId = checkId;
         app.onCheckSelected(testId, checkId);
         this.elements.details.classList.remove('hidden');
+        this.elements.checks.childNodes.forEach(e => e.classList.remove('active'));
+        event.srcElement.classList.add('active');
     }
 
     setButtonsProcessing(isProcessing) {
