@@ -8,15 +8,14 @@ import jira.api.testCaseAPI.JiraTestCaseAPI;
 import jira.api.testRunAPI.JiraTestRunAPI;
 import jiraClient.JiraClientSingleton;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.InMemoryChatMemory;
-import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Scope;
-import org.springframework.context.annotation.ScopedProxyMode;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,14 +26,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Application {
 
     @Bean
-    public ChatClient chatClient() {
+    public ChatClient chatClient(@Autowired ChatMemory chatMemory) {
         return ChatClient.builder(OpenAiChatModel.builder()
                 .openAiApi(OpenAiApi.builder()
-                        .baseUrl("")
+                        .baseUrl("https://qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru")
                         .apiKey("")
                         .build())
                 .build())
-                .defaultAdvisors(t -> t.advisors(InMemoryChatMemoryRepository::new));
+                .defaultAdvisors(t -> t.advisors(MessageChatMemoryAdvisor.builder(chatMemory).build()))
+                .build();
     }
 
     @Bean

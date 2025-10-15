@@ -1,7 +1,6 @@
 package at.nice.tc.dao.ai;
 
 import at.nice.tc.controller.AiController;
-import at.nice.tc.dao.ai.client.ChatApiClient;
 import at.nice.tc.utils.LocalStorage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
@@ -14,7 +13,7 @@ import java.util.Map;
 @Repository
 @RequiredArgsConstructor
 public class AiRepo implements AI {
-    private final ChatApiClient chatApiClient;
+    private final ChatClient chatClient;
     public static final LocalStorage LOCAL_STORAGE = new LocalStorage(Paths.get("ai"));
 
     @Override
@@ -29,7 +28,6 @@ public class AiRepo implements AI {
 
     @Override
     public void sendChatMessage(String testId, String checkId, String message, Map<String, Object> placeholders) {
-
     }
 
     @Override
