@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Getter
 @RequiredArgsConstructor
 public class ChatStorage {
-    private final ConcurrentHashMap<String, Queue<ChatMessage>> storage;
+    private final ConcurrentHashMap<String, Queue<ChatMessage>> storage = new ConcurrentHashMap<>();
 
     public Queue<ChatMessage> getChatById(@NotNull String chatId) {
         return storage.get(chatId);

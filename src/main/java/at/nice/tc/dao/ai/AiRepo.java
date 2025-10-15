@@ -4,6 +4,7 @@ import at.nice.tc.controller.AiController;
 import at.nice.tc.dao.ai.client.ChatApiClient;
 import at.nice.tc.utils.LocalStorage;
 import lombok.RequiredArgsConstructor;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Repository;
 
 import java.nio.file.Paths;
