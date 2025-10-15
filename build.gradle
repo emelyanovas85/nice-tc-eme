@@ -22,6 +22,8 @@ configurations {
 
 repositories {
     mavenCentral()
+    // Spring AI пока в Milestone, поэтому нужен этот репозиторий
+    maven { url 'https://repo.spring.io/milestone' }
 }
 
 dependencies {
@@ -34,6 +36,9 @@ dependencies {
     // Spring Boot Starters (БЕЗ Thymeleaf)
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Spring AI для работы с OpenAI-совместимыми моделями (Qwen через vLLM)
+    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter:0.8.1'
 
     // JSON Processing
     implementation 'com.fasterxml.jackson.core:jackson-databind'
