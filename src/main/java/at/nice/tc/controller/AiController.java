@@ -3,6 +3,7 @@ package at.nice.tc.controller;
 import at.nice.tc.service.AiService;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,11 +18,37 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class AiController {
 
-    private AiService aiService;
+    private final AiService aiService;
 
     public AiController(AiService aiService) {
         this.aiService = aiService;
     }
+
+
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public String sendMessage(@RequestBody StopRequest request) {
+        // Вызываем сервис для отправки сообщения и получения ответа
+        return aiService.sendMessage(conversationId, message);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * Пакетная обработка промптов для теста

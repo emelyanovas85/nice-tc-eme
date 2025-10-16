@@ -40,6 +40,10 @@ dependencies {
     // Spring AI для работы с OpenAI-совместимыми моделями (Qwen через vLLM)
     implementation("org.springframework.ai:spring-ai-starter-model-openai:1.1.0-M3")
     implementation("org.springframework.ai:spring-ai-client-chat:1.1.0-M3")
+
+    // Spring Doc (Swagger UI) для документации и тестирования API в браузере
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
     // JSON Processing
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
