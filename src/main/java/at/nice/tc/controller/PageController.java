@@ -10,6 +10,6 @@ public class PageController {
 
     @GetMapping("/")
     public String firstPage() {
-        return "first-page.html";
+        return "mp.html";
     }
 }

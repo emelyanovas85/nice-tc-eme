@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Chat</title>
+  <style>
+    body {
+      background-color: black;
+      color: orange;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      color: orange;
+    }
+
+    #inputMessage {
+      background-color: #111;
+      color: orange;
+      border: 1px solid orange;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: orange;
+      color: black;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #ffcc80; /* Светлее при наведении */
+    }
+
+    h2 {
+      color: orange;
+      margin-top: 20px;
+    }
+
+    #responseArea {
+      background-color: #111;
+      color: orange;
+      border: 1px solid orange;
+      padding: 15px;
+      white-space: pre-wrap; /* Сохраняет переносы строк */
+      font-size: 16px;
+      max-width: 800px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+<h1>AI Chat</h1>
+<textarea id="inputMessage" rows="4" cols="50" placeholder="Введите сообщение..."></textarea><br />
+<button onclick="sendMessage()">Отправить</button>
+
+<h2>Ответ:</h2>
+<pre id="responseArea"></pre>
+
+<script>
+  async function sendMessage() {
+    const message = document.getElementById('inputMessage').value;
+    if (!message) {
+      alert('Введите сообщение');
+      return;
+    }
+
+    const requestBody = { message: message };
+
+    try {
+      const response = await fetch('http://localhost:8080/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ошибка: ${response.statusText}`);
+      }
+
+      const responseText = await response.text();
+      document.getElementById('responseArea').textContent = responseText;
+    } catch (error) {
+      document.getElementById('responseArea').textContent = error.toString();
+    }
+  }
+</script>
+</body>
+</html>

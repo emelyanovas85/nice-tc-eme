@@ -36,10 +36,11 @@ dependencies {
     // Spring Boot Starters (БЕЗ Thymeleaf)
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     // Spring AI для работы с OpenAI-совместимыми моделями (Qwen через vLLM)
-    implementation("org.springframework.ai:spring-ai-starter-model-openai:1.1.0-M3")
-    implementation("org.springframework.ai:spring-ai-client-chat:1.1.0-M3")
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai:1.1.0-M3'
+    implementation 'org.springframework.ai:spring-ai-client-chat:1.1.0-M3'
 
     // Spring Doc (Swagger UI) для документации и тестирования API в браузере
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
