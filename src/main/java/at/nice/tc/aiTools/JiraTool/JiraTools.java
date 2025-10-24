@@ -1,10 +1,9 @@
-package at.nice.tc.aiTools;
+package at.nice.tc.aiTools.JiraTool;
 
 import at.nice.tc.service.JiraService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -204,5 +203,4 @@ public class JiraTools {
                 "Изображения продублированы текстовым описанием\n" +
                 "\n";
     }
-
 }

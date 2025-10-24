@@ -1,6 +1,6 @@
 package at.nice.tc.service;
 
-import at.nice.tc.dao.jira.Jira;
+import at.nice.tc.aiTools.JiraTool.Jira;
 import dto.testCase.VersionDTO;
 import impl.Step;
 import org.springframework.context.annotation.Lazy;

@@ -3,6 +3,7 @@ package at.nice.tc.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 /**
  * Сервис для работы с AI (Deepseek V3.1)
@@ -13,14 +14,22 @@ public class AiService {
 
     private final ChatClient chatClient;
 
-    public String sendMessage(String message/*String conversationId, */) {
+    public String sendMessage(String message) {
         return chatClient.prompt()
 //               .user(pus -> pus.text(message).param(ChatMemory.CONVERSATION_ID, conversationId))
                 .user(message)
                 .call()
                 .content();
     }
+
+    public Flux<String> sendMessageStream(String message) {
+        return chatClient.prompt()
+                .user(message)
+                .stream()
+                .content();
+    }
 }
+
 
 //    public void sendMessageAndStreamToSse(String message) {
 //        Flux<String> contentFlux = sendMessageStream(message);

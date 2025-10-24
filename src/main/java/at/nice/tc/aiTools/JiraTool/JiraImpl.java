@@ -1,4 +1,4 @@
-package at.nice.tc.dao.jira;
+package at.nice.tc.aiTools.JiraTool;
 
 import dto.testCase.VersionDTO;
 import impl.Step;
