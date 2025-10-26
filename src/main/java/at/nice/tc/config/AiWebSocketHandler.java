@@ -1,3 +1,4 @@
+/*
 package at.nice.tc.config;
 
 import at.nice.tc.service.AiService;
@@ -107,3 +108,4 @@ public class AiWebSocketHandler extends TextWebSocketHandler {
         }
     }
 }
+*/

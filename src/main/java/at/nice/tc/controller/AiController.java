@@ -20,10 +20,10 @@ public class AiController {
     private final AiService aiService;
 //    private final SseService sseService;
 
-    @PostMapping(value = "/chat")
-    public String sendMessage(@RequestBody TestMessage request) {
-        return aiService.sendMessage(request.getMessage());
-    }
+//    @PostMapping(value = "/chat")
+//    public String sendMessage(@RequestBody TestMessage request) {
+//        return aiService.sendMessage(request.getMessage());
+//    }
 
     @PostMapping(value = "/chat/stream")
     public Flux<String> sendMessageAsStream(@RequestBody TestMessage request) {
