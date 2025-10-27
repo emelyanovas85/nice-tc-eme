@@ -1,3 +1,4 @@
+/*
 package at.nice.tc.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,9 +11,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+*/
 /**
  * Сервис для управления Server-Sent Events
- */
+ *//*
+
 @Service
 public class SseService {
 
@@ -126,3 +129,4 @@ public class SseService {
         emitters.clear();
     }
 }
+*/

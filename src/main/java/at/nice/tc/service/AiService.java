@@ -24,7 +24,9 @@ public class AiService {
 
     public Flux<String> sendMessageStream(String message) {
         return chatClient.prompt()
-                .user(message)
+                .user(
+//                        "Пожалуйста, не включай в ответ никаких тегов <think> и не используй подобные разметки" +
+                                message)
                 .stream()
                 .content();
     }

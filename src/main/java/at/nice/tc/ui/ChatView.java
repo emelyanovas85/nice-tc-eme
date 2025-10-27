@@ -1,128 +1,66 @@
 package at.nice.tc.ui;
 
-import at.nice.tc.service.AiService; // Убедитесь, что импорт правильный
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.notification.Notification;
+import at.nice.tc.service.AiService;
+import com.vaadin.flow.component.Composite;
+import com.vaadin.flow.component.messages.MessageInput;
+import com.vaadin.flow.component.messages.MessageList;
+import com.vaadin.flow.component.messages.MessageListItem;
+import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.shared.Registration;
-import com.vaadin.flow.component.page.Push; // Убедитесь, что импорт Push есть
-import com.vaadin.flow.shared.communication.PushMode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
+import java.time.Instant;
+import java.util.UUID;
 
 @Route("")
-//@Push(PushMode.AUTOMATIC)
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
-public class ChatView extends VerticalLayout {
+public class ChatView extends Composite<VerticalLayout> {
 
-    private final AiService aiService; // final гарантирует инициализацию через конструктор
-
-    private final Div chatArea = new Div();
-    private final TextArea input = new TextArea();
-    private final Button sendButton = new Button("Отправить");
-
-    private Disposable responseSubscription;
-    private Registration detachListener;
-
-//    // Lombok генерирует конструктор для final полей и @Autowired указывает Spring создать его
-//    @RequiredArgsConstructor(onConstructor_ = @Autowired)
-//    public ChatView(AiService aiService) { // Конструктор будет сгенерирован Lombok
-//        this.aiService = aiService; // Присваивание вручную не нужно, Lombok это делает
-//    }
-
-    // Если Lombok генерирует конструктор, то инициализацию UI лучше вынести в отдельный метод,
-    // чтобы избежать ссылки на поля до их полной инициализации (хотя в данном случае, final поля инициализируются первыми)
-    @PostConstruct // Добавьте javax.annotation.PostConstruct
-    public void initUI() {
-        this.getStyle().set("background-color", "#000"); // Черный фон для родительского layout
-        this.setSizeFull(); // Делаем layout на всю доступную высоту (опционально)
-
-        chatArea.getStyle().set("background-color", "#000"); // Черный
-        chatArea.getStyle().set("color", "orange");
-        chatArea.getStyle().set("padding", "10px");
-        chatArea.getStyle().set("height", "400px");
-        chatArea.getStyle().set("overflow", "auto");
-        chatArea.getStyle().set("border", "1px solid orange");
-        chatArea.setWidthFull();
+    private final AiService aiService;
+    private final MessageList messageList = new MessageList();
+    private final String chatId = UUID.randomUUID().toString();
 
 
-        input.setPlaceholder("Введите сообщение...");
-        input.setWidthFull();
-        input.getStyle().set("color", "orange");
-        input.getStyle().set("border", "1px solid orange");
-        input.setHeight("100px");
+    @PostConstruct
+    private void initUI() {
+        var scroller = new Scroller(messageList);
+        scroller.setHeightFull();
+        getContent().addAndExpand(scroller);
 
-        sendButton.getStyle().set("margin-top", "10px");
-        sendButton.getStyle().set("border", "1px solid orange");
+        var messageInput = new MessageInput();
+        messageInput.setWidthFull();
 
+        messageInput.addSubmitListener(this::onSubmit);
 
-        add(chatArea, input, sendButton);
+        getContent().add(messageInput);
 
-        sendButton.addClickListener(e -> sendMessage());
-
-        detachListener = getUI().map(ui -> ui.addDetachListener(event -> {
-            if (responseSubscription != null && !responseSubscription.isDisposed()) {
-                responseSubscription.dispose();
-            }
-        })).orElse(null);
+        getContent().setSizeFull();
     }
 
-
-    private void sendMessage() {
-        String message = input.getValue().trim();
-        if (message.isEmpty()) {
-            Notification.show("Введите сообщение");
+    private void onSubmit(MessageInput.SubmitEvent submitEvent) {
+        var userText = submitEvent.getValue().trim();
+        if (userText.isEmpty()) {
             return;
         }
 
-        chatArea.getUI().ifPresent(ui -> ui.access(() -> {
-            chatArea.add(new Div(new com.vaadin.flow.component.html.Span("Вы: " + message)));
-            chatArea.getElement().executeJs("this.scrollTop = this.scrollHeight");
-        }));
+        var userMessage = new MessageListItem(userText, Instant.now(), "User");
+        userMessage.setUserColorIndex(0);
+        messageList.addItem(userMessage);
 
-        if (responseSubscription != null && !responseSubscription.isDisposed()) {
-            responseSubscription.dispose();
-        }
+        var botMessage = new MessageListItem("", Instant.now(), "Bot");
+        botMessage.setUserColorIndex(1);
+        messageList.addItem(botMessage);
 
-        Flux<String> responseFlux = aiService.sendMessageStream(message);
+        var uiOptional = submitEvent.getSource().getUI();
 
-        // Создаем новый div для ответа ИИ при каждом новом запросе
-        Div aiResponseDiv = new Div();
-        aiResponseDiv.setId("ai-response-" + System.currentTimeMillis()); // Уникальный ID для нового ответа
-        chatArea.getUI().ifPresent(ui -> ui.access(() -> chatArea.add(aiResponseDiv)));
-
-        responseSubscription = responseFlux.subscribe(content -> {
-            chatArea.getUI().ifPresent(ui ->
-                    ui.access(() -> {
-                        // Добавляем контент к уже созданному div
-                        aiResponseDiv.add(new com.vaadin.flow.component.html.Span(content));
-
-                        chatArea.getElement().executeJs("this.scrollTop = this.scrollHeight");
-                    })
-            );
-        }, error -> chatArea.getUI().ifPresent(ui -> ui.access(() ->
-                Notification.show("Ошибка получения ответа: " + error.getMessage()))));
-
-
-        input.clear();
-    }
-
-
-    @PreDestroy
-    public void cleanup() {
-        if (responseSubscription != null && !responseSubscription.isDisposed()) {
-            responseSubscription.dispose();
-        }
-        if (detachListener != null) {
-            detachListener.remove();
-        }
+        uiOptional.ifPresent(ui -> {
+            Flux<String> responseFlux = aiService.sendMessageStream(userText);
+            responseFlux.subscribe(token -> ui.access(() -> botMessage.appendText(token)),
+                    err -> ui.access(() -> botMessage.setText("Ошибка: " + err.getMessage())));
+        });
     }
 }

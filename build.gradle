@@ -100,6 +100,10 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
     }
 
+    implementation 'org.commonmark:commonmark:0.21.0'
+    implementation 'org.commonmark:commonmark-ext-gfm-tables:0.21.0'
+
+
 }
 
 tasks.named('test') {

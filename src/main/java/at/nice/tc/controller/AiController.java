@@ -1,7 +1,6 @@
 package at.nice.tc.controller;
 
 import at.nice.tc.service.AiService;
-import at.nice.tc.service.SseService;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;

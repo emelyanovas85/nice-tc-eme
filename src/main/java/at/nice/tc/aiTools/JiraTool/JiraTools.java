@@ -3,6 +3,7 @@ package at.nice.tc.aiTools.JiraTool;
 import at.nice.tc.service.JiraService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
@@ -25,8 +26,8 @@ public class JiraTools {
     @Cacheable(value = "jiraATestFromJira", key = "#id")
     @Tool(description = "Получает информацию о тест кейсе по его ID из Jira")
     public String readTestFromJira(
-//            @ToolParam(description = "id тест кейса, который состоит из аббревиатуры проекта, тире, номера теста, " +
-//                    "который начинается на T, например ASPPODDELTA-T1150")
+            @ToolParam(description = "id тест кейса, который состоит из аббревиатуры проекта, тире, номера теста, " +
+                    "который начинается на T, например ASPPODDELTA-T1150")
             String id) {
         return jiraService.getFullTest(id).join();
     }
@@ -59,8 +60,8 @@ public class JiraTools {
         return jiraService.getAllVersionsAsync(testKey).join().toString();
     }
 
-    @Cacheable(value = "getRequirements")
-    @Tool(description = "Получение требований к тест кейсам")
+//    @Cacheable(value = "getRequirements")
+    @Tool(description = "Получение требований к автоматизации тест кейсам")
     public String getRequirements() {
         return "Формулировка требований\n" +
                 "Чек-лист требований к тест-кейсам (ТК)Примечание\n" +
