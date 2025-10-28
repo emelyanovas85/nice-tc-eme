@@ -23,23 +23,23 @@ configurations {
 repositories {
     mavenCentral()
     // Spring AI пока в Milestone, поэтому нужен этот репозиторий
-    maven { url 'https://repo.spring.io/milestone' }
-    maven { url 'https://maven.vaadin.com/vaadin-addons' }
-
+    maven { url 'https://repo.spring.io/milestone' } // Убраны лишние пробелы
+    maven { url 'https://maven.vaadin.com/vaadin-addons' } // Убраны лишние пробелы
 }
-// Управление версиями зависимостей (включая Jackson)
+
+// Управление версиями зависимостей Jackson через BOM
 dependencyManagement {
     imports {
-        mavenBom "com.fasterxml.jackson:jackson-bom:2.20.0"
+        mavenBom "com.fasterxml.jackson:jackson-bom:2.17.2" // Используем версию, совместимую с Spring Boot 3.2.0
     }
 }
 
 dependencies {
     //bugbusters библиотеки
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation files('libs/JiraClient-1.6.0.jar')
+    implementation files('libs/JiraClient-1.6.1.jar') // Выбрана более новая версия
     implementation 'org.apache.commons:commons-text:1.3'
-    implementation files('libs/RestClients-1.5.2.jar')
+    implementation files('libs/RestClients-1.5.3.jar') // Выбрана более новая версия
 
     // Spring Boot Starters (БЕЗ Thymeleaf)
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -53,9 +53,12 @@ dependencies {
     // Spring Doc (Swagger UI) для документации и тестирования API в браузере
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
-    // JSON Processing
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    // JSON Processing - версии управляются через jackson-bom
+    implementation 'com.fasterxml.jackson.core:jackson-databind' // Версия будет 2.17.2
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310' // Версия будет 2.17.2
+    // jackson-core входит в состав jackson-databind и обычно не указывается отдельно, если не нужна особая версия
+    // Если нужна отдельная зависимость, она будет управляться BOM для артефактов com.fasterxml.jackson.*
+    // implementation 'com.fasterxml.jackson.core:jackson-core' // Убрано, т.к. обычно не нужно отдельно
 
     // HTTP Client для внешних интеграций
     implementation 'org.apache.httpcomponents.client5:httpclient5'
@@ -74,32 +77,20 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-    //bugbusters библиотеки
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation files('libs/JiraClient-1.6.1.jar')
-    implementation files('libs/RestClients-1.5.3.jar')
-
     //flux
-//    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    // implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.boot:spring-boot-starter-webflux' // для Reactor Flux
-//    implementation 'com.fasterxml.jackson.core:jackson-core:2.15.3'
-
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-    implementation 'com.fasterxml.jackson.core:jackson-core'
-    //работа с JSON
-    implementation 'com.jayway.jsonpath:json-path:2.4.0'
+    // jackson-core не исключается из web starter, управление версиями через BOM
+    // jackson-databind и jackson-datatype-jsr310 уже добавлены выше, не дублируем
+    // работа с JSON
+    implementation 'com.jayway.jsonpath:json-path:2.9.0' // Обновлена версия для лучшей совместимости
 
     implementation "com.vaadin:vaadin-spring-boot-starter:24.9.3"
+    // jackson-core не исключается из vaadin starter, управление версиями через BOM
     implementation 'io.projectreactor:reactor-core'
     implementation 'javax.annotation:javax.annotation-api:1.3.2'
-    implementation('com.vaadin:vaadin-spring-boot-starter:24.9.3') {
-        exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
-    }
-    implementation('org.springframework.boot:spring-boot-starter-web') {
-        exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
-    }
 
+    // Markdown processing
     implementation 'org.commonmark:commonmark:0.21.0'
     implementation 'org.commonmark:commonmark-ext-gfm-tables:0.21.0'
 
@@ -117,7 +108,6 @@ tasks.named('test') {
 tasks.named('compileJava') {
     inputs.files(tasks.processResources)
 }
-
 
 // Настройки JAR
 tasks.named('jar') {

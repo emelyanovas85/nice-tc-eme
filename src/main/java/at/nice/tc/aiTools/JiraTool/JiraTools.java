@@ -1,11 +1,16 @@
 package at.nice.tc.aiTools.JiraTool;
 
 import at.nice.tc.service.JiraService;
+import com.nimbusds.jose.util.ArrayUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
+
+import java.util.Arrays;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -40,11 +45,30 @@ public class JiraTools {
 //        return string;
 //    }
 
+    @Tool(description = "Дает произвольный UUID, нужно передать любую строку для формирования произвольного UUID")
+    public String getRandomUUID(String q) {
+        return UUID.randomUUID().toString();
+    }
+
+
     @Tool(description = "Получает информацию о доступности Jira")
-    public String isAvailable() {
+    public String isAvailable(@ToolParam(description = "обязательно передалй любую букву") String ignore) {//todo ignore избавиться от заплатки в виде параметра в методе
         return jiraService.isAvailable().join().toString();
     }
 
+    // Вспомогательный класс для структурированного ответа
+    static class AvailabilityResponse {
+        public final boolean available;
+        public final String message;
+
+        public AvailabilityResponse(boolean available, String message) {
+            this.available = available;
+            this.message = message;
+        }
+        // Jackson обычно находит поля или геттеры автоматически, сеттеры не обязательны для сериализации
+        // public boolean isAvailable() { return available; }
+        // public String getMessage() { return message; }
+    }
 //    @Cacheable(value = "jiraATestFromJira", key = "#id")
 //    @Tool(description = "Получает информацию о тест кейсе по его ID из Jira")
 //    public String readTestFromJira(
@@ -62,7 +86,7 @@ public class JiraTools {
 
 //    @Cacheable(value = "getRequirements")
     @Tool(description = "Получение требований к автоматизации тест кейсам")
-    public String getRequirements() {
+    public String getRequirements(@ToolParam(description = "обязательно передалй любую букву") String ignore) {//todo ignore избавиться от заплатки в виде параметра в методе
         return "Формулировка требований\n" +
                 "Чек-лист требований к тест-кейсам (ТК)Примечание\n" +
                 "Общие требования к тест-кейсам (ТК)\n" +

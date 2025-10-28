@@ -67,7 +67,7 @@ public class OpenAiConfig {
         return ChatClient.builder(openAiChatModel)
                 .defaultTools(jiraTools)
                 .defaultOptions(ChatOptions.builder()
-                        .temperature(0.0)
+                        .temperature(0.1)
                         .build())
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
