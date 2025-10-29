@@ -24,29 +24,29 @@ repositories {
     mavenCentral()
     // Spring AI пока в Milestone, поэтому нужен этот репозиторий
     maven { url 'https://repo.spring.io/milestone' }
-//    maven { url 'https://maven.vaadin.com/vaadin-addons' }
 }
 
 // Управление версиями зависимостей Jackson через BOM
 dependencyManagement {
     imports {
         mavenBom "com.fasterxml.jackson:jackson-bom:2.17.2"
+        mavenBom "com.vaadin:vaadin-bom:24.9.3"
     }
 }
 
 dependencies {
     //bugbusters библиотеки
-   // developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    implementation 'org.springframework.boot:spring-boot-devtools' // Неправильная конфигурация, если нужно только для разработки
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation files('libs/JiraClient-1.6.1.jar') // Выбрана более новая версия
+    implementation files('libs/JiraClient-1.6.1.jar')
     implementation 'org.apache.commons:commons-text:1.3'
-    implementation files('libs/RestClients-1.5.3.jar') // Выбрана более новая версия
+    implementation files('libs/RestClients-1.5.3.jar')
 
-    // Spring Boot Starters (БЕЗ Thymeleaf)
+    // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux' // для Reactor Flux
 
     // Spring AI для работы с OpenAI-совместимыми моделями (Qwen через vLLM)
     implementation 'org.springframework.ai:spring-ai-starter-model-openai:1.1.0-M3'
@@ -58,43 +58,32 @@ dependencies {
     // JSON Processing - версии управляются через jackson-bom
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    implementation 'com.jayway.jsonpath:json-path:2.9.0'
 
     // HTTP Client для внешних интеграций
     implementation 'org.apache.httpcomponents.client5:httpclient5'
 
-    // Development
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-
+    // Lombok
     compileOnly 'org.projectlombok:lombok'
-
-    // Annotation Processing
     annotationProcessor 'org.projectlombok:lombok'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    // Testing
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    //flux
-    // implementation 'org.springframework.boot:spring-boot-starter-websocket'
-    implementation 'org.springframework.boot:spring-boot-starter-webflux' // для Reactor Flux
-    // jackson-core не исключается из web starter, управление версиями через BOM
-    // jackson-databind и jackson-datatype-jsr310 уже добавлены выше, не дублируем
-    // работа с JSON
-    implementation 'com.jayway.jsonpath:json-path:2.9.0' // Обновлена версия для лучшей совместимости
-
     // Vaadin
-    implementation "com.vaadin:vaadin-spring-boot-starter:24.9.3"
-    // jackson-core не исключается из vaadin starter, управление версиями через BOM
+    implementation "com.vaadin:vaadin-spring-boot-starter"
     implementation 'io.projectreactor:reactor-core'
     implementation 'javax.annotation:javax.annotation-api:1.3.2'
+
+    // Vaadin Firitin для MarkdownMessage (правильные координаты)
+    implementation 'in.virit:viritin:2.21.1'
 
     // Markdown processing
     implementation 'org.commonmark:commonmark:0.21.0'
     implementation 'org.commonmark:commonmark-ext-gfm-tables:0.21.0'
 
-
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {

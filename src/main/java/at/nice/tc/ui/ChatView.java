@@ -1,13 +1,9 @@
 package at.nice.tc.ui;
 
 import at.nice.tc.service.AiService;
-import com.vaadin.flow.component.ClickEvent;
-import com.vaadin.flow.component.Composite;
-import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.messages.MessageList;
-import com.vaadin.flow.component.messages.MessageListItem;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -17,23 +13,29 @@ import com.vaadin.flow.router.Route;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.vaadin.firitin.components.messagelist.MarkdownMessage;
+import org.vaadin.firitin.components.orderedlayout.VScroller;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
 import javax.annotation.PostConstruct;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.vaadin.flow.component.Unit.PERCENTAGE;
-import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.*;
+import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
+import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.END;
 
 @Route("")
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class ChatView extends Composite<VerticalLayout> {
 
     private final AiService aiService;
-    private final MessageList messageList = new MessageList();
+
+    private SmartScroller scroller;
+    private final VerticalLayout messageList = new VerticalLayout();
     private final String chatId = UUID.randomUUID().toString();
     private boolean chatActive = true;
     private ChatInputComponent inputLayout;
@@ -43,7 +45,7 @@ public class ChatView extends Composite<VerticalLayout> {
     @PostConstruct
     private void initUI() {
 
-        Scroller scroller = new Scroller(messageList);
+        scroller = new SmartScroller(messageList);
         scroller.setHeight(70, PERCENTAGE);
         scroller.setWidth(70, PERCENTAGE);
 
@@ -64,7 +66,7 @@ public class ChatView extends Composite<VerticalLayout> {
     private void onStop(ClickEvent<Button> buttonClickEvent) {
         stopChat();
         setSendButtonToSend();
-}
+    }
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
         String userText = inputLayout.getArea().getValue().trim();
@@ -72,15 +74,16 @@ public class ChatView extends Composite<VerticalLayout> {
             return;
         }
 
+        scroller.setStickDown(true);
         setSendButtonToStop();
 
-        MessageListItem userMessage = new MessageListItem(userText, Instant.now(), "Пользователь");
+        MarkdownMessage userMessage = new MarkdownMessage(userText, "Пользователь", LocalDateTime.now());
         userMessage.setUserColorIndex(3);
-        messageList.addItem(userMessage);
+        messageList.add(userMessage);
 
-        MessageListItem botMessage = new MessageListItem("", Instant.now(), "Агент Jira");
+        MarkdownMessage botMessage = new MarkdownMessage("Агент Jira", LocalDateTime.now());
         botMessage.setUserColorIndex(5);
-        messageList.addItem(botMessage);
+        messageList.add(botMessage);
 
 
         Optional<UI> uiOptional = buttonClickEvent.getSource().getUI();
@@ -88,9 +91,12 @@ public class ChatView extends Composite<VerticalLayout> {
             Flux<String> responseFlux = aiService.sendMessageStream(userText);
             inputLayout.area.clear();
             subscription = responseFlux.subscribe(
-                    token -> ui.access(() -> botMessage.appendText(token)),
+                    token -> ui.access(() -> {
+                        botMessage.appendMarkdownAsync(token);
+                        scroller.scrollIfNeeded();
+                    }),
                     err -> ui.access(() -> {
-                        botMessage.setText("Ошибка: " + err.getMessage());
+                        botMessage.setMarkdown("Ошибка: " + err.getMessage());
                         setSendButtonToSend();
                         subscription = null;
                     }),
@@ -120,7 +126,6 @@ public class ChatView extends Composite<VerticalLayout> {
         }
         chatActive = false;
     }
-
 
 
     @Getter
@@ -164,4 +169,58 @@ public class ChatView extends Composite<VerticalLayout> {
             setVerticalComponentAlignment(END, area, sendButton, stopButton);
         }
     }
+
+
+    public static class SmartScroller extends Scroller {
+        private final AtomicBoolean stickDown = new AtomicBoolean(true);
+
+        public SmartScroller(Component content) {
+            super(content);
+            addAttachListener(e -> {
+                getElement().executeJs(
+                        // language=jav
+                        """
+                                    var el = this;
+                                    var lastScrollTop = 0;
+                                
+                                    el.addEventListener("scroll", function(e) {
+                                        var currentScrollTop = el.scrollTop;
+                                
+                                        if (currentScrollTop < lastScrollTop) { // Скролл вверх
+                                            el.$server.onScrollUp();
+                                            
+                                        } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) { // достигли дна
+                                            // Проверяем достаточно ли точные вычисления для дна
+                                            // Добавляем небольшой допуск (1px) для защиты от ошибок округления
+                                            el.$server.onScrolledToBottom();
+                                        }
+                                        lastScrollTop = currentScrollTop;
+                                    });
+                                """,
+                        getElement()
+                );
+            });
+        }
+
+        @ClientCallable
+        public void onScrollUp() {
+            setStickDown(false);
+        }
+
+        @ClientCallable
+        public void onScrolledToBottom() {
+            setStickDown(true);
+        }
+
+
+
+        public void setStickDown(boolean flag) {
+            stickDown.set(flag);
+        }
+
+        public void scrollIfNeeded() {
+            if (stickDown.get())
+                scrollToBottom();
+        }
+    };
 }
