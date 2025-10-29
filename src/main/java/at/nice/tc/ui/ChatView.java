@@ -32,17 +32,15 @@ public class ChatView extends Composite<VerticalLayout> {
 
     private final AiService aiService;
 
-    private SmartScroller scroll;
-    private VerticalLayout messageList;
-    private ChatInputComponent inputLayout;
-    private boolean chatActive;
+    private Scroller scroll; // обертка для панели сообщений
+    private VerticalLayout messageList; // панель сообщений
+    private ChatInputComponent inputLayout; // textArea с кнопками
     private Disposable subscription;
 
 
     @PostConstruct
     private void initUI() {
         messageList = new VerticalLayout();
-        chatActive = true;
 
         scroll = new SmartScroller(messageList);
         scroll.setHeight(70, PERCENTAGE);
@@ -59,12 +57,12 @@ public class ChatView extends Composite<VerticalLayout> {
 
         getContent().add(inputLayout);
         getContent().setSizeFull();
-        setSendButtonToSend();
+        inputLayout.showSendButton();
     }
 
     private void onStop(ClickEvent<Button> buttonClickEvent) {
         stopChat();
-        setSendButtonToSend();
+        inputLayout.showSendButton();
     }
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
@@ -74,7 +72,7 @@ public class ChatView extends Composite<VerticalLayout> {
         }
 
         scroll.setStickDown(true);
-        setSendButtonToStop();
+        inputLayout.showStopButton();
 
         MarkdownMessage userMessage = new MarkdownMessage(userText, "Пользователь", LocalDateTime.now());
         userMessage.setUserColorIndex(3);
@@ -92,30 +90,18 @@ public class ChatView extends Composite<VerticalLayout> {
             subscription = responseFlux.subscribe(
                     token -> ui.access(() -> {
                         botMessage.appendMarkdownAsync(token);
-                        scroll.scrollIfNeeded();
+                        scroll.scrollToBottom();
                     }),
                     err -> ui.access(() -> {
                         botMessage.setMarkdown("Ошибка: " + err.getMessage());
-                        setSendButtonToSend();
+                        inputLayout.showSendButton();
                         subscription = null;
                     }),
                     () -> ui.access(() -> {
-                        setSendButtonToSend();
+                        inputLayout.showSendButton();
                         subscription = null;
                     }));
         });
-    }
-
-    private void setSendButtonToSend() {
-        inputLayout.sendButton.setVisible(true);
-        inputLayout.stopButton.setVisible(false);
-        chatActive = true;
-    }
-
-    private void setSendButtonToStop() {
-        inputLayout.sendButton.setVisible(false);
-        inputLayout.stopButton.setVisible(true);
-        chatActive = false;
     }
 
     private void stopChat() {
@@ -123,10 +109,12 @@ public class ChatView extends Composite<VerticalLayout> {
             subscription.dispose();
             subscription = null;
         }
-        chatActive = false;
     }
 
 
+    /**
+     * Поле для ввода текста и кнопки "Отправить" и "Стоп"
+     */
     @Getter
     public static class ChatInputComponent extends HorizontalLayout {
 
@@ -167,9 +155,23 @@ public class ChatView extends Composite<VerticalLayout> {
             area.setWidthFull();
             setVerticalComponentAlignment(END, area, sendButton, stopButton);
         }
+
+        public void showSendButton() {
+            sendButton.setVisible(true);
+            stopButton.setVisible(false);
+        }
+
+        public void showStopButton() {
+            sendButton.setVisible(false);
+            stopButton.setVisible(true);
+        }
     }
 
 
+    /**
+     * Расширяет стандартный {@link Scroller} методом {@link #scrollIfNeeded()},
+     * который скроллит к низу панели, если установлен флаг {@link #stickDown}
+     */
     public static class SmartScroller extends Scroller {
         private final AtomicBoolean stickDown = new AtomicBoolean(true);
 
@@ -179,45 +181,59 @@ public class ChatView extends Composite<VerticalLayout> {
                 getElement().executeJs(
                         // language=jav
                         """
-                                    var el = this;
-                                    var lastScrollTop = 0;
+                            var el = this;
+                            var lastScrollTop = 0;
+                            
+                            el.addEventListener("scroll", function(e) {
+                                var currentScrollTop = el.scrollTop;
                                 
-                                    el.addEventListener("scroll", function(e) {
-                                        var currentScrollTop = el.scrollTop;
+                                if (currentScrollTop < lastScrollTop) { // Скролл вверх
+                                    el.$server.onScrollUp();
                                 
-                                        if (currentScrollTop < lastScrollTop) { // Скролл вверх
-                                            el.$server.onScrollUp();
-                                
-                                        } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) { // достигли дна
-                                            // Проверяем достаточно ли точные вычисления для дна
-                                            // Добавляем небольшой допуск (1px) для защиты от ошибок округления
-                                            el.$server.onScrolledToBottom();
-                                        }
-                                        lastScrollTop = currentScrollTop;
-                                    });
-                                """,
+                                } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) { // достигли дна
+                                    // Проверяем достаточно ли точные вычисления для дна
+                                    // Добавляем небольшой допуск (1px) для защиты от ошибок округления
+                                    el.$server.onScrolledToBottom();
+                                }
+                                lastScrollTop = currentScrollTop;
+                            });
+                        """,
                         getElement()
                 );
             });
         }
 
+        /**
+         * вызывается из javascript
+         */
         @ClientCallable
         public void onScrollUp() {
             setStickDown(false);
         }
 
+        /**
+         * вызывается из javascript
+         */
         @ClientCallable
         public void onScrolledToBottom() {
             setStickDown(true);
         }
 
+        /**
+         * Переключает флаг: true - скроллить, false - не скроллить
+         */
         public void setStickDown(boolean flag) {
             stickDown.set(flag);
         }
 
-        public void scrollIfNeeded() {
+        @Override
+        public void scrollToBottom() {
             if (stickDown.get())
-                scrollToBottom();
+                super.scrollToBottom();
         }
     }
+
+
+
+
 }
