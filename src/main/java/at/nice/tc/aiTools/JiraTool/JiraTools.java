@@ -1,29 +1,15 @@
 package at.nice.tc.aiTools.JiraTool;
 
 import at.nice.tc.service.JiraService;
-import com.nimbusds.jose.util.ArrayUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 @Component
 @RequiredArgsConstructor
-//@Lazy
 public class JiraTools {
-
-
-//    curl https://qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru/v1/chat/completions   -H "Content-Type: application/json"   -d '{
-//            "model": "qwen3-32b-awq",
-//            "messages": [{"role": "user", "content": "2+2"}],
-//            "temperature": 0.0
-//}'
-
 
     private final JiraService jiraService;
 
@@ -37,46 +23,10 @@ public class JiraTools {
         return jiraService.getFullTest(id).join();
     }
 
-
-//    @Tool(description = "Получает информацию о каждом шаге теста из Jira по ID тест кейса")
-//    public String getAllStepsAsync(String id) {
-//        List<Step> join = jiraService.getAllStepsSync(id);
-//        String string = join.stream().map(s -> s.getStepNumber() + s.getDescription() + s.getExpectedResults() + s.getParameters()).toList().toString();
-//        return string;
-//    }
-
-    @Tool(description = "Дает произвольный UUID, нужно передать любую строку для формирования произвольного UUID")
-    public String getRandomUUID(String q) {
-        return UUID.randomUUID().toString();
-    }
-
-
     @Tool(description = "Получает информацию о доступности Jira")
     public String isAvailable(@ToolParam(description = "обязательно передалй любую букву") String ignore) {//todo ignore избавиться от заплатки в виде параметра в методе
         return jiraService.isAvailable().join().toString();
     }
-
-    // Вспомогательный класс для структурированного ответа
-    static class AvailabilityResponse {
-        public final boolean available;
-        public final String message;
-
-        public AvailabilityResponse(boolean available, String message) {
-            this.available = available;
-            this.message = message;
-        }
-        // Jackson обычно находит поля или геттеры автоматически, сеттеры не обязательны для сериализации
-        // public boolean isAvailable() { return available; }
-        // public String getMessage() { return message; }
-    }
-//    @Cacheable(value = "jiraATestFromJira", key = "#id")
-//    @Tool(description = "Получает информацию о тест кейсе по его ID из Jira")
-//    public String readTestFromJira(
-//            @ToolParam(description = "id тест кейса, который состоит из аббревиатуры проекта, тире, номера теста, " +
-//                    "который начинается на T, например ASPPODDELTA-T1150")
-//            String id) {
-//        return jiraService.readTestAsync(id).join().toString();
-//    }
 
     @Cacheable(value = "jiraAllVersions", key = "#testKey")
     @Tool(description = "Получает информацию о версиях теста по его ID из Jira")
@@ -84,7 +34,6 @@ public class JiraTools {
         return jiraService.getAllVersionsAsync(testKey).join().toString();
     }
 
-//    @Cacheable(value = "getRequirements")
     @Tool(description = "Получение требований к автоматизации тест кейсам")
     public String getRequirements(@ToolParam(description = "обязательно передалй любую букву") String ignore) {//todo ignore избавиться от заплатки в виде параметра в методе
         return "Формулировка требований\n" +

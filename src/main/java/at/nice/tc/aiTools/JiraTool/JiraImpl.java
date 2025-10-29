@@ -31,11 +31,6 @@ public class JiraImpl implements Jira {
     }
 
     @Override
-    public List<Step> stepByStepScript(String id) {
-        return testCaseAPI.getTestSteps(id);
-    }
-
-    @Override
     public boolean isAvailable() {
         return jiraClient.isAvailable();
     }

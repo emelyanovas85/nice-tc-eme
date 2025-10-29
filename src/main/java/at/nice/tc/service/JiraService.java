@@ -25,10 +25,6 @@ public class JiraService {
         return CompletableFuture.supplyAsync(() -> jira.getLastUpdate(id));
     }
 
-    public List<Step> getAllStepsSync(String testKey) {
-        return jira.stepByStepScript(testKey);
-    }
-
     public CompletableFuture<Boolean> isAvailable() {
         return CompletableFuture.supplyAsync(jira::isAvailable);
     }

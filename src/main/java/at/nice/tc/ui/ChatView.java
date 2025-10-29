@@ -14,14 +14,12 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
-import org.vaadin.firitin.components.orderedlayout.VScroller;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
 import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.vaadin.flow.component.Unit.PERCENTAGE;
@@ -34,22 +32,23 @@ public class ChatView extends Composite<VerticalLayout> {
 
     private final AiService aiService;
 
-    private SmartScroller scroller;
-    private final VerticalLayout messageList = new VerticalLayout();
-    private final String chatId = UUID.randomUUID().toString();
-    private boolean chatActive = true;
+    private SmartScroller scroll;
+    private VerticalLayout messageList;
     private ChatInputComponent inputLayout;
+    private boolean chatActive;
     private Disposable subscription;
 
 
     @PostConstruct
     private void initUI() {
+        messageList = new VerticalLayout();
+        chatActive = true;
 
-        scroller = new SmartScroller(messageList);
-        scroller.setHeight(70, PERCENTAGE);
-        scroller.setWidth(70, PERCENTAGE);
+        scroll = new SmartScroller(messageList);
+        scroll.setHeight(70, PERCENTAGE);
+        scroll.setWidth(70, PERCENTAGE);
 
-        getContent().addAndExpand(scroller);
+        getContent().addAndExpand(scroll);
         getContent().setAlignItems(CENTER);
 
         inputLayout = new ChatInputComponent();
@@ -74,7 +73,7 @@ public class ChatView extends Composite<VerticalLayout> {
             return;
         }
 
-        scroller.setStickDown(true);
+        scroll.setStickDown(true);
         setSendButtonToStop();
 
         MarkdownMessage userMessage = new MarkdownMessage(userText, "Пользователь", LocalDateTime.now());
@@ -93,7 +92,7 @@ public class ChatView extends Composite<VerticalLayout> {
             subscription = responseFlux.subscribe(
                     token -> ui.access(() -> {
                         botMessage.appendMarkdownAsync(token);
-                        scroller.scrollIfNeeded();
+                        scroll.scrollIfNeeded();
                     }),
                     err -> ui.access(() -> {
                         botMessage.setMarkdown("Ошибка: " + err.getMessage());
@@ -188,7 +187,7 @@ public class ChatView extends Composite<VerticalLayout> {
                                 
                                         if (currentScrollTop < lastScrollTop) { // Скролл вверх
                                             el.$server.onScrollUp();
-                                            
+                                
                                         } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) { // достигли дна
                                             // Проверяем достаточно ли точные вычисления для дна
                                             // Добавляем небольшой допуск (1px) для защиты от ошибок округления
@@ -212,8 +211,6 @@ public class ChatView extends Composite<VerticalLayout> {
             setStickDown(true);
         }
 
-
-
         public void setStickDown(boolean flag) {
             stickDown.set(flag);
         }
@@ -222,5 +219,5 @@ public class ChatView extends Composite<VerticalLayout> {
             if (stickDown.get())
                 scrollToBottom();
         }
-    };
+    }
 }

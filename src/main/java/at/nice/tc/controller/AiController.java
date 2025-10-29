@@ -17,12 +17,6 @@ import reactor.core.publisher.Flux;
 public class AiController {
 
     private final AiService aiService;
-//    private final SseService sseService;
-
-//    @PostMapping(value = "/chat")
-//    public String sendMessage(@RequestBody TestMessage request) {
-//        return aiService.sendMessage(request.getMessage());
-//    }
 
     @PostMapping(value = "/chat/stream")
     public Flux<String> sendMessageAsStream(@RequestBody TestMessage request) {
@@ -31,7 +25,7 @@ public class AiController {
 
     @Setter
     @Getter
-    public static class TestMessage{
-        private  String message;
+    public static class TestMessage {
+        private String message;
     }
 }

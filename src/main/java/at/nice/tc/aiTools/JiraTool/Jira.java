@@ -11,8 +11,6 @@ public interface Jira {
 
     String getLastUpdate(String id);
 
-    List<Step> stepByStepScript(String id);
-
     boolean isAvailable();
 
     List<VersionDTO> getAllVersions(String testKey);
