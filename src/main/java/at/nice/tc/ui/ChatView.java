@@ -1,15 +1,24 @@
 package at.nice.tc.ui;
 
 import at.nice.tc.service.AiService;
+import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.messages.MessageInput;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.messages.MessageInputI18n;
 import com.vaadin.flow.component.messages.MessageList;
 import com.vaadin.flow.component.messages.MessageListItem;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.shared.Registration;
+import lombok.Data;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.Disposable;
@@ -21,7 +30,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static com.vaadin.flow.component.Unit.PERCENTAGE;
-import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
+import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.*;
 
 @Route("")
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
@@ -31,7 +40,7 @@ public class ChatView extends Composite<VerticalLayout> {
     private final MessageList messageList = new MessageList();
     private final String chatId = UUID.randomUUID().toString();
     private boolean chatActive = true;
-    private MessageInput messageInput;
+    private ChatInputComponent messageInput;
     private Disposable subscription;
 
 
@@ -45,28 +54,24 @@ public class ChatView extends Composite<VerticalLayout> {
         getContent().addAndExpand(scroller);
         getContent().setAlignItems(CENTER);
 
-        messageInput = new MessageInput();
+        messageInput = new ChatInputComponent();
         messageInput.setWidthFull();
-        messageInput.addSubmitListener(this::onSubmit);
+        messageInput.getSendButton().addClickListener(this::onSubmit);
+        messageInput.getStopButton().addClickListener(this::onStop);
         messageInput.setWidth(70, PERCENTAGE);
-        messageInput.setI18n(
-                new MessageInputI18n()
-                        .setSend("Отправить")
-                        .setMessage("Введите текст сообщения...")
-        );
 
         getContent().add(messageInput);
         getContent().setSizeFull();
+        setSendButtonToSend();
     }
 
-    private void onSubmit(MessageInput.SubmitEvent submitEvent) {
-        if (!chatActive) {
-            stopChat();
-            setSendButtonToSend();
-            return;
-        }
+    private void onStop(ClickEvent<Button> buttonClickEvent) {
+        stopChat();
+        setSendButtonToSend();
+}
 
-        String userText = submitEvent.getValue().trim();
+    private void onSubmit(ClickEvent<Button> buttonClickEvent) {
+        String userText = messageInput.input.getValue().trim();
         if (userText.isEmpty()) {
             return;
         }
@@ -82,10 +87,11 @@ public class ChatView extends Composite<VerticalLayout> {
         messageList.addItem(botMessage);
 
 
-        Optional<UI> uiOptional = submitEvent.getSource().getUI();
+        Optional<UI> uiOptional = buttonClickEvent.getSource().getUI();
         uiOptional.ifPresent(ui -> {
             Flux<String> responseFlux = aiService.sendMessageStream(userText);
-            responseFlux.subscribe(
+            messageInput.input.clear();
+            subscription = responseFlux.subscribe(
                     token -> ui.access(() -> botMessage.appendText(token)),
                     err -> ui.access(() -> {
                         botMessage.setText("Ошибка: " + err.getMessage());
@@ -100,12 +106,14 @@ public class ChatView extends Composite<VerticalLayout> {
     }
 
     private void setSendButtonToSend() {
-        messageInput.setI18n(new MessageInputI18n().setSend("Отправить").setMessage("Введите текст сообщения..."));
+        messageInput.sendButton.setVisible(true);
+        messageInput.stopButton.setVisible(false);
         chatActive = true;
     }
 
     private void setSendButtonToStop() {
-        messageInput.setI18n(new MessageInputI18n().setSend("Стоп").setMessage("Сообщение отправляется..."));
+        messageInput.sendButton.setVisible(false);
+        messageInput.stopButton.setVisible(true);
         chatActive = false;
     }
 
@@ -115,5 +123,49 @@ public class ChatView extends Composite<VerticalLayout> {
             subscription = null;
         }
         chatActive = false;
+    }
+
+
+
+    @Getter
+    public static class ChatInputComponent extends HorizontalLayout {
+
+        private final TextArea input = new TextArea();
+        private final Button sendButton = new Button("Отправить");
+        private final Button stopButton = new Button("Стоп");
+
+        public ChatInputComponent() {
+            configureInput();
+            configureButtons();
+            addComponents();
+            setLayoutDefaults();
+        }
+
+        private void configureButtons() {
+            sendButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+            stopButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+
+            sendButton.setWidth("8em");
+            stopButton.setWidth("8em");
+        }
+
+        private void configureInput() {
+            input.setPlaceholder("Напишите ваше сообщение здесь...");
+            input.setValueChangeMode(ValueChangeMode.EAGER); // Реагировать сразу на изменения
+            input.addFocusListener(e -> input.setPlaceholder(""));
+            input.addBlurListener(e -> input.setPlaceholder("Напишите ваше сообщение здесь..."));
+        }
+
+        private void addComponents() {
+            add(input, sendButton, stopButton);
+        }
+
+        private void setLayoutDefaults() {
+            setPadding(true);
+            setSpacing(true);
+            // Растягиваем TextField по ширине родителя
+            input.setWidthFull();
+            setVerticalComponentAlignment(END, input, sendButton, stopButton);
+        }
     }
 }

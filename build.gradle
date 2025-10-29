@@ -1,6 +1,6 @@
 plugins {
     id 'org.springframework.boot' version '3.2.0'
-    id 'io.spring.dependency-management' version '1.1.4'
+    id 'io.spring.dependency-management' version '1.1.6'
     id 'java'
     id 'idea'
 }
@@ -23,19 +23,21 @@ configurations {
 repositories {
     mavenCentral()
     // Spring AI пока в Milestone, поэтому нужен этот репозиторий
-    maven { url 'https://repo.spring.io/milestone' } // Убраны лишние пробелы
-    maven { url 'https://maven.vaadin.com/vaadin-addons' } // Убраны лишние пробелы
+    maven { url 'https://repo.spring.io/milestone' }
+//    maven { url 'https://maven.vaadin.com/vaadin-addons' }
 }
 
 // Управление версиями зависимостей Jackson через BOM
 dependencyManagement {
     imports {
-        mavenBom "com.fasterxml.jackson:jackson-bom:2.17.2" // Используем версию, совместимую с Spring Boot 3.2.0
+        mavenBom "com.fasterxml.jackson:jackson-bom:2.17.2"
     }
 }
 
 dependencies {
     //bugbusters библиотеки
+   // developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    implementation 'org.springframework.boot:spring-boot-devtools' // Неправильная конфигурация, если нужно только для разработки
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation files('libs/JiraClient-1.6.1.jar') // Выбрана более новая версия
     implementation 'org.apache.commons:commons-text:1.3'
@@ -54,11 +56,8 @@ dependencies {
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
     // JSON Processing - версии управляются через jackson-bom
-    implementation 'com.fasterxml.jackson.core:jackson-databind' // Версия будет 2.17.2
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310' // Версия будет 2.17.2
-    // jackson-core входит в состав jackson-databind и обычно не указывается отдельно, если не нужна особая версия
-    // Если нужна отдельная зависимость, она будет управляться BOM для артефактов com.fasterxml.jackson.*
-    // implementation 'com.fasterxml.jackson.core:jackson-core' // Убрано, т.к. обычно не нужно отдельно
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     // HTTP Client для внешних интеграций
     implementation 'org.apache.httpcomponents.client5:httpclient5'
@@ -85,6 +84,7 @@ dependencies {
     // работа с JSON
     implementation 'com.jayway.jsonpath:json-path:2.9.0' // Обновлена версия для лучшей совместимости
 
+    // Vaadin
     implementation "com.vaadin:vaadin-spring-boot-starter:24.9.3"
     // jackson-core не исключается из vaadin starter, управление версиями через BOM
     implementation 'io.projectreactor:reactor-core'
@@ -117,10 +117,4 @@ tasks.named('jar') {
 tasks.named('bootJar') {
     archiveClassifier = ''
     mainClass = 'com.testsystem.TestSystemApplication'
-}
-
-// Wrapper настройки
-wrapper {
-    gradleVersion = '8.5'
-    distributionType = Wrapper.DistributionType.BIN
 }
