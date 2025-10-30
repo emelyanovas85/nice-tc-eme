@@ -1,9 +1,13 @@
 package at.nice.tc.ui;
 
 import at.nice.tc.service.AiService;
-import com.vaadin.flow.component.*;
+import com.vaadin.flow.component.ClickEvent;
+import com.vaadin.flow.component.ClientCallable;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -19,7 +23,6 @@ import reactor.core.publisher.Flux;
 
 import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.vaadin.flow.component.Unit.PERCENTAGE;
@@ -32,7 +35,7 @@ public class ChatView extends Composite<VerticalLayout> {
 
     private final AiService aiService;
 
-    private Scroller scroll; // обертка для панели сообщений
+    private SmartScroller scroll; // обертка для панели сообщений
     private VerticalLayout messageList; // панель сообщений
     private ChatInputComponent inputLayout; // textArea с кнопками
     private Disposable subscription;
@@ -78,8 +81,8 @@ public class ChatView extends Composite<VerticalLayout> {
         userMessage.setUserColorIndex(3);
         messageList.add(userMessage);
 
-        MarkdownMessage botMessage = new MarkdownMessage("Агент Jira", LocalDateTime.now());
-        botMessage.setUserColorIndex(5);
+        MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
+        botMessage.getMainMessage().setUserColorIndex(5);
         messageList.add(botMessage);
 
 
@@ -92,11 +95,12 @@ public class ChatView extends Composite<VerticalLayout> {
                         scroll.scrollToBottom();
                     }),
                     err -> ui.access(() -> {
-                        botMessage.setMarkdown("Ошибка: " + err.getMessage());
+                        botMessage.appendMarkdownAsync("\n\nОшибка: " + err.getMessage());
                         inputLayout.showSendButton();
                         subscription = null;
                     }),
                     () -> ui.access(() -> {
+                        botMessage.finish();
                         inputLayout.showSendButton();
                         subscription = null;
                     }));
@@ -168,7 +172,7 @@ public class ChatView extends Composite<VerticalLayout> {
 
 
     /**
-     * Расширяет стандартный {@link Scroller} методом {@link #scrollIfNeeded()},
+     * Расширяет стандартный {@link Scroller} методом {@link #scrollToBottom()},
      * который скроллит к низу панели, если установлен флаг {@link #stickDown}
      */
     public static class SmartScroller extends Scroller {
@@ -189,9 +193,7 @@ public class ChatView extends Composite<VerticalLayout> {
                                 if (currentScrollTop < lastScrollTop) { // Скролл вверх
                                     el.$server.onScrollUp();
                                 
-                                } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) { // достигли дна
-                                    // Проверяем достаточно ли точные вычисления для дна
-                                    // Добавляем небольшой допуск (1px) для защиты от ошибок округления
+                                } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) { // достигли дна (добавляем небольшой допуск (1px) для защиты от ошибок округления)
                                     el.$server.onScrolledToBottom();
                                 }
                                 lastScrollTop = currentScrollTop;
@@ -205,6 +207,7 @@ public class ChatView extends Composite<VerticalLayout> {
         /**
          * вызывается из javascript
          */
+        @SuppressWarnings("unused")
         @ClientCallable
         public void onScrollUp() {
             setStickDown(false);
@@ -213,6 +216,7 @@ public class ChatView extends Composite<VerticalLayout> {
         /**
          * вызывается из javascript
          */
+        @SuppressWarnings("unused")
         @ClientCallable
         public void onScrolledToBottom() {
             setStickDown(true);
@@ -234,116 +238,114 @@ public class ChatView extends Composite<VerticalLayout> {
 
 
 
-    public static class MarkdownMessageWithThinking extends VerticalLayout {
-
-        private Details thinkingDetails;
-        private MarkdownMessage thinkingMessage;
-        private boolean inThinking = false;
-
-        private final MarkdownMessage mainMessage;
-
-        private static final int BUFFER_SIZE = 8;
-        private Buffer buffer = new Buffer(BUFFER_SIZE);
-
-        private boolean useBuffer = true;
-
-        public MarkdownMessageWithThinking() {
-            mainMessage = new MarkdownMessage();
-            add(mainMessage);
-
-            buffer.doWhenFound("<think>", (pos, strBuilder) -> {
-                int fromPos = pos + "<think>".length();
-                createThinkingDetails();
-                thinkingMessage.appendMarkdownAsync(buffer.value().substring(fromPos));
-                buffer.forget("<think>");
-                strBuilder.delete(pos, "<think>".length());
-            });
-
-            buffer.doWhenFound("</think>", (pos, strBuilder) -> {
-                thinkingMessage.appendMarkdownAsync(buffer.substring(0, pos));
-                buffer.forget("</think>");
-                strBuilder.delete(pos, "</think>".length());
-                useBuffer = false;
-            });
-
-            buffer.doWhenBufferFilled(() -> {
-                useBuffer &= thinkingMessage != null;
-            });
-        }
-
-        private void createThinkingDetails() {
-            thinkingMessage = new MarkdownMessage();
-            thinkingDetails = new Details("Размышления модели", thinkingMessage);
-            thinkingDetails.setOpened(false);
-            addComponentAsFirst(thinkingDetails);
-        }
-
-        @Override
-        public void appendMarkdownAsync(String chunk) {
-            if (chunk == null || chunk.isEmpty()) {
-                return;
-            }
-
-            if (useBuffer) {
-                buffer.append(chunk);
-                thinkingMessage.appendMarkdownAsync(buffer.trimFromStart());
-            } else
-                mainMessage.appendMarkdownAsync(chunk);
-        }
-
-
-        public static class Buffer {
-            private final int size;
-            private final StringBuilder buff = new StringBuilder();
-
-            public Buffer(int preferredSize) {
-                size = preferredSize;
-            }
-
-            private final Map<String, Consumer<Integer>> foundIndexListeners = new ConcurrentHashMap<>();
-
-            public void doWhenFound(String s, BiConsumer<Integer, StringBuilder> foundIndexListener) {
-                foundIndexListeners.put(s, foundIndexListener);
-            }
-
-            public void forget(String s) {
-                foundIndexListeners.remove(s);
-            }
-
-            private final List<Runnable> bufferFilledListeners = new CopyOnWriteArrayList<>();
-
-            public void doWhenBufferFilled(Runnable listener) {
-                bufferFilledListeners(listener);
-            }
-
-            public void append(String s) {
-                buff.append(s);
-                foundIndexListeners.forEach((key, listener) -> {
-                    int i = buff.indexOf(key);
-                    if (i >= 0)
-                        listener.accept(i, buff);
-                });
-                if (buff.size() >= size) {
-                    bufferFilledListeners.forEach(Runnable::run);
-                }
-            }
-
-            public String trimFromStart() {
-                int delta = buff.size() - size;
-                if (delta <= 0)
-                    return "";
-                String s = buff.substring(0, delta);
-                buff.delete(0, delta);
-                return s;
-            }
-
-            public String value() {
-                buff.toString();
-            }
-        }
-    }
-
-
+//    public static class MarkdownMessageWithThinking extends VerticalLayout {
+//
+//        private Details thinkingDetails;
+//        private MarkdownMessage thinkingMessage;
+//        private boolean inThinking = false;
+//
+//        private final MarkdownMessage mainMessage;
+//
+//        private static final int BUFFER_SIZE = 8;
+//        private Buffer buffer = new Buffer(BUFFER_SIZE);
+//
+//        private boolean useBuffer = true;
+//
+//        public MarkdownMessageWithThinking() {
+//            mainMessage = new MarkdownMessage("");
+//            add(mainMessage);
+//
+//            buffer.doWhenFound("<think>", (pos, strBuilder) -> {
+//                int fromPos = pos + "<think>".length();
+//                createThinkingDetails();
+//                thinkingMessage.appendMarkdownAsync(buffer.value().substring(fromPos));
+//                buffer.forget("<think>");
+//                strBuilder.delete(pos, "<think>".length());
+//            });
+//
+//            buffer.doWhenFound("</think>", (pos, strBuilder) -> {
+//                thinkingMessage.appendMarkdownAsync(buffer.substring(0, pos));
+//                buffer.forget("</think>");
+//                strBuilder.delete(pos, "</think>".length());
+//                useBuffer = false;
+//            });
+//
+//            buffer.doWhenBufferFilled(() -> {
+//                useBuffer &= thinkingMessage != null;
+//            });
+//        }
+//
+//        private void createThinkingDetails() {
+//            thinkingMessage = new MarkdownMessage();
+//            thinkingDetails = new Details("Размышления модели", thinkingMessage);
+//            thinkingDetails.setOpened(false);
+//            addComponentAsFirst(thinkingDetails);
+//        }
+//
+//        @Override
+//        public void appendMarkdownAsync(String chunk) {
+//            if (chunk == null || chunk.isEmpty()) {
+//                return;
+//            }
+//
+//            if (useBuffer) {
+//                buffer.append(chunk);
+//                thinkingMessage.appendMarkdownAsync(buffer.trimFromStart());
+//            } else
+//                mainMessage.appendMarkdownAsync(chunk);
+//        }
+//
+//
+//        public static class Buffer {
+//            private final int size;
+//            private final StringBuilder buff = new StringBuilder();
+//
+//            public Buffer(int preferredSize) {
+//                size = preferredSize;
+//            }
+//
+//            private final Map<String, Consumer<Integer>> foundIndexListeners = new ConcurrentHashMap<>();
+//
+//            public void doWhenFound(String s, BiConsumer<Integer, StringBuilder> foundIndexListener) {
+//                foundIndexListeners.put(s, foundIndexListener);
+//            }
+//
+//            public void forget(String s) {
+//                foundIndexListeners.remove(s);
+//            }
+//
+//            private final List<Runnable> bufferFilledListeners = new CopyOnWriteArrayList<>();
+//
+//            public void doWhenBufferFilled(Runnable listener) {
+//                bufferFilledListeners(listener);
+//            }
+//
+//            public void append(String s) {
+//                buff.append(s);
+//                foundIndexListeners.forEach((key, listener) -> {
+//                    int i = buff.indexOf(key);
+//                    if (i >= 0)
+//                        listener.accept(i, buff);
+//                });
+//                if (buff.size() >= size) {
+//                    bufferFilledListeners.forEach(Runnable::run);
+//                }
+//            }
+//
+//            public String trimFromStart() {
+//                int delta = buff.size() - size;
+//                if (delta <= 0)
+//                    return "";
+//                String s = buff.substring(0, delta);
+//                buff.delete(0, delta);
+//                return s;
+//            }
+//
+//            public String value() {
+//                buff.toString();
+//            }
+//        }
+//    }
 
 
 
@@ -356,6 +358,9 @@ public class ChatView extends Composite<VerticalLayout> {
 
 
 
+
+
+    @Getter
     public static class MarkdownMessageWithThinking extends VerticalLayout {
 
         private Details thinkingDetails;
@@ -367,8 +372,8 @@ public class ChatView extends Composite<VerticalLayout> {
         private static final String THINK_OPEN = "<think>";
         private static final String THINK_CLOSE = "</think>";
 
-        public MarkdownMessageWithThinking() {
-            mainMessage = new MarkdownMessage();
+        public MarkdownMessageWithThinking(String name, LocalDateTime timestamp) {
+            mainMessage = new MarkdownMessage(name, timestamp);
             add(mainMessage);
             state = new InitialState();
         }
@@ -383,9 +388,9 @@ public class ChatView extends Composite<VerticalLayout> {
             }));
         }
 
-        private void ensureThinkingDetailsCreated() {
+        public void ensureThinkingDetailsCreated() {
             if (thinkingDetails == null) {
-                thinkingMessage = new MarkdownMessage();
+                thinkingMessage = new MarkdownMessage("");
                 thinkingDetails = new Details("Размышления модели", thinkingMessage);
                 thinkingDetails.setOpened(false);
                 addComponentAsFirst(thinkingDetails);
