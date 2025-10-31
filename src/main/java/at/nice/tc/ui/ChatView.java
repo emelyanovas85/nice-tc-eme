@@ -46,8 +46,16 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     private Config config = new Config("browser", 70, 70, "ALL", "", "Пользователь");
 
+    /**
+     * @param mode browser/extension (просто мета-инфа)
+     * @param heightPerc высота чата внутри контейнера
+     * @param widthPerc ширина чата внутри контенера
+     * @param scope "", либо ASDKO-T777, либо ASDKO-C666, либо 12345
+     * @param userId 40FamiliaIO (в нижнем регистре)
+     * @param userFio инициалы пользователя
+     */
     @Builder
-    public record Config(String mode, int heightPerc, int widthPerc, String scope, String userId, String userName) {}
+    public record Config(String mode, int heightPerc, int widthPerc, String scope, String userId, String userFio) {}
 
 
     @Override
@@ -55,9 +63,11 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         Config.ConfigBuilder builder = Config.builder();
         QueryParameters query = event.getLocation().getQueryParameters();
         query.getSingleParameter("mode").ifPresent(builder::mode);
-        query.getSingleParameter("userId").ifPresent(builder::userId);
-        query.getSingleParameter("userName").map(ChatView::parseFio).ifPresent(builder::userName);
+        query.getSingleParameter("heightPerc").map(Integer::parseInt).ifPresent(builder::heightPerc);
+        query.getSingleParameter("widthPerc").map(Integer::parseInt).ifPresent(builder::widthPerc);
         query.getSingleParameter("scope").ifPresent(builder::scope);
+        query.getSingleParameter("userId").ifPresent(builder::userId);
+        query.getSingleParameter("userFio").map(ChatView::parseFio).ifPresent(builder::userFio);
 
         config = builder.build();
 
@@ -115,7 +125,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         scroll.setStickDown(true);
         inputLayout.showStopButton();
 
-        MarkdownMessage userMessage = new MarkdownMessage(userText, config.userName(), LocalDateTime.now());
+        MarkdownMessage userMessage = new MarkdownMessage(userText, config.userFio(), LocalDateTime.now());
         userMessage.setUserColorIndex(3);
         messageList.add(userMessage);
 
@@ -123,9 +133,15 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         botMessage.getMainMessage().setUserColorIndex(5);
         messageList.add(botMessage);
 
+        StringBuilder prompt = new StringBuilder();
+        if (!config.userId().isBlank())
+            prompt.append("Пользователь - ").append(config.userId()).append(".\n");
+        if (!config.scope().isBlank())
+            prompt.append("Пользователь находится на странице ").append(config.scope()).append(".\n");
+        prompt.append("\n").append(userText);
 
         getUI().ifPresent(ui -> {
-            Flux<String> responseFlux = aiService.sendMessageStream(userText);
+            Flux<String> responseFlux = aiService.sendMessageStream(prompt.toString());
             inputLayout.area.clear();
             subscription = responseFlux.subscribe(
                     token -> ui.access(() -> {
