@@ -1,10 +1,7 @@
 package at.nice.tc.ui;
 
 import at.nice.tc.service.AiService;
-import com.vaadin.flow.component.ClickEvent;
-import com.vaadin.flow.component.ClientCallable;
-import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.Composite;
+import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.details.Details;
@@ -14,7 +11,9 @@ import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.value.ValueChangeMode;
-import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.*;
+import com.vaadin.flow.theme.lumo.Lumo;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,14 +21,12 @@ import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
-import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static com.vaadin.flow.component.Unit.PERCENTAGE;
 import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
@@ -37,7 +34,7 @@ import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.EN
 
 @Route("")
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
-public class ChatView extends Composite<VerticalLayout> {
+public class ChatView extends Composite<VerticalLayout> implements BeforeEnterObserver {
 
     private final AiService aiService;
 
@@ -47,13 +44,47 @@ public class ChatView extends Composite<VerticalLayout> {
     private Disposable subscription;
 
 
-    @PostConstruct
+    private Config config = new Config("browser", 70, 70, "ALL", "", "Пользователь");
+
+    @Builder
+    public record Config(String mode, int heightPerc, int widthPerc, String scope, String userId, String userName) {}
+
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        Config.ConfigBuilder builder = Config.builder();
+        QueryParameters query = event.getLocation().getQueryParameters();
+        query.getSingleParameter("mode").ifPresent(builder::mode);
+        query.getSingleParameter("userId").ifPresent(builder::userId);
+        query.getSingleParameter("userName").map(ChatView::parseFio).ifPresent(builder::userName);
+        query.getSingleParameter("scope").ifPresent(builder::scope);
+
+        config = builder.build();
+
+        initUI();
+    }
+
+    private static String parseFio(String fio) {
+        return Arrays.stream(fio.split("\\s+"))
+                .map(s -> s.substring(0, 1))
+                .collect(Collectors.joining());
+    }
+
+
+
+
     private void initUI() {
+        Button toggleButton = new Button("Toggle theme", click -> {
+            getElement().executeJs("document.documentElement.setAttribute('theme', document.documentElement.getAttribute('theme', document) === $0 ? $1 : $0)", Lumo.DARK, Lumo.LIGHT);
+        });
+
+        getContent().add(toggleButton);
+
         messageList = new VerticalLayout();
 
         scroll = new SmartScroller(messageList);
-        scroll.setHeight(70, PERCENTAGE);
-        scroll.setWidth(70, PERCENTAGE);
+        scroll.setHeight(config.heightPerc(), PERCENTAGE);
+        scroll.setWidth(config.widthPerc(), PERCENTAGE);
 
         getContent().addAndExpand(scroll);
         getContent().setAlignItems(CENTER);
@@ -62,7 +93,8 @@ public class ChatView extends Composite<VerticalLayout> {
         inputLayout.setWidthFull();
         inputLayout.getSendButton().addClickListener(this::onSubmit);
         inputLayout.getStopButton().addClickListener(this::onStop);
-        inputLayout.setWidth(70, PERCENTAGE);
+        inputLayout.setWidth(config.widthPerc(), PERCENTAGE);
+
 
         getContent().add(inputLayout);
         getContent().setSizeFull();
@@ -83,7 +115,7 @@ public class ChatView extends Composite<VerticalLayout> {
         scroll.setStickDown(true);
         inputLayout.showStopButton();
 
-        MarkdownMessage userMessage = new MarkdownMessage(userText, "Пользователь", LocalDateTime.now());
+        MarkdownMessage userMessage = new MarkdownMessage(userText, config.userName(), LocalDateTime.now());
         userMessage.setUserColorIndex(3);
         messageList.add(userMessage);
 
@@ -119,6 +151,8 @@ public class ChatView extends Composite<VerticalLayout> {
             subscription = null;
         }
     }
+
+
 
 
     /**
@@ -271,28 +305,19 @@ public class ChatView extends Composite<VerticalLayout> {
             }));
         }
 
-        private final ScheduledExecutorService detailsNameUpdater = Executors.newSingleThreadScheduledExecutor();
-
         public void ensureThinkingDetailsCreated() {
             if (thinkingDetails == null) {
                 thinkingMessage = new Markdown();
                 thinkingDetails = new Details("Размышления модели", thinkingMessage);
+                thinkingDetails.setOpened(true);
 
                 state.addChangeStateListener((oldState, newState) -> {
                     // когда размышления закончатся:
                     if (newState.getClass() == MainState.class) {
-                        detailsNameUpdater.shutdown();
                         getUI().ifPresent(ui -> ui.access(() -> thinkingDetails.setOpened(false)));
                     }
                 });
 
-                detailsNameUpdater.scheduleAtFixedRate(() ->
-                                getUI().ifPresent(ui -> ui.access(() -> {
-                                    thinkingDetails.setSummaryText(thinkingDetails.getSummaryText() + ". ");
-                                })),
-                        1, 1, TimeUnit.SECONDS);
-
-                thinkingDetails.setOpened(true);
                 addComponentAsFirst(thinkingDetails);
             }
         }
