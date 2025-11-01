@@ -1,6 +1,8 @@
 package at.nice.tc.aiTools.JiraTool;
 
 import at.nice.tc.service.JiraService;
+import at.nice.tc.utils.JiraUtils;
+import at.nice.tc.utils.JsonTreeMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -16,11 +18,14 @@ public class JiraTools {
 
     @Cacheable(value = "jiraATestFromJira", key = "#id")
     @Tool(description = "Получает информацию о тест кейсе по его ID из Jira")
-    public String readTestFromJira(
+    public JsonTreeMap readTestFromJira(
             @ToolParam(description = "id тест кейса, который состоит из аббревиатуры проекта, тире, номера теста, " +
                     "который начинается на T, например ASPPODDELTA-T1150")
             String id) {
-        return jiraService.getFullTest(id).join();
+        return jiraService.getFullTest(id)
+                .thenApplyAsync(JiraUtils::parseTestJson)
+                .thenApplyAsync(JiraUtils::sortSteps)
+                .join();
     }
 
     @Tool(description = "Получает информацию о доступности Jira")
