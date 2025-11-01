@@ -1,9 +1,11 @@
 package at.nice.tc.controller;
 
+import at.nice.tc.config.Prompt;
 import at.nice.tc.service.AiService;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -21,6 +23,15 @@ public class AiController {
     @PostMapping(value = "/chat/stream")
     public Flux<String> sendMessageAsStream(@RequestBody TestMessage request) {
         return aiService.sendMessageStream(request.getMessage());
+    }
+
+    @GetMapping("/check/{testCaseId}")
+    public ResponseEntity<String> checkTestCase(@PathVariable String testCaseId) {
+        // Сконструировать промпт (или использовать Tool), чтобы AI сам запросил требования и данные
+        String prompt = Prompt.checkRequirements(testCaseId);
+
+        String aiResult = aiService.sendPrompt(prompt);
+        return ResponseEntity.ok(aiResult);
     }
 
     @Setter
