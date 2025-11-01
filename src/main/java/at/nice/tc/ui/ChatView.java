@@ -13,9 +13,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.theme.lumo.Lumo;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
@@ -41,35 +39,39 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private SmartScroller scroll; // обертка для панели сообщений
     private VerticalLayout messageList; // панель сообщений
     private ChatInputComponent inputLayout; // textArea с кнопками
-    private Disposable subscription;
 
 
-    private Config config = new Config("browser", 70, 70, "ALL", "", "Пользователь");
+    private final Config config = new Config("browser", 70, 70, "ALL", "", "Пользователь");
 
     /**
-     * @param mode browser/extension (просто мета-инфа)
-     * @param heightPerc высота чата внутри контейнера
-     * @param widthPerc ширина чата внутри контенера
-     * @param scope "", либо ASDKO-T777, либо ASDKO-C666, либо 12345
-     * @param userId 40FamiliaIO (в нижнем регистре)
-     * @param userFio инициалы пользователя
+     * - mode        browser/extension (просто мета-инфа)
+     * - heightPerc  высота чата внутри контейнера
+     * - widthPerc   ширина чата внутри контенера
+     * - scope       "", либо ASDKO-T777, либо ASDKO-C666, либо 12345
+     * - userId      40FamiliaIO (в нижнем регистре)
+     * - userFio     инициалы пользователя
      */
-    @Builder
-    public record Config(String mode, int heightPerc, int widthPerc, String scope, String userId, String userFio) {}
+    @Data
+    @AllArgsConstructor
+    public static class Config {
+        private String mode;
+        private int heightPerc;
+        private int widthPerc;
+        private String scope;
+        private String userId;
+        private String userFio;
+    }
 
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        Config.ConfigBuilder builder = Config.builder();
         QueryParameters query = event.getLocation().getQueryParameters();
-        query.getSingleParameter("mode").ifPresent(builder::mode);
-        query.getSingleParameter("heightPerc").map(Integer::parseInt).ifPresent(builder::heightPerc);
-        query.getSingleParameter("widthPerc").map(Integer::parseInt).ifPresent(builder::widthPerc);
-        query.getSingleParameter("scope").ifPresent(builder::scope);
-        query.getSingleParameter("userId").ifPresent(builder::userId);
-        query.getSingleParameter("userFio").map(ChatView::parseFio).ifPresent(builder::userFio);
-
-        config = builder.build();
+        query.getSingleParameter("mode").ifPresent(config::setMode);
+        query.getSingleParameter("heightPerc").map(Integer::parseInt).ifPresent(config::setHeightPerc);
+        query.getSingleParameter("widthPerc").map(Integer::parseInt).ifPresent(config::setWidthPerc);
+        query.getSingleParameter("scope").ifPresent(config::setScope);
+        query.getSingleParameter("userId").ifPresent(config::setUserId);
+        query.getSingleParameter("userFio").map(ChatView::parseFio).ifPresent(config::setUserFio);
 
         initUI();
     }
@@ -79,7 +81,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                 .map(s -> s.substring(0, 1))
                 .collect(Collectors.joining());
     }
-
 
 
 
@@ -93,8 +94,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         messageList = new VerticalLayout();
 
         scroll = new SmartScroller(messageList);
-        scroll.setHeight(config.heightPerc(), PERCENTAGE);
-        scroll.setWidth(config.widthPerc(), PERCENTAGE);
+        scroll.setHeight(config.getHeightPerc(), PERCENTAGE);
+        scroll.setWidth(config.getWidthPerc(), PERCENTAGE);
 
         getContent().addAndExpand(scroll);
         getContent().setAlignItems(CENTER);
@@ -103,7 +104,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         inputLayout.setWidthFull();
         inputLayout.getSendButton().addClickListener(this::onSubmit);
         inputLayout.getStopButton().addClickListener(this::onStop);
-        inputLayout.setWidth(config.widthPerc(), PERCENTAGE);
+        inputLayout.setWidth(config.getWidthPerc(), PERCENTAGE);
 
 
         getContent().add(inputLayout);
@@ -116,6 +117,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         inputLayout.showSendButton();
     }
 
+    private Disposable subscription;
+
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
         String userText = inputLayout.getArea().getValue().trim();
         if (userText.isEmpty()) {
@@ -125,7 +128,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         scroll.setStickDown(true);
         inputLayout.showStopButton();
 
-        MarkdownMessage userMessage = new MarkdownMessage(userText, config.userFio(), LocalDateTime.now());
+        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), LocalDateTime.now());
         userMessage.setUserColorIndex(3);
         messageList.add(userMessage);
 
@@ -134,10 +137,10 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         messageList.add(botMessage);
 
         StringBuilder prompt = new StringBuilder();
-        if (!config.userId().isBlank())
-            prompt.append("Пользователь - ").append(config.userId()).append(".\n");
-        if (!config.scope().isBlank())
-            prompt.append("Пользователь находится на странице ").append(config.scope()).append(".\n");
+        if (!config.getUserId().isBlank())
+            prompt.append("Пользователь - ").append(config.getUserId()).append(".\n");
+        if (!config.getScope().isBlank())
+            prompt.append("Пользователь находится на странице ").append(config.getScope()).append(".\n");
         prompt.append("\n").append(userText);
 
         getUI().ifPresent(ui -> {
