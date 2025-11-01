@@ -14,7 +14,7 @@ public abstract class JiraUtils {
 
     public static JsonTreeMap parseTestJson(String json) {
         try {
-            return MAPPER.readValue(json, JsonTreeMap.class);
+            return MAPPER.readValue(json, JsonTreeMap.class).flat();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -29,5 +29,13 @@ public abstract class JiraUtils {
                 .collect(Collectors.toList());
         test.put("testScript.stepByStepScript.steps", sortedSteps);
         return test;
+    }
+
+    public static String toString(JsonTreeMap treeMap) {
+        try {
+            return MAPPER.writeValueAsString(treeMap);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -18,14 +18,15 @@ public class JiraTools {
 
     @Cacheable(value = "jiraATestFromJira", key = "#id")
     @Tool(description = "Получает информацию о тест кейсе по его ID из Jira")
-    public JsonTreeMap readTestFromJira(
+    public String readTestFromJira(
             @ToolParam(description = "id тест кейса, который состоит из аббревиатуры проекта, тире, номера теста, " +
                     "который начинается на T, например ASPPODDELTA-T1150")
             String id) {
-        return jiraService.getFullTest(id)
+        JsonTreeMap jsonTreeMap = jiraService.getFullTest(id)
                 .thenApplyAsync(JiraUtils::parseTestJson)
                 .thenApplyAsync(JiraUtils::sortSteps)
                 .join();
+        return JiraUtils.toString(jsonTreeMap);
     }
 
     @Tool(description = "Получает информацию о доступности Jira")
