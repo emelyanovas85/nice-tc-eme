@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 public abstract class JiraUtils {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    public static final ObjectMapper MAPPER = new ObjectMapper();
 
     public static JsonTreeMap parseTestJson(String json) {
         try {

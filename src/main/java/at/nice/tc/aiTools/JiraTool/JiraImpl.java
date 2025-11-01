@@ -26,6 +26,13 @@ public class JiraImpl implements Jira {
     }
 
     @Override
+    public String getTest(String id, List<String> fields) {
+        if (fields == null)
+            return getFullTest(id);
+        return testCaseAPI.requestToJira(id, fields.toArray(new String[0]));
+    }
+
+    @Override
     public String getLastUpdate(String id) {
         return testCaseAPI.requestToJira(id, "updatedOn");
     }

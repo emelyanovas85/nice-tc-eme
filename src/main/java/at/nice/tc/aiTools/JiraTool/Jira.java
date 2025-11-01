@@ -9,6 +9,8 @@ public interface Jira {
 
     String getFullTest(String id);
 
+    String getTest(String id, List<String> fields);
+
     String getLastUpdate(String id);
 
     boolean isAvailable();
