@@ -14,7 +14,7 @@ public class GoogleTools {
     private final GoogleDocsService googleDocsService;
 
     @Tool(description = "Предоставляет требования к тестовым прогонам из Google Docs. Передай любую букву")
-    public String getTestRunRequirements(/*String ignore*/) {
+    public String getTestRunRequirements(String ignore) {
         return googleDocsService.getTableFromAppsScript(
                 LINK_GOOGLE_DOC_SCRIPT,
                 GOOGLE_DOC_ID,
