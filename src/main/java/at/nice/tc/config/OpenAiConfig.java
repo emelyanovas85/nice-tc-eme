@@ -1,6 +1,7 @@
 package at.nice.tc.config;
 
 import at.nice.tc.aiTools.JiraTool.JiraTools;
+import at.nice.tc.aiTools.googleTool.GoogleTools;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -24,6 +25,7 @@ import org.springframework.context.annotation.Configuration;
 public class OpenAiConfig {
 
     private final JiraTools jiraTools;
+    private final GoogleTools googleTools;
 
     @Value("${ai.service.url}")
     private String baseUrl;
@@ -39,8 +41,7 @@ public class OpenAiConfig {
         return new ConcurrentMapCacheManager(
                 "jiraAllSteps",
                 "jiraATestFromJira",
-                "jiraAllVersions",
-                "getRequirements"
+                "jiraAllVersions"
         );
     }
 
@@ -65,7 +66,7 @@ public class OpenAiConfig {
     @Bean
     public ChatClient chatClient(ChatMemory chatMemory, ChatModel openAiChatModel) {
         return ChatClient.builder(openAiChatModel)
-                .defaultTools(jiraTools)
+                .defaultTools(jiraTools, googleTools)
                 .defaultOptions(ChatOptions.builder()
                         .temperature(0.1)
                         .build())
