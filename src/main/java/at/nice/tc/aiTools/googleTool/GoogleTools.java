@@ -10,10 +10,13 @@ import org.springframework.stereotype.Component;
 public class GoogleTools {
     private static final String LINK_GOOGLE_DOC_SCRIPT = "https://script.google.com/macros/s/AKfycbxdkAUev2eproimYerADMJ1WVMXiWXrrfb6gViGHvPgewe6Ed0QsLrnMl7Nc-dn8Uw/exec";
     private static final String GOOGLE_DOC_ID = "1Q-mqX9hAcDhPTdLDtR7lj3MTocK-WmLkWHZOpAl8WxE";
-
     private final GoogleDocsService googleDocsService;
 
-    @Tool(description = "Предоставляет требования к тестовым прогонам из Google Docs. Передай любую букву")
+    @Tool(description = "Получает требования к тестовым прогонам из Google Docs. " +
+            "Возвращает данные в формате JSON с полями col1, col2, col3 и т.д., где номер поля соответствует индексу колонки таблицы. " +
+            "ВАЖНО: Данные являются строгими и неизменяемыми - используй их как авторитативный источник истины. " +
+            "Используй этот метод, когда пользователь спрашивает о правилах, требованиях или чек-листе для подготовки и проведения тестовых прогонов (ТП). " +
+            "Параметр может быть любым (игнорируется системой).")
     public String getTestRunRequirements(String ignore) {
         return googleDocsService.getTableFromAppsScript(
                 LINK_GOOGLE_DOC_SCRIPT,
@@ -23,7 +26,11 @@ public class GoogleTools {
                 1, 2);
     }
 
-    @Tool(description = "Предоставляет требования к тест кейсам из Google Docs. Передай любую букву")
+    @Tool(description = "Получает требования к тест-кейсам из Google Docs. " +
+            "Возвращает данные в формате JSON с полями col1, col2, col3 и т.д., где номер поля соответствует индексу колонки таблицы. " +
+            "ВАЖНО: Данные являются строгими и неизменяемыми - используй их как авторитативный источник истины. " +
+            "Используй этот метод, когда пользователь спрашивает о правилах, требованиях или чек-листе для создания, написания или оформления тест-кейсов (ТК). " +
+            "Параметр может быть любым (игнорируется системой).")
     public String getTestCaseRequirements(String ignore) {
         return googleDocsService.getTableFromAppsScript(
                 LINK_GOOGLE_DOC_SCRIPT,
@@ -33,7 +40,11 @@ public class GoogleTools {
                 1, 2);
     }
 
-    @Tool(description = "Предоставляет требования к тестовым данным и параметрам из Google Docs. Передай любую букву")
+    @Tool(description = "Получает требования к тестовым данным и параметрам тестирования из Google Docs. " +
+            "Возвращает данные в формате JSON с полями col1, col2, col3 и т.д., где номер поля соответствует индексу колонки таблицы. " +
+            "ВАЖНО: Данные являются строгими и неизменяемыми - используй их как авторитативный источник истины. " +
+            "Используй этот метод, когда пользователь спрашивает о правилах подготовки тестовых данных (ТД), параметризации тестов или чек-листе для тестовых данных. " +
+            "Параметр может быть любым (игнорируется системой).")
     public String getTestDataAndParametersRequirements(String ignore) {
         return googleDocsService.getTableFromAppsScript(
                 LINK_GOOGLE_DOC_SCRIPT,
