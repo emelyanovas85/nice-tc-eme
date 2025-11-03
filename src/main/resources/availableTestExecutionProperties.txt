@@ -1,0 +1,26 @@
+# Поля (json-свойства) объекта TestCaseExecution
+
+## Основная информация
+- testResultStatus - объект
+  - testResultStatus.color - цвет статуса, например, "#3abb4b"
+  - testResultStatus.i18nKey - например, "TEST_RESULT.STATUS.PASS"
+  - testResultStatus.name - имя статуса, например "Pass"
+  - testResultStatus.index - порядковый номер в списке выполнений
+  - testResultStatus.id
+  - testResultStatus.group - например, "TEST_RESULT_STATUS"
+- automated - например, false
+- executionDate
+- userKey - ключ пользователя Jira, например "40kolmakovmi"
+- testRun - объект
+  - testRun.testPlan - объект
+    - testRun.testPlan.id
+    - testRun.testPlan.key - например, "VPEPVV-P4"
+  - testRun.id - например, 25287
+  - testRun.key - например, "VPEPVV-C805"
+
+## Прочая информация
+- executionTime - например, 190000
+- issueLinks - массив
+- jiraVersionId - версия Jira
+- key - ключ выполнения, например "VPEPVV-E5704"
+- assignedTo - ключ пользователя, например "40kolmakovmi"

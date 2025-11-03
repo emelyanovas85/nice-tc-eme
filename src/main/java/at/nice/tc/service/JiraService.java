@@ -35,12 +35,25 @@ public class JiraService {
         return CompletableFuture.supplyAsync(() -> jira.getAllVersions(testKey));
     }
 
-    public List<String> getZephyrScaleTestProperties() throws IOException {
+    public List<String> getAvailableTestProperties() throws IOException {
         // Читаем файл (построчный текст)
-        ClassPathResource resource = new ClassPathResource("zephyrScaleTestProperties.txt");
+        ClassPathResource resource = new ClassPathResource("availableTestProperties.txt");
         return Files.readAllLines(resource.getFile().toPath())
                 .stream()
                 .filter(line -> !line.trim().isEmpty())
                 .toList();
+    }
+
+    public List<String> getAvailableTestExecutionProperties() throws IOException {
+        // Читаем файл (построчный текст)
+        ClassPathResource resource = new ClassPathResource("availableTestExecutionProperties.txt");
+        return Files.readAllLines(resource.getFile().toPath())
+                .stream()
+                .filter(line -> !line.trim().isEmpty())
+                .toList();
+    }
+
+    public CompletableFuture<String> getTestExecutions(int versionId, List<String> fields) {
+        return CompletableFuture.supplyAsync(() -> jira.getTestExecutions(versionId, fields));
     }
 }

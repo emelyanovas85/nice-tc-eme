@@ -1,6 +1,5 @@
 package at.nice.tc.utils;
 
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -8,7 +7,7 @@ public class JsonTreeMap extends LinkedHashMap<String, Object> {
 
     public JsonTreeMap() {
         super();
-        flat();
+//        flat();  // нечего "выпрямлять"
     }
 
     public JsonTreeMap(Map<String, Object> map) {
@@ -18,22 +17,23 @@ public class JsonTreeMap extends LinkedHashMap<String, Object> {
 
 
     @Override
-    public Object put(String k, Object v) {
-        final String[] keys = k.split("\\.");
-        Object current = this;
-        for (int i = 0; i < keys.length - 1; i++) {
-            String key = keys[i];
-            @SuppressWarnings("unchecked")
-            Map<String, Object> currentMap = (Map<String, Object>) current;
-            current = currentMap.get(key);
-            if (current == null) {
-                throw new RuntimeException("Нет объекта по ключу " + Arrays.toString(keys) + " [" + i + "]");
-            }
-        }
-        if (keys.length > 1)
-            //noinspection unchecked
-            ((Map<String, Object>) current).put(k, v);
-        return super.put(k, v);
+    public Object put(String key, Object value) {
+        Object result = super.put(key, value);
+        flat();
+        return result;
+    }
+
+    @Override
+    public void putAll(Map<? extends String, ?> m) {
+        super.putAll(m);
+        flat();
+    }
+
+    @Override
+    public Object putIfAbsent(String key, Object value) {
+        Object result = super.putIfAbsent(key, value);
+        flat();
+        return result;
     }
 
     /**
@@ -67,6 +67,9 @@ public class JsonTreeMap extends LinkedHashMap<String, Object> {
         }
     }
 
+    /**
+     * Синтаксический сахар, чтобы явно не кастить Object, возвращаемый методом get
+     */
     public <T> T getAutocast(String key) {
         //noinspection unchecked
         return (T) get(key);

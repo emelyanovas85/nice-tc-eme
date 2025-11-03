@@ -1,0 +1,92 @@
+# Поля (json-свойства) объекта TestCase
+
+## Основная информация
+- id - например, 12345
+- projectId - например, 12345
+- key - например, VPEPVV-T800
+- name - название тест-кейса (заголовок)
+- objective - назначение (цель) тест-кейса
+- precondition - что нужно сделать перед тестом
+- attachments - вложения в тест; массив файлов (объектов)
+  - fileName - UUID
+  - fileSize - размер в байтах
+  - name - имя файла
+  - id
+  - createdOn - время добавления файла
+  - userKey - пользователь, добавивший файл
+- testScript - объект
+  - testScript.id
+  - testScript.text - обычно отсутствует
+  - testScript.steps - шаги теста (массив объектов)
+    - testScript.steps.index - порядковый номер шага
+    - testScript.steps.description - описание действия в шаге
+    - testScript.steps.text - обычно отсутствует
+    - testScript.steps.expectedResult - ожидаемый результат (проверки в шаге)
+    - testScript.steps.testData - тестовые данные для шага (строка)
+    - testScript.steps.attachments - вложения в шаге (массив объектов)
+      - testScript.steps.attachments.fileName - UUID
+      - testScript.steps.attachments.fileSize - размер в байтах
+      - testScript.steps.attachments.name - имя файла
+      - testScript.steps.attachments.id
+      - testScript.steps.attachments.createdOn - время добавления файла
+      - testScript.steps.attachments.userKey - пользователь, добавивший файл
+    - testScript.steps.customFieldValues - пользовательские поля (могут отличаться от теста к тесту)
+    - testScript.steps.id
+    - testScript.steps.stepParameters - массив параметров шага; задаются если в качестве шага используется другой тест с parameters
+      - testScript.steps.stepParameters.id
+      - testScript.steps.stepParameters.testCaseParameterId
+      - testScript.steps.stepParameters.value
+    - testScript.steps.testCase - объект TestCase (в качестве шага используется другой тест-кейс), данные для него нужно получать отдельными запросами
+
+## Версионность
+- majorVersion - версия по умолчанию
+- latestVersion - управление версиями
+
+## Организация
+- folder - структура папок
+  - folder.folderType
+  - folder.fullName
+  - folder.id
+  - folder.index
+  - folder.parent
+- owner - владелец теста (ключ пользователя Jira)
+- labels - метки для категоризации (массив строк)
+
+## Статус и приоритет
+- status - текущий статус ("Черновик", "На согласовании" и т.д.)
+  - status.color
+  - status.i18nKey
+  - status.id
+  - status.index
+  - status.isDefault
+  - status.name
+- priority - приоритет выполнения (объект)
+  - priority.color
+  - priority.i18nKey
+  - priority.id
+  - priority.index
+  - priority.isArchived
+  - priority.isDefault
+  - priority.name
+
+## Временные метрики
+- estimatedTime - планируемое время выполнения
+- averageTime - фактическое среднее время выполнения
+
+## Данные для всего теста
+- testData - наборы данных (таблица; для каждой строки выполняются все шаги)
+- parameters - параметры тест-кейса (ключ-значение; либо значение по умолчанию, либо передается снаружи, если тест используется в качестве шага другого теста)
+  - parameters.id
+  - parameters.name - название параметра
+  - parameters.defaultValue - значение по умолчанию
+  - parameters.index - порядковый номер параметра
+- paramType - способ параметризации (testData/parameters)
+
+## Связи
+- issueLinks - связи с issues
+- traceLinks - трассировка требований
+
+## Метаданные
+- createdBy, createdOn, updatedBy, updatedOn - аудит изменений
+- archived - флаг архивации
+- customFieldValues - пользовательские поля (могут отличаться от теста к тесту)
