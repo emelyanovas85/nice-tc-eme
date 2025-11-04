@@ -41,7 +41,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private ChatInputComponent inputLayout; // textArea с кнопками
 
 
-    private final Config config = new Config("browser", 70, 70, "ALL", "", "Пользователь");
+    private final Config config = new Config("browser", 70, 70, "", "", "Пользователь");
 
     /**
      * - mode        browser/extension (просто мета-инфа)
@@ -138,9 +138,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         StringBuilder prompt = new StringBuilder();
         if (!config.getUserId().isBlank())
-            prompt.append("Пользователь - ").append(config.getUserId()).append(".\n");
+            prompt.append("Меня зовут ").append(config.getUserFio()).append(". Обращайся по имени.\n");
         if (!config.getScope().isBlank())
-            prompt.append("Пользователь находится на странице ").append(config.getScope()).append(".\n");
+            prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
 
         getUI().ifPresent(ui -> {
@@ -337,7 +337,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                     }
                 });
 
-                addComponentAsFirst(thinkingDetails);
+                mainMessage.getElement().insertChild(0, thinkingDetails.getElement());
             }
         }
 
