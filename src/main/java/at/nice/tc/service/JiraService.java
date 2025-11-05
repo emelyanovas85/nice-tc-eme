@@ -37,7 +37,7 @@ public class JiraService {
 
     public List<String> getAvailableTestProperties() throws IOException {
         // Читаем файл (построчный текст)
-        ClassPathResource resource = new ClassPathResource("availableTestProperties.txt");
+        ClassPathResource resource = new ClassPathResource("testcase_fields_description.json");
         return Files.readAllLines(resource.getFile().toPath())
                 .stream()
                 .filter(line -> !line.trim().isEmpty())

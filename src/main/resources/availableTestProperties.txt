@@ -17,7 +17,8 @@
 - testScript - объект
   - testScript.id
   - testScript.text - обычно отсутствует
-  - testScript.steps - шаги теста (массив объектов)
+
+## testScript.steps - шаги теста (массив объектов)
     - testScript.steps.index - порядковый номер шага
     - testScript.steps.description - описание действия в шаге
     - testScript.steps.text - обычно отсутствует

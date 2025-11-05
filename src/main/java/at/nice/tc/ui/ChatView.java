@@ -337,7 +337,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                     }
                 });
 
-                mainMessage.getElement().insertChild(0, thinkingDetails.getElement());
+                addComponentAsFirst(thinkingDetails);
             }
         }
 

@@ -27,10 +27,10 @@ public abstract class JiraUtils {
         return VARIABLE_PATTERN.matcher(json).replaceAll("$1");
     }
 
-    public static JsonTreeMap parseTestJson(String json) {
+    public static Map<String, Object> parseTestJson(String json) {
         try {
-            JsonTreeMap test = MAPPER.readValue(json, JsonTreeMap.class).flat();
-            shiftField("stepByStepScript", test); // в запросе этого поля нет, а в ответе есть
+            Map<String, Object> test = MAPPER.readValue(json, LinkedHashMap.class);
+            shiftField_stepByStepScript(test); // в запросе этого поля нет, а в ответе есть
             return test;
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
@@ -38,84 +38,53 @@ public abstract class JiraUtils {
     }
 
     /**
-     * Перемещает значение составного поля (в формате "a.b.c") в родительский объект.
-     * <p>
-     * Если переданное поле имеет вложенную структуру (содержит точку), метод извлекает его значение
-     * из переданной коллекции {@code fields}, удаляет это поле и помещает значение в родительский объект.
-     * <p>
-     * Пример:
-     * <pre>
-     *   fields = {
-     *       "user.name": {
-     *           "text": "Alice",
-     *           "alias":"Ali"
-     *       },
-     *       "user.age": 30
-     *   }
-     *   shiftField("user.name", fields)
-     *   fields = {
-     *       "user": {
-     *           "text": "Alice",
-     *           "alias":"Ali"
-     *       },
-     *       "user.age": 30
-     *
-     *   }
-     * </pre>
-     * <p>
-     * Если поле не содержит точек или его значение отсутствует, метод ничего не делает.
-     *
-     * @param field  путь к полю в виде строки с разделителями-точками (например, "a.b.c")
+     * Перемещает значение поля stepByStepScript в родительский объект.
      * @param fields карта полей, в которой производится перемещение; не должна быть {@code null}
-     * @throws IllegalArgumentException если {@code field} или {@code fields} равны {@code null}
+     * @throws IllegalArgumentException {@code fields} равны {@code null}
      */
-    public static void shiftField(String field, JsonTreeMap fields) {
-        if (field == null) {
-            throw new IllegalArgumentException("Field path must not be null");
-        }
+    public static void shiftField_stepByStepScript(Map<String, Object> fields) {
         if (fields == null) {
             throw new IllegalArgumentException("Fields map must not be null");
         }
+        fields.keySet().removeIf(k -> k.contains(".")); // удаляем выпрямленные поля
 
-        Object value = fields.remove(field);
-        if (value == null) {
-            return; // в fields нет ключа field
-        }
+        Object testScript = fields.get("testScript");
+        if (!(testScript instanceof Map))
+            return;
 
-        String[] levels = field.split("\\.");
-        if (levels.length < 2) {
-            return; // Поле не является составным
-        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> testScriptMap = (Map<String, Object>) testScript;
 
-        String parentKey = field.substring(0, field.lastIndexOf("."));
-        Object parentValue = fields.get(parentKey);
+        Object stepByStepScript = testScriptMap.remove("stepByStepScript");
+        if (!(stepByStepScript instanceof Map))
+            return;
 
-        if (parentValue instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> parentMap = (Map<String, Object>) parentValue;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> stepByStepScriptMap = (Map<String, Object>) stepByStepScript;
 
-            // Если значение — карта, объединяем её с существующим родительским объектом
-            // а если значение не карта, то просто удалили вместе с ключом и все
-            if (value instanceof Map<?, ?> valueAsMap) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> valueMap = (Map<String, Object>) valueAsMap;
-                parentMap.putAll(valueMap);
-            }
-        }
+        testScriptMap.putAll(stepByStepScriptMap);
     }
 
 
-    public static JsonTreeMap sortSteps(JsonTreeMap test) {
-        List<LinkedHashMap<String,Object>> steps = test.getAutocast("testScript.steps");
+    public static Map<String, Object> sortSteps(Map<String, Object> test) {
+        Object testScriptObj = test.get("testScript");
+        if (!(testScriptObj instanceof Map<?,?>)) return test;
+        //noinspection unchecked
+        LinkedHashMap<String, Object> testScript = (LinkedHashMap<String, Object>) testScriptObj;
+
+        Object stepsObj = testScript.get("steps");
+        if (!(stepsObj instanceof List<?>)) return test;
+        //noinspection unchecked
+        List<LinkedHashMap<String, Object>> steps = (List<LinkedHashMap<String, Object>>) stepsObj;
         List<?> sortedSteps = steps.stream()
                 .peek(step -> step.put("index", ((int) step.get("index")) + 1))
                 .sorted(Comparator.comparingInt(step -> (int) step.get("index")))
                 .collect(Collectors.toList());
-        test.put("testScript.steps", sortedSteps);
+        testScript.put("steps", sortedSteps);
         return test;
     }
 
-    public static String toString(JsonTreeMap treeMap) {
+    public static String toString(Map<String, Object> treeMap) {
         try {
             return MAPPER.writeValueAsString(treeMap);
         } catch (JsonProcessingException e) {

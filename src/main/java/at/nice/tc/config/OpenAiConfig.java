@@ -41,7 +41,8 @@ public class OpenAiConfig {
         return new ConcurrentMapCacheManager(
                 "jiraAllSteps",
                 "jiraATestFromJira",
-                "jiraAllVersions"
+                "jiraAllVersions",
+                "readTestFromJira"//todo проверить работает ли кеширование без данной записи
         );
     }
 
@@ -69,6 +70,8 @@ public class OpenAiConfig {
                 .defaultTools(jiraTools, googleTools)
                 .defaultOptions(ChatOptions.builder()
                         .temperature(0.1)
+//                        .topK(5)
+                        .topP(0.3)
                         .build())
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();

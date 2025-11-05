@@ -16,26 +16,6 @@ public class JsonTreeMap extends LinkedHashMap<String, Object> {
     }
 
 
-    @Override
-    public Object put(String key, Object value) {
-        Object result = super.put(key, value);
-        flat();
-        return result;
-    }
-
-    @Override
-    public void putAll(Map<? extends String, ?> m) {
-        super.putAll(m);
-        flat();
-    }
-
-    @Override
-    public Object putIfAbsent(String key, Object value) {
-        Object result = super.putIfAbsent(key, value);
-        flat();
-        return result;
-    }
-
     /**
      * Распрямляет вложенные Map в плоскую структуру с составными ключами
      * Только для значений типа Map, остальные типы (List, примитивы) остаются как есть
@@ -60,10 +40,8 @@ public class JsonTreeMap extends LinkedHashMap<String, Object> {
                 // Рекурсивно обрабатываем вложенные Map
                 //noinspection unchecked
                 flattenRecursive((Map<String, Object>) nestedMap, newKey, result);
-            } else {
-                // Все остальные типы добавляем как есть
-                result.put(newKey, value);
             }
+            result.put(newKey, value);
         }
     }
 
