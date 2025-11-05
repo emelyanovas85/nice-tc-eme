@@ -19,25 +19,6 @@ public class JiraTools {
 
 
 //    @Cacheable(value = "jiraATestFromJira", key = "#id + ':' + #fields.toString()") // FIXME: кэширование тупое
-
-    /// /    @Tool(description = "Получает информацию о тест кейсе по его ID из Jira.  с выбранными полями (json-свойствами)")
-//    @Tool(description = "Получает информацию о тест-кейсе по его ID из Jira. " +
-//            "Позволяет выбрать конкретные поля для возврата, используя их имена из JSON-схемы. " +
-//            "Имя поля можно определить по его описанию в JSON-файле " +
-//            "(например, для 'Название/заголовок тест-кейса' используйте 'name', для 'Текущий статус тест-кейса' - 'status').")
-//    public String readTestFromJira(
-//
-//            @ToolParam(description = "id теста")
-//            String id,
-//
-//            @ToolParam(description =
-//                    "Перечень доступных свойств с описанием можно получить с помощью getAvailableTestProperties. " +
-//                    "Позволяет выбрать конкретные поля для возврата, используя их имена из JSON-схемы. " +
-//                    "Имя поля можно определить по его описанию в JSON-файле " +
-//                    "(например, для 'Название/заголовок тест-кейса' используйте 'name', для 'Текущий статус тест-кейса' - 'status')." +
-//                    "Можно выбирать только ключи которые находятся в JSON")
-//            List<String> fields
-// ...
     @Tool(description = """
             Получает данные тест-кейса из Jira.
             Позволяет указать, какие именно свойства (поля) нужно вернуть.
@@ -45,8 +26,8 @@ public class JiraTools {
             Пример вызова: readTestFromJira('PROJ-123', ['name', 'status'])
             """)
     public String readTestFromJira(
-            @ToolParam(description = "Уникальный идентификатор тест-кейса в Jira.")
-            String id,
+            @ToolParam(description = "Уникальный идентификатор версии тест-кейса (вида 123456) или ключ (вида PERUFR-E35)")
+            String idOrKey,
 
             @ToolParam(description = """
                     Какие поля тест-кейса нужно вернуть.
@@ -58,7 +39,7 @@ public class JiraTools {
             List<String> fields
 
     ) {
-        return jiraService.getTest(id, fields)
+        return jiraService.getTest(idOrKey, fields)
                 .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
                 .thenApplyAsync(JiraUtils::parseTestJson)
                 .thenApplyAsync(JiraUtils::sortSteps)
@@ -79,13 +60,51 @@ public class JiraTools {
     }
 
     @Cacheable(value = "jiraAllVersions", key = "#testKey")
-    @Tool(name = "getAllVersions", description = "Получает информацию о версиях теста по его ID из Jira, например VPEPVV-T800")
+    @Tool(name = "getAllVersions",
+            description = """
+                    Получает информацию о версиях теста по его ключу.
+                    Пример ключа: "VPEPVV-T800";
+                    Пример ответа:
+                                    [
+                                    	"0": {
+                                    		"updatedOn": "2025-10-24T09:04:21.657Z",
+                                    		"id": 159362,
+                                    		"majorVersion": 5,
+                                    		"createdOn": "2025-04-02T11:56:26.757Z"
+                                    	},
+                                    	...
+                                    ]
+                    """)
     public String getAllVersions(String testKey) {
         return jiraService.getAllVersionsAsync(testKey).join().toString();
     }
 
 
-    @Tool(description = "Получает информацию о ручных выполнениях теста")
+    @Tool(description = """
+            Получает информацию произведенных выполнениях теста.
+            Пример ответа:
+                    {
+                    	"data": [
+                    		{
+                    			"automated": false,
+                    			"testResultStatus": {
+                    				"name": "Pass"
+                    			},
+                    			"issueLinks": [],
+                    			"executionDate": "2024-12-03T05:55:10.469Z",
+                    			"key": "PERUFR-E35",
+                    			"testCase": {
+                    				"id": 134595,
+                    				"majorVersion": 1
+                    			},
+                    			"testRun": {
+                    				"id": 65649,
+                    				"key": "PERUFR-C1"
+                    			}
+                    		}
+                    	]
+                    }
+            """)
     public String getTestExecutions(
             @ToolParam(description = "id конкретной версии тест-кейса, например 12345. Можно получить с помощью getAllVersions")
             int versionId,

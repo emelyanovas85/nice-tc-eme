@@ -16,7 +16,7 @@ public abstract class JiraUtils {
 
 
     private static final Pattern VARIABLE_PATTERN =
-            Pattern.compile("<span[^>]*class=\\\"atwho-inserted\\\"[^>]*>(\\{[^}]+\\})</span>\\s*");
+            Pattern.compile("<span[^>]*class=\\\\\"atwho-inserted\\\\\"[^>]*>(\\{[^}]+\\\\})</span>\\s*");
 
     /**
      * Заменяет переменные в виде длинных html на короткий формат {название переменной}
@@ -29,6 +29,7 @@ public abstract class JiraUtils {
 
     public static Map<String, Object> parseTestJson(String json) {
         try {
+            //noinspection unchecked
             Map<String, Object> test = MAPPER.readValue(json, LinkedHashMap.class);
             shiftField_stepByStepScript(test); // в запросе этого поля нет, а в ответе есть
             return test;
