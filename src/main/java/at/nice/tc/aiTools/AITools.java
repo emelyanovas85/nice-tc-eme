@@ -23,10 +23,15 @@ public class AITools {
             @ToolParam(description = "список требований для проверки тест-кейса на соответствия")
             List<String> requirements) {
 
-        return requirements.stream()
+        List<CompletableFuture<String>> futures = requirements.stream()
                 .map(it -> "Проверь тест-кейс '%s' на соответствие требованию: ".formatted(testCaseId) + it)
                 .map(message -> CompletableFuture.supplyAsync(() -> aiService.sendIncognitoMessage(message)))
-                .map(CompletableFuture::join)
-                .collect(Collectors.joining("\n"));
+                .toList();
+
+        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
+                .thenApply(v -> futures.stream()
+                        .map(CompletableFuture::join)
+                        .collect(Collectors.joining("\n")))
+                .join();
     }
 }
