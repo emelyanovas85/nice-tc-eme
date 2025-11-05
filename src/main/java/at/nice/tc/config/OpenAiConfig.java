@@ -73,4 +73,15 @@ public class OpenAiConfig {
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
     }
+
+    @Bean
+    public ChatClient chatClientWithoutMemory(ChatModel openAiChatModel) {
+        return ChatClient.builder(openAiChatModel)
+                .defaultTools(jiraTools, googleTools)
+                .defaultOptions(ChatOptions.builder()
+                        .temperature(0.1)
+                        .build())
+                // без advisor'ов
+                .build();
+    }
 }

@@ -6,6 +6,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -24,11 +26,15 @@ import java.util.Random;
  * }'
  */
 @Service
-@RequiredArgsConstructor
 public class AiService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final ChatClient chatClient;
+    @Autowired
+    private ChatClient chatClient;
+
+    @Autowired
+    @Qualifier("chatClientWithoutMemory")
+    private ChatClient chatClientWithoutMemory;
 
     public Flux<String> sendMessageStream(String message) {
         return chatClient.prompt("Отвечай по-русски")
@@ -38,35 +44,30 @@ public class AiService {
                 .content();
     }
 
-    public String sendPrompt(String prompt) {
-        String response = chatClient.prompt(prompt)
+    public String sendMessage(String message) {
+        return chatClient.prompt()
+                .user(message)
                 .call()
                 .content();
-
-        return extractJson(response);
     }
 
-    private String extractJson(String response) {
-        // Удаляем блок <think>...</think>
-        response = response.replaceAll("(?s)<think>.*?</think>", "").trim();
-
-        // Извлекаем JSON между { и }
-        int jsonStart = response.indexOf("{");
-        int jsonEnd = response.lastIndexOf("}");
-
-        if (jsonStart >= 0 && jsonEnd > jsonStart) {
-            String json = response.substring(jsonStart, jsonEnd + 1);
-
-            // Валидируем JSON
-            try {
-                objectMapper.readTree(json);
-                return json;
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to parse JSON from AI response", e);
-            }
-        }
-
-        throw new RuntimeException("No JSON found in response: " + response);
+    public String sendMessageWithPrompt(String message, String prompt) {
+        return chatClient.prompt(prompt)
+                .user(message)
+                .call()
+                .content();
     }
 
+    public String sendIncognitoMessage(String message) {
+        return chatClientWithoutMemory.prompt()
+                .user(message)
+                .call()
+                .content();
+    }
+
+    public String sendPrompt(String prompt) {
+        return chatClient.prompt(prompt)
+                .call()
+                .content();
+    }
 }
