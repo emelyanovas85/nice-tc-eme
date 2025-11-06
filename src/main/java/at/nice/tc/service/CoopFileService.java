@@ -48,6 +48,8 @@ public class CoopFileService {
     protected void updateContent(CoopFile file, String newContent, UUID user) {
         CompletableFuture.runAsync(() -> {
             String oldContent = file.getContent();
+            if (oldContent.equals(newContent))
+                return;
             file.setContent(newContent);
             LISTENERS.forEach(l -> l.onContentUpdated(file, oldContent, newContent, user));
         });

@@ -9,10 +9,12 @@ import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.details.Details;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -534,7 +536,7 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
     @Getter
     public static class PromptDetails extends Details {
         private final TextArea promptTextArea;
-        private final TextArea testFieldsTextArea;
+        private final TestFieldsBadgeContainer testFieldsContainer;
         private final CoopFileService coopFileService;
         private final UUID userId;
         private final Runnable onVisibilityChange;
@@ -551,12 +553,11 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
             promptTextArea.setHeightFull();
             promptTextArea.setValueChangeMode(ValueChangeMode.LAZY);
 
-            // Создаем TextArea для testFieldsFile
-            this.testFieldsTextArea = new TextArea();
-            testFieldsTextArea.setWidth("10%");
-            testFieldsTextArea.getStyle().set("min-width", "15em");
-            testFieldsTextArea.setHeightFull();
-            testFieldsTextArea.setValueChangeMode(ValueChangeMode.LAZY);
+            // Создаем контейнер с бэйджами для testFieldsFile
+            this.testFieldsContainer = new TestFieldsBadgeContainer(promptTextArea, coopFileService, userId);
+            testFieldsContainer.setWidth("10%");
+            testFieldsContainer.getStyle().set("min-width", "15em");
+            testFieldsContainer.setHeightFull();
 
             // Создаем HorizontalLayout для размещения полей
             HorizontalLayout detailsContent = new HorizontalLayout();
@@ -565,7 +566,7 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
             detailsContent.setSpacing(true);
             detailsContent.setPadding(true);
             detailsContent.add(promptTextArea);
-            detailsContent.add(testFieldsTextArea);
+            detailsContent.add(testFieldsContainer);
             detailsContent.setFlexGrow(1, promptTextArea);
             
             add(detailsContent);
@@ -580,12 +581,6 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
             promptTextArea.addValueChangeListener(e -> {
                 if (e.isFromClient()) {
                     coopFileService.updateContentPrompt(e.getValue(), userId);
-                }
-            });
-
-            testFieldsTextArea.addValueChangeListener(e -> {
-                if (e.isFromClient()) {
-                    coopFileService.updateContentTestFields(e.getValue(), userId);
                 }
             });
             
@@ -613,7 +608,7 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
 
             coopFileService.getContentTestFields().thenAccept(content -> {
                 getUI().ifPresent(ui -> ui.access(() -> {
-                    testFieldsTextArea.setValue(content != null ? content : "");
+                    testFieldsContainer.updateFromContent(content != null ? content : "");
                 }));
             });
         }
@@ -630,15 +625,273 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
                             promptTextArea.setValue(newValue);
                         }
                     } else if ("testcase_required_fields.txt".equals(fileName)) {
-                        // Обновляем только если значение изменилось
-                        String currentValue = testFieldsTextArea.getValue();
-                        if (currentValue == null) currentValue = "";
-                        if (!newValue.equals(currentValue)) {
-                            testFieldsTextArea.setValue(newValue);
-                        }
+                        // Обновляем контейнер с бэйджами
+                        testFieldsContainer.updateFromContent(newValue);
                     }
                 }));
             });
+        }
+    }
+
+    /**
+     * Контейнер для отображения полей теста в виде бэйджей с поддержкой drag'n'drop
+     */
+    public static class TestFieldsBadgeContainer extends VerticalLayout {
+        private final TextArea targetTextArea;
+        private final CoopFileService coopFileService;
+        private final UUID userId;
+        private final VerticalLayout badgesContainer;
+        private final TextField addFieldInput;
+        
+
+        public TestFieldsBadgeContainer(TextArea targetTextArea, CoopFileService coopFileService, UUID userId) {
+            this.targetTextArea = targetTextArea;
+            this.coopFileService = coopFileService;
+            this.userId = userId;
+            
+            setSpacing(true);
+            setPadding(true);
+            setWidthFull();
+            setHeightFull();
+            
+            // Контейнер для бэйджей
+            badgesContainer = new VerticalLayout();
+            badgesContainer.setSpacing(true);
+            badgesContainer.setPadding(false);
+            badgesContainer.setWidthFull();
+            badgesContainer.getStyle().set("overflow-y", "auto");
+            badgesContainer.getStyle().set("flex-grow", "1");
+            
+            // Поле для добавления новых строк
+            addFieldInput = new TextField();
+            addFieldInput.setPlaceholder("Добавить поле...");
+            addFieldInput.setWidthFull();
+            addFieldInput.addKeyPressListener(e -> {
+                if (e.getKey().equals("Enter")) {
+                    addBadgeFromInput();
+                }
+            });
+            addFieldInput.addBlurListener(e -> {
+                if (!addFieldInput.getValue().trim().isEmpty()) {
+                    addBadgeFromInput();
+                }
+            });
+            
+            add(badgesContainer);
+            add(addFieldInput);
+            setFlexGrow(1, badgesContainer);
+            
+            // Настраиваем drop на targetTextArea
+            setupDropTarget();
+            
+            // Слушаем изменения в promptTextArea для обновления цветов и счетчиков
+            targetTextArea.addValueChangeListener(e -> updateBadgesAppearance());
+        }
+
+        private void addBadgeFromInput() {
+            String value = addFieldInput.getValue().trim();
+            if (!value.isEmpty()) {
+                addBadge(value);
+                addFieldInput.clear();
+                saveToFile();
+            }
+        }
+
+        private void addBadge(String text) {
+            if (text == null || text.trim().isEmpty()) {
+                return;
+            }
+            
+            final DraggableBadge badge = new DraggableBadge(text.trim(), targetTextArea, () -> {
+                badgesContainer.remove(badge);
+                saveToFile();
+            });
+            badge.getStyle().set("margin", "0.25em 0");
+            
+            badgesContainer.add(badge);
+            badge.updateAppearance();
+        }
+        
+        private void updateBadgesAppearance() {
+            badgesContainer.getChildren()
+                    .filter(component -> component instanceof DraggableBadge)
+                    .map(component -> (DraggableBadge) component)
+                    .forEach(DraggableBadge::updateAppearance);
+        }
+
+        private void setupDropTarget() {
+            // Настраиваем drop на TextArea через JavaScript
+            targetTextArea.getElement().executeJs(
+                "var textArea = this;" +
+                "textArea.addEventListener('dragover', function(e) {" +
+                "  e.preventDefault();" +
+                "  textArea.style.backgroundColor = 'var(--lumo-primary-color-10pct)';" +
+                "});" +
+                "textArea.addEventListener('dragleave', function(e) {" +
+                "  textArea.style.backgroundColor = '';" +
+                "});" +
+                "textArea.addEventListener('drop', function(e) {" +
+                "  e.preventDefault();" +
+                "  textArea.style.backgroundColor = '';" +
+                "  var text = e.dataTransfer.getData('text/plain');" +
+                "  if (text) {" +
+                "    var currentValue = textArea.value || '';" +
+                "    var selectionStart = textArea.selectionStart;" +
+                "    var selectionEnd = textArea.selectionEnd;" +
+                "    " +
+                "    // Если есть выделение, заменяем его, иначе вставляем в позицию каретки" +
+                "    var beforeText = currentValue.substring(0, selectionStart);" +
+                "    var afterText = currentValue.substring(selectionEnd);" +
+                "    var newValue = beforeText + '{' + text + '}' + afterText;" +
+                "    " +
+                "    textArea.value = newValue;" +
+                "    " +
+                "    // Устанавливаем позицию каретки после вставленного текста" +
+                "    var newCursorPos = selectionStart + text.length + 2; // +2 для '{' и '}'" +
+                "    textArea.setSelectionRange(newCursorPos, newCursorPos);" +
+                "    " +
+                "    textArea.dispatchEvent(new Event('input', { bubbles: true }));" +
+                "    textArea.dispatchEvent(new Event('change', { bubbles: true }));" +
+                "    textArea.focus();" +
+                "  }" +
+                "});"
+            );
+        }
+
+        public void updateFromContent(String content) {
+            badgesContainer.removeAll();
+            if (content != null && !content.trim().isEmpty()) {
+                String[] lines = content.split("\n");
+                for (String line : lines) {
+                    String trimmed = line.trim();
+                    if (!trimmed.isEmpty()) {
+                        addBadge(trimmed);
+                    }
+                }
+            }
+            // Обновляем внешний вид после загрузки
+            updateBadgesAppearance();
+        }
+
+        private void saveToFile() {
+            StringBuilder content = new StringBuilder();
+            badgesContainer.getChildren()
+                    .filter(component -> component instanceof DraggableBadge)
+                    .map(component -> (DraggableBadge) component)
+                    .forEach(badge -> {
+                        String text = badge.getText();
+                        if (text != null && !text.trim().isEmpty()) {
+                            if (content.length() > 0) {
+                                content.append("\n");
+                            }
+                            content.append(text);
+                        }
+                    });
+            
+            coopFileService.updateContentTestFields(content.toString(), userId);
+        }
+    }
+
+    /**
+     * Компонент бэйджа с поддержкой drag'n'drop, счетчиком вхождений и цветовой индикацией
+     */
+    public static class DraggableBadge extends HorizontalLayout {
+        private final Span badge;
+        private final Span counter;
+        private final String text;
+        private final TextArea targetTextArea;
+        private final Runnable onDelete;
+
+        public DraggableBadge(String text, TextArea targetTextArea, Runnable onDelete) {
+            this.text = text;
+            this.targetTextArea = targetTextArea;
+            this.onDelete = onDelete;
+            
+            setSpacing(true);
+            setPadding(false);
+            setAlignItems(CENTER);
+            
+            // Создаем основной бэйдж
+            badge = new Span(text);
+            badge.getStyle()
+                    .set("display", "inline-block")
+                    .set("padding", "0.5em 1em")
+                    .set("border-radius", "var(--lumo-border-radius-m)")
+                    .set("cursor", "grab")
+                    .set("user-select", "none")
+                    .set("font-size", "var(--lumo-font-size-s)");
+            
+            // Создаем счетчик
+            counter = new Span("0");
+            counter.getStyle()
+                    .set("display", "inline-block")
+                    .set("padding", "0.25em 0.5em")
+                    .set("background-color", "var(--lumo-contrast-10pct)")
+                    .set("border-radius", "var(--lumo-border-radius-s)")
+                    .set("font-size", "var(--lumo-font-size-xs)")
+                    .set("min-width", "1.5em")
+                    .set("text-align", "center");
+            
+            // Делаем бэйдж перетаскиваемым
+            badge.getElement().setAttribute("draggable", "true");
+            
+            // Обработчики drag events через JavaScript
+            badge.getElement().executeJs(
+                "this.addEventListener('dragstart', function(e) {" +
+                "  e.dataTransfer.setData('text/plain', $0);" +
+                "  this.style.opacity = '0.5';" +
+                "});" +
+                "this.addEventListener('dragend', function(e) {" +
+                "  this.style.opacity = '';" +
+                "});", text);
+            
+            // Тройной клик для удаления
+            badge.addClickListener(e -> {
+                if (e.getClickCount() == 3 && onDelete != null) {
+                    onDelete.run();
+                }
+            });
+            
+            add(badge);
+            add(counter);
+        }
+        
+        public String getText() {
+            return text;
+        }
+        
+        private int countOccurrences(String text, String searchText) {
+            if (text == null || text.isEmpty() || searchText == null || searchText.isEmpty()) {
+                return 0;
+            }
+            int count = 0;
+            int index = 0;
+            while ((index = text.indexOf(searchText, index)) != -1) {
+                count++;
+                index += searchText.length();
+            }
+            return count;
+        }
+        
+        public void updateAppearance() {
+            String promptText = targetTextArea.getValue();
+            if (promptText == null) {
+                promptText = "";
+            }
+            
+            int count = countOccurrences(promptText, '{' + text + '}');
+            counter.setText(String.valueOf(count));
+            
+            // Устанавливаем цвет фона в зависимости от наличия в тексте
+            if (count > 0) {
+                // Оранжевый, если встречается
+                badge.getStyle().set("background-color", "#ff9800");
+                badge.getStyle().set("color", "#fff");
+            } else {
+                // Серый, если не встречается
+                badge.getStyle().set("background-color", "#9e9e9e");
+                badge.getStyle().set("color", "#fff");
+            }
         }
     }
 
