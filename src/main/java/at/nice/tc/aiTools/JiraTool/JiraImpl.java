@@ -3,8 +3,9 @@ package at.nice.tc.aiTools.JiraTool;
 import at.nice.tc.utils.ThrowableUtils;
 import bugbusters.modules.restclients.httpclient.HttpClient;
 import bugbusters.modules.restclients.httpclient.HttpRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dto.testCase.VersionDTO;
-import impl.Step;
 import jira.api.testCaseAPI.JiraTestCaseAPI;
 import jira.api.testRunAPI.JiraTestRunAPI;
 import jiraClient.JiraClient;
@@ -15,7 +16,6 @@ import okhttp3.ResponseBody;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -25,6 +25,7 @@ public class JiraImpl implements Jira {
     private final JiraTestCaseAPI testCaseAPI;
     private final JiraTestRunAPI testRunAPI;
     private final JiraClient jiraClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
 
     @Override
@@ -37,6 +38,15 @@ public class JiraImpl implements Jira {
         if (fields == null)
             return getFullTest(id);
         return testCaseAPI.requestToJira(id, fields.toArray(new String[0]));
+    }
+
+    @Override
+    public String getTestCase(String id) {
+        try {
+            return objectMapper.writeValueAsString(testCaseAPI.getTestCase(id));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
