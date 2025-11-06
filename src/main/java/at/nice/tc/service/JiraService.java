@@ -85,7 +85,8 @@ public class JiraService {
         try {
             return Files.readAllLines(resource.getFile().toPath())
                     .stream()
-                    .filter(line -> !line.trim().isEmpty())
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty() && !line.startsWith("//"))
                     .toList();
         } catch (IOException e) {
             return ThrowableUtils.reThrow(e);
