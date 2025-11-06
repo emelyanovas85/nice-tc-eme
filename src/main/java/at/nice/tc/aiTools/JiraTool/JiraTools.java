@@ -2,6 +2,7 @@ package at.nice.tc.aiTools.JiraTool;
 
 import at.nice.tc.service.JiraService;
 import at.nice.tc.utils.JiraUtils;
+import at.nice.tc.utils.ThrowableUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -18,12 +19,12 @@ public class JiraTools {
     private final JiraService jiraService;
 
 
-//    @Cacheable(value = "jiraATestFromJira", key = "#id + ':' + #fields.toString()") // FIXME: кэширование тупое
+    //    @Cacheable(value = "jiraATestFromJira", key = "#id + ':' + #fields.toString()") // FIXME: кэширование тупое
     @Tool(description = """
             Получает данные тест-кейса из Jira.
-            Позволяет указать, какие именно свойства (поля) нужно вернуть.
-            Это экономит время и возвращает только нужную информацию.
-            Пример вызова: readTestFromJira('PROJ-123', ['name', 'status'])
+            Перед вызовом readTestFromJira обязательно вызови getAvailableTestProperties.
+            Пример вызова: readTestFromJira('PROJ-123', [...поля из списка getAvailableTestProperties])
+            Если тебе нужно получить шаги, обязательно добавляй проверку вложенных тестов.
             """)
     public String readTestFromJira(
             @ToolParam(description = "Уникальный идентификатор версии тест-кейса (вида 123456) или ключ (вида PERUFR-E35)")
@@ -31,9 +32,9 @@ public class JiraTools {
 
             @ToolParam(description = """
                     Какие поля тест-кейса нужно вернуть.
+                    Полный список: вызовите getAvailableTestProperties().
                     Указывайте имена, как они представлены в JSON (например, 'testScript.steps.attachments.fileName', 'testScript.steps.testCase').
                     Пример: ['testScript.steps.attachments.fileName', 'testScript.steps.testCase'].
-                    Полный список: вызовите getAvailableTestProperties().
                     Выбирай все свойства id и добавляй только необходимые свойства
                     """)
             List<String> fields
@@ -41,7 +42,7 @@ public class JiraTools {
     ) {
         return jiraService.getTest(idOrKey, fields)
                 .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
-                .thenApplyAsync(JiraUtils::parseTestJson)
+                .thenApplyAsync(JiraUtils::parseTreeMapJson)
                 .thenApplyAsync(JiraUtils::sortSteps)
                 .thenApplyAsync(JiraUtils::toString)
                 .join();
@@ -76,7 +77,9 @@ public class JiraTools {
                                     ]
                     """)
     public String getAllVersions(String testKey) {
-        return jiraService.getAllVersionsAsync(testKey).join().toString();
+        return jiraService.getAllVersionsAsync(testKey)
+                .exceptionally(ThrowableUtils::asString)
+                .join();
     }
 
 

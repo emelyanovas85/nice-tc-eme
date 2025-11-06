@@ -68,7 +68,9 @@ public class JiraImpl implements Jira {
     }
 
     @Override
-    public List<VersionDTO> getAllVersions(String testKey) {
-        return testCaseAPI.getAllVersionsTestCaseById(testKey);
+    public String getAllVersions(String testKey) {
+        if (testKey.trim().matches("\\d+"))
+            throw new IllegalArgumentException("Ожидается ключ теста, например ASPPODDELTA-T1177.  Возможно, передана версия теста, а не ключ");
+        return testCaseAPI.requestToJira(testKey.trim() + "/allVersions", "updatedOn", "id", "majorVersion", "createdOn", "updatedBy");
     }
 }

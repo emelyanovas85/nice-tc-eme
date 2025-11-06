@@ -39,6 +39,7 @@ public class OpenAiConfig {
     @Bean
     public CacheManager cacheManager() {
         return new ConcurrentMapCacheManager(
+                "getRequiredTestProperties",
                 "jiraAllSteps",
                 "jiraATestFromJira",
                 "jiraAllVersions",

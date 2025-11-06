@@ -30,5 +30,5 @@ public interface Jira {
 
     boolean isAvailable();
 
-    List<VersionDTO> getAllVersions(String testKey);
+    String getAllVersions(String testKey);
 }
