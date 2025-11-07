@@ -1,17 +1,11 @@
 package at.nice.tc.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.prompt.ChatOptions;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-
-import java.util.Random;
 
 /**
  * Сервис для работы с AI (Deepseek V3.1)
@@ -27,12 +21,12 @@ import java.util.Random;
  */
 @Service
 public class AiService {
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
     @Autowired
+    @Lazy
     private ChatClient chatClient;
 
     @Autowired
+    @Lazy
     @Qualifier("chatClientWithoutMemory")
     private ChatClient chatClientWithoutMemory;
 

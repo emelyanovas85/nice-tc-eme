@@ -1,5 +1,6 @@
 package at.nice.tc.config;
 
+import at.nice.tc.aiTools.AITools;
 import at.nice.tc.aiTools.JiraTool.JiraTools;
 import at.nice.tc.aiTools.googleTool.GoogleTools;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import org.springframework.context.annotation.Configuration;
 @EnableCaching
 public class OpenAiConfig {
 
+    private final AITools aiTools;
     private final JiraTools jiraTools;
     private final GoogleTools googleTools;
 
@@ -68,7 +70,7 @@ public class OpenAiConfig {
     @Bean
     public ChatClient chatClient(ChatMemory chatMemory, ChatModel openAiChatModel) {
         return ChatClient.builder(openAiChatModel)
-                .defaultTools(jiraTools, googleTools)
+                .defaultTools(jiraTools, googleTools, aiTools)
                 .defaultOptions(ChatOptions.builder()
                         .temperature(0.1)
 //                        .topK(5)

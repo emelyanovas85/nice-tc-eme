@@ -28,19 +28,9 @@ public class JiraTools {
             """)
     public String readTestFromJira(
             @ToolParam(description = "Уникальный идентификатор версии тест-кейса (вида 123456) или ключ (вида PERUFR-E35)")
-            String idOrKey,
-
-            @ToolParam(description = """
-                    Какие поля тест-кейса нужно вернуть.
-                    Полный список: вызовите getAvailableTestProperties().
-                    Указывайте имена, как они представлены в JSON (например, 'testScript.steps.attachments.fileName', 'testScript.steps.testCase').
-                    Пример: ['testScript.steps.attachments.fileName', 'testScript.steps.testCase'].
-                    Выбирай все свойства id и добавляй только необходимые свойства
-                    """)
-            List<String> fields
-
+            String idOrKey
     ) {
-        return jiraService.getTest(idOrKey, fields)
+        return jiraService.getTest(idOrKey, List.of("objective", "testScript.id", "testScript.steps.index", "testScript.steps.description", "testScript.steps.expectedResult"))
                 .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
                 .thenApplyAsync(JiraUtils::parseTreeMapJson)
                 .thenApplyAsync(JiraUtils::sortSteps)
