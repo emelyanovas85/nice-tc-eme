@@ -53,7 +53,18 @@ public class JiraService {
                                 .map(JiraUtils::getNestedTestIds)
                                 .forEach(nestedTestIds::addAll);
                     }
-                    return JiraUtils.insertNestedTests(test, nestedId$nestedTest);
+
+                    return """
+                            # Проверяемый тест
+                            %s
+                            
+                            # Вложенные тесты
+                            %s
+                            """.formatted(
+                                    JiraUtils.toString(test),
+                                    nestedId$nestedTest.values().stream().map(JiraUtils::toString).collect(Collectors.joining("\n", "[\n", "\n]"))
+                            );
+//                    return JiraUtils.insertNestedTests(test, nestedId$nestedTest);
                 })
                 .thenApplyAsync(JiraUtils::toString);
     }
@@ -85,7 +96,7 @@ public class JiraService {
         try {
             return Files.readAllLines(resource.getFile().toPath())
                     .stream()
-                    .filter(line -> !line.trim().isEmpty())
+                    .filter(line -> !line.trim().isEmpty() && !line.startsWith("//"))
                     .toList();
         } catch (IOException e) {
             return ThrowableUtils.reThrow(e);
