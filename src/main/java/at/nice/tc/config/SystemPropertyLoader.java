@@ -17,6 +17,12 @@ public class SystemPropertyLoader {
     @Value("${jira.password:}")
     private String jiraPassword;
 
+    @Value("${jira.writeTimeout:}")
+    private String jiraWriteTimeout;
+
+    @Value("${jira.readTimeout:}")
+    private String jiraReadTimeout;
+
     @PostConstruct
     public void setSystemProperties() {
         if (jiraUsername != null && !jiraUsername.isBlank()) {
@@ -24,6 +30,12 @@ public class SystemPropertyLoader {
         }
         if (jiraPassword != null && !jiraPassword.isBlank()) {
             System.setProperty("jira.password", jiraPassword);
+        }
+        if (jiraWriteTimeout != null && !jiraWriteTimeout.isBlank()) {
+            System.setProperty("jira.writeTimeout", jiraWriteTimeout);
+        }
+        if (jiraReadTimeout != null && !jiraReadTimeout.isBlank()) {
+            System.setProperty("jira.readTimeout", jiraReadTimeout);
         }
     }
 }
