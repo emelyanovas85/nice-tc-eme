@@ -16,9 +16,7 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class CoopFileService {
 
-    @Autowired
     private final CoopFile promptFile = new CoopFileImpl("prompt.md");
-    @Autowired
     private final CoopFile testFieldsFile = new CoopFileImpl("testcase_required_fields.txt");
 
 

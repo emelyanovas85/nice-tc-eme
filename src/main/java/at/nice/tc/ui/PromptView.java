@@ -2,14 +2,12 @@ package at.nice.tc.ui;
 
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.CoopFileService;
-import com.vaadin.flow.component.ClickEvent;
-import com.vaadin.flow.component.ClientCallable;
-import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.Composite;
+import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -21,10 +19,7 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.Lumo;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
@@ -97,7 +92,6 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
     }
 
 
-
     private void initUI() {
         getContent().setSizeFull();
         getContent().setPadding(false);
@@ -136,7 +130,7 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
         getContent().add(promptDetails);
         getContent().addAndExpand(scroll);
         getContent().add(inputLayout);
-        
+
         getContent().setAlignItems(CENTER);
 
         // Загружаем данные из файлов
@@ -221,8 +215,6 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
             subscription = null;
         }
     }
-
-
 
 
     /**
@@ -546,7 +538,7 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
             this.coopFileService = coopFileService;
             this.userId = userId;
             this.onVisibilityChange = onVisibilityChange;
-            
+
             // Создаем TextArea для promptFile
             this.promptTextArea = new TextArea();
             promptTextArea.setWidthFull();
@@ -568,7 +560,7 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
             detailsContent.add(promptTextArea);
             detailsContent.add(testFieldsContainer);
             detailsContent.setFlexGrow(1, promptTextArea);
-            
+
             add(detailsContent);
             configureComponent();
         }
@@ -576,14 +568,14 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
         private void configureComponent() {
             setWidthFull();
             setOpened(false);
-            
+
             // Настраиваем обработчики изменений
             promptTextArea.addValueChangeListener(e -> {
                 if (e.isFromClient()) {
                     coopFileService.updateContentPrompt(e.getValue(), userId);
                 }
             });
-            
+
             // Настраиваем высоту при раскрытии
             addOpenedChangeListener(e -> {
                 if (e.isOpened()) {
@@ -642,18 +634,18 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
         private final UUID userId;
         private final VerticalLayout badgesContainer;
         private final TextField addFieldInput;
-        
+
 
         public TestFieldsBadgeContainer(TextArea targetTextArea, CoopFileService coopFileService, UUID userId) {
             this.targetTextArea = targetTextArea;
             this.coopFileService = coopFileService;
             this.userId = userId;
-            
+
             setSpacing(true);
             setPadding(true);
             setWidthFull();
             setHeightFull();
-            
+
             // Контейнер для бэйджей
             badgesContainer = new VerticalLayout();
             badgesContainer.setSpacing(true);
@@ -661,13 +653,13 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
             badgesContainer.setWidthFull();
             badgesContainer.getStyle().set("overflow-y", "auto");
             badgesContainer.getStyle().set("flex-grow", "1");
-            
+
             // Поле для добавления новых строк
             addFieldInput = new TextField();
             addFieldInput.setPlaceholder("Добавить поле...");
             addFieldInput.setWidthFull();
             addFieldInput.addKeyPressListener(e -> {
-                if (e.getKey().equals("Enter")) {
+                if (e.getKey().equals(Key.ENTER)) {
                     addBadgeFromInput();
                 }
             });
@@ -676,14 +668,14 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
                     addBadgeFromInput();
                 }
             });
-            
+
             add(badgesContainer);
             add(addFieldInput);
             setFlexGrow(1, badgesContainer);
-            
+
             // Настраиваем drop на targetTextArea
             setupDropTarget();
-            
+
             // Слушаем изменения в promptTextArea для обновления цветов и счетчиков
             targetTextArea.addValueChangeListener(e -> updateBadgesAppearance());
         }
@@ -701,17 +693,18 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
             if (text == null || text.trim().isEmpty()) {
                 return;
             }
-            
-            final DraggableBadge badge = new DraggableBadge(text.trim(), targetTextArea, () -> {
+
+            final DraggableBadge badge = new DraggableBadge(text.trim(), targetTextArea);
+            badge.setOnDelete(() -> {
                 badgesContainer.remove(badge);
                 saveToFile();
             });
             badge.getStyle().set("margin", "0.25em 0");
-            
+
             badgesContainer.add(badge);
             badge.updateAppearance();
         }
-        
+
         private void updateBadgesAppearance() {
             badgesContainer.getChildren()
                     .filter(component -> component instanceof DraggableBadge)
@@ -722,39 +715,43 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
         private void setupDropTarget() {
             // Настраиваем drop на TextArea через JavaScript
             targetTextArea.getElement().executeJs(
-                "var textArea = this;" +
-                "textArea.addEventListener('dragover', function(e) {" +
-                "  e.preventDefault();" +
-                "  textArea.style.backgroundColor = 'var(--lumo-primary-color-10pct)';" +
-                "});" +
-                "textArea.addEventListener('dragleave', function(e) {" +
-                "  textArea.style.backgroundColor = '';" +
-                "});" +
-                "textArea.addEventListener('drop', function(e) {" +
-                "  e.preventDefault();" +
-                "  textArea.style.backgroundColor = '';" +
-                "  var text = e.dataTransfer.getData('text/plain');" +
-                "  if (text) {" +
-                "    var currentValue = textArea.value || '';" +
-                "    var selectionStart = textArea.selectionStart;" +
-                "    var selectionEnd = textArea.selectionEnd;" +
-                "    " +
-                "    // Если есть выделение, заменяем его, иначе вставляем в позицию каретки" +
-                "    var beforeText = currentValue.substring(0, selectionStart);" +
-                "    var afterText = currentValue.substring(selectionEnd);" +
-                "    var newValue = beforeText + '{' + text + '}' + afterText;" +
-                "    " +
-                "    textArea.value = newValue;" +
-                "    " +
-                "    // Устанавливаем позицию каретки после вставленного текста" +
-                "    var newCursorPos = selectionStart + text.length + 2; // +2 для '{' и '}'" +
-                "    textArea.setSelectionRange(newCursorPos, newCursorPos);" +
-                "    " +
-                "    textArea.dispatchEvent(new Event('input', { bubbles: true }));" +
-                "    textArea.dispatchEvent(new Event('change', { bubbles: true }));" +
-                "    textArea.focus();" +
-                "  }" +
-                "});"
+                    //language=jav
+                    """
+                            var textArea = this;
+                            textArea.addEventListener('dragover', function(e) {
+                              e.preventDefault();
+                              textArea.style.backgroundColor = 'var(--lumo-primary-color-10pct)';
+                            });
+                            textArea.addEventListener('dragleave', function(e) {
+                              textArea.style.backgroundColor = '';
+                            });
+                            textArea.addEventListener('drop', function(e) {
+                              e.preventDefault();
+                              textArea.style.backgroundColor = '';
+                              var text = e.dataTransfer.getData('text/plain');
+                              console.log('drag', text);
+                              if (text) {
+                                var currentValue = textArea.value || '';
+                                var selectionStart = textArea.selectionStart;
+                                var selectionEnd = textArea.selectionEnd;
+                            
+                                // Если есть выделение, заменяем его, иначе вставляем в позицию каретки
+                                var beforeText = currentValue.substring(0, selectionStart);
+                                var afterText = currentValue.substring(selectionEnd);
+                                var newValue = beforeText + '{' + text + '}' + afterText;
+                            
+                                textArea.value = newValue;
+                            
+                                // Устанавливаем позицию каретки после вставленного текста
+                                var newCursorPos = selectionStart + text.length + 2; // +2 для '{' и '}'
+                                textArea.setSelectionRange(newCursorPos, newCursorPos);
+                            
+                                textArea.dispatchEvent(new Event('input', { bubbles: true }));
+                                textArea.dispatchEvent(new Event('change', { bubbles: true }));
+                                textArea.focus();
+                              }
+                            });
+                            """
             );
         }
 
@@ -781,13 +778,13 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
                     .forEach(badge -> {
                         String text = badge.getText();
                         if (text != null && !text.trim().isEmpty()) {
-                            if (content.length() > 0) {
+                            if (!content.isEmpty()) {
                                 content.append("\n");
                             }
                             content.append(text);
                         }
                     });
-            
+
             coopFileService.updateContentTestFields(content.toString(), userId);
         }
     }
@@ -798,19 +795,21 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
     public static class DraggableBadge extends HorizontalLayout {
         private final Span badge;
         private final Span counter;
+        @Getter
         private final String text;
         private final TextArea targetTextArea;
-        private final Runnable onDelete;
 
-        public DraggableBadge(String text, TextArea targetTextArea, Runnable onDelete) {
+        @Setter
+        private Runnable onDelete;
+
+        public DraggableBadge(String text, TextArea targetTextArea) {
             this.text = text;
             this.targetTextArea = targetTextArea;
-            this.onDelete = onDelete;
-            
+
             setSpacing(true);
             setPadding(false);
             setAlignItems(CENTER);
-            
+
             // Создаем основной бэйдж
             badge = new Span(text);
             badge.getStyle()
@@ -820,7 +819,7 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
                     .set("cursor", "grab")
                     .set("user-select", "none")
                     .set("font-size", "var(--lumo-font-size-s)");
-            
+
             // Создаем счетчик
             counter = new Span("0");
             counter.getStyle()
@@ -831,35 +830,34 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
                     .set("font-size", "var(--lumo-font-size-xs)")
                     .set("min-width", "1.5em")
                     .set("text-align", "center");
-            
+
             // Делаем бэйдж перетаскиваемым
             badge.getElement().setAttribute("draggable", "true");
-            
+
             // Обработчики drag events через JavaScript
             badge.getElement().executeJs(
-                "this.addEventListener('dragstart', function(e) {" +
-                "  e.dataTransfer.setData('text/plain', $0);" +
-                "  this.style.opacity = '0.5';" +
-                "});" +
-                "this.addEventListener('dragend', function(e) {" +
-                "  this.style.opacity = '';" +
-                "});", text);
-            
+                    // language=jav
+                    """
+                            this.addEventListener('dragstart', function(e) {
+                              e.dataTransfer.setData('text/plain', $0);
+                              this.style.opacity = '0.5';
+                            });
+                            this.addEventListener('dragend', function(e) {
+                              this.style.opacity = '';
+                            });
+                            """, text);
+
             // Тройной клик для удаления
             badge.addClickListener(e -> {
                 if (e.getClickCount() == 3 && onDelete != null) {
                     onDelete.run();
                 }
             });
-            
+
             add(badge);
             add(counter);
         }
-        
-        public String getText() {
-            return text;
-        }
-        
+
         private int countOccurrences(String text, String searchText) {
             if (text == null || text.isEmpty() || searchText == null || searchText.isEmpty()) {
                 return 0;
@@ -872,23 +870,23 @@ public class PromptView extends Composite<VerticalLayout> implements BeforeEnter
             }
             return count;
         }
-        
+
         public void updateAppearance() {
             String promptText = targetTextArea.getValue();
             if (promptText == null) {
                 promptText = "";
             }
-            
+
             int count = countOccurrences(promptText, '{' + text + '}');
             counter.setText(String.valueOf(count));
-            
-            // Устанавливаем цвет фона в зависимости от наличия в тексте
+
+// Устанавливаем цвет фона в зависимости от наличия в тексте
             if (count > 0) {
-                // Оранжевый, если встречается
+// Оранжевый, если встречается
                 badge.getStyle().set("background-color", "#ff9800");
                 badge.getStyle().set("color", "#fff");
             } else {
-                // Серый, если не встречается
+// Серый, если не встречается
                 badge.getStyle().set("background-color", "#9e9e9e");
                 badge.getStyle().set("color", "#fff");
             }
