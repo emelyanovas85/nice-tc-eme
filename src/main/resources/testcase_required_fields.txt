@@ -4,10 +4,9 @@ key
 name
 objective
 precondition
-attachments
 attachments.name
 attachments.id
-attachments.createdOn
+//attachments.createdOn
 testScript.steps.index
 testScript.steps.description
 testScript.steps.expectedResult
@@ -15,13 +14,13 @@ testScript.steps.testData
 testScript.steps.attachments.name
 testScript.steps.attachments.id
 testScript.steps.stepParameters.id
-testScript.steps.stepParameters.testCaseParameter.id
+//testScript.steps.stepParameters.testCaseParameter.id
 testScript.steps.stepParameters.testCaseParameter.index
 testScript.steps.stepParameters.testCaseParameter.name
 testScript.steps.stepParameters.value
 testScript.steps.testCase.id
 majorVersion
-latestVersion
+//latestVersion
 status.name
 testData
 parameters.id

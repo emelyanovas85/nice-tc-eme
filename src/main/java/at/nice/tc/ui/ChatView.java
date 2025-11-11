@@ -1,6 +1,7 @@
 package at.nice.tc.ui;
 
 import at.nice.tc.service.AiService;
+import at.nice.tc.service.JiraService;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -35,6 +36,7 @@ import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.EN
 public class ChatView extends Composite<VerticalLayout> implements BeforeEnterObserver {
 
     private final AiService aiService;
+    private final JiraService jiraService;
 
     private SmartScroller scroll; // обертка для панели сообщений
     private VerticalLayout messageList; // панель сообщений
@@ -91,6 +93,13 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         getContent().add(toggleButton);
 
+        String test = jiraService.getTestWithNestedMarkdown("VPEPVV-T2706").join();
+//        test = jiraService.getTestWithNested("VPEPVV-T2706").join();
+        test = jiraService.getTestWithNestedMarkdown("VPEPVV-T800").join();
+        test = jiraService.getTestWithNestedMarkdown("CK7DITR007-T55").join();
+        test = jiraService.getTestWithNestedMarkdown("CK3DITP442-T1547").join();
+//        test = testjiraService.getTestWithNested("VPEPVV-T2706").join();
+
         messageList = new VerticalLayout();
 
         scroll = new SmartScroller(messageList);
@@ -142,6 +151,13 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (!config.getScope().isBlank())
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
+
+
+
+
+
+
+
 
         getUI().ifPresent(ui -> {
             Flux<String> responseFlux = aiService.sendMessageStream(prompt.toString());
