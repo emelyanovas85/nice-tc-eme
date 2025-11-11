@@ -93,11 +93,11 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         getContent().add(toggleButton);
 
-        String test = jiraService.getTestWithNestedMarkdown("VPEPVV-T2706").join();
-//        test = jiraService.getTestWithNested("VPEPVV-T2706").join();
-        test = jiraService.getTestWithNestedMarkdown("VPEPVV-T800").join();
-        test = jiraService.getTestWithNestedMarkdown("CK7DITR007-T55").join();
-        test = jiraService.getTestWithNestedMarkdown("CK3DITP442-T1547").join();
+//        String test = jiraService.getTestWithNestedMarkdown("VPEPVV-T2706").join();
+////        test = jiraService.getTestWithNested("VPEPVV-T2706").join();
+//        test = jiraService.getTestWithNestedMarkdown("VPEPVV-T800").join();
+//        test = jiraService.getTestWithNestedMarkdown("CK7DITR007-T55").join();
+//        test = jiraService.getTestWithNestedMarkdown("CK3DITP442-T1547").join();
 //        test = testjiraService.getTestWithNested("VPEPVV-T2706").join();
 
         messageList = new VerticalLayout();
