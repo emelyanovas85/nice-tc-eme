@@ -1,7 +1,6 @@
 package at.nice.tc.aiTools.JiraTool;
 
 import at.nice.tc.service.JiraService;
-import at.nice.tc.utils.JiraUtils;
 import at.nice.tc.utils.ThrowableUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -22,29 +21,20 @@ public class JiraTools {
     //    @Cacheable(value = "jiraATestFromJira", key = "#id + ':' + #fields.toString()") // FIXME: кэширование тупое
     @Tool(description = """
             Получает данные тест-кейса из Jira.
-            Перед вызовом readTestFromJira обязательно вызови getAvailableTestProperties.
-            Пример вызова: readTestFromJira('PROJ-123', [...поля из списка getAvailableTestProperties])
-            Если тебе нужно получить шаги, обязательно добавляй проверку вложенных тестов.
+            Возвращает полный тест-кейс в виде markdown.
+            Содержит вложенные тест-кейсы из шагов.
+            Содержит всю доступную информацию о тест-кейсе.
+            Нет необходимости преобразовывать ответ.
             """)
     public String readTestFromJira(
             @ToolParam(description = "Уникальный идентификатор версии тест-кейса (вида 123456) или ключ (вида PERUFR-E35)")
-            String idOrKey,
-
-            @ToolParam(description = """
-                    Какие поля тест-кейса нужно вернуть.
-                    Полный список: вызовите getAvailableTestProperties().
-                    Указывайте имена, как они представлены в JSON (например, 'testScript.steps.attachments.fileName', 'testScript.steps.testCase').
-                    Пример: ['testScript.steps.attachments.fileName', 'testScript.steps.testCase'].
-                    Выбирай все свойства id и добавляй только необходимые свойства
-                    """)
-            List<String> fields
-
+            String idOrKey
     ) {
-        return jiraService.getTest(idOrKey, fields)
-                .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
-                .thenApplyAsync(JiraUtils::parseTreeMapJson)
-                .thenApplyAsync(JiraUtils::sortSteps)
-                .thenApplyAsync(JiraUtils::toString)
+        return jiraService.getTestWithNestedMarkdown(idOrKey)
+//                .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
+//                .thenApplyAsync(JiraUtils::parseTreeMapJson)
+//                .thenApplyAsync(JiraUtils::sortSteps)
+//                .thenApplyAsync(JiraUtils::toString)
                 .join();
     }
 

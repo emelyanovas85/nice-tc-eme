@@ -1,0 +1,7 @@
+testResultStatus.name
+automated
+executionDate
+userKey
+//testRun.testPlan.key
+testRun.key
+key
