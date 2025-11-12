@@ -10,13 +10,12 @@ import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.progressbar.ProgressBar;
+import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.Lumo;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.vaadin.flow.component.splitlayout.SplitLayout;
-import com.vaadin.flow.component.html.Span;
 
 @Route("markdown")
 public class MarkdownView extends VerticalLayout {
@@ -45,7 +44,7 @@ public class MarkdownView extends VerticalLayout {
         Button processButton = new Button("Markdown it");
         processButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        inputField.addKeyDownListener(Key.ENTER,event -> {
+        inputField.addKeyDownListener(Key.ENTER, event -> {
             processButton.click();
         });
 
@@ -106,7 +105,7 @@ public class MarkdownView extends VerticalLayout {
 
     private String processInput(String input) {
         return jiraService.getTestWithNestedMarkdown(input)
-                .handle((md,throwable) -> throwable != null ? ThrowableUtils.asString(throwable) : md)
+                .handle((md, throwable) -> throwable != null ? ThrowableUtils.asString(throwable) : md)
                 .join();
     }
 }

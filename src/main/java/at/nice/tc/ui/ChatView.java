@@ -2,7 +2,10 @@ package at.nice.tc.ui;
 
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.JiraService;
-import com.vaadin.flow.component.*;
+import com.vaadin.flow.component.ClickEvent;
+import com.vaadin.flow.component.ClientCallable;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.details.Details;
@@ -12,9 +15,15 @@ import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.value.ValueChangeMode;
-import com.vaadin.flow.router.*;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
+import com.vaadin.flow.router.QueryParameters;
+import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.Lumo;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
@@ -85,7 +94,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
 
-
     private void initUI() {
         Button toggleButton = new Button("Toggle theme", click -> {
             getElement().executeJs("document.documentElement.setAttribute('theme', document.documentElement.getAttribute('theme', document) === $0 ? $1 : $0)", Lumo.DARK, Lumo.LIGHT);
@@ -153,12 +161,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         prompt.append("\n").append(userText);
 
 
-
-
-
-
-
-
         getUI().ifPresent(ui -> {
             Flux<String> responseFlux = aiService.sendMessageStream(prompt.toString());
             inputLayout.area.clear();
@@ -186,8 +188,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             subscription = null;
         }
     }
-
-
 
 
     /**

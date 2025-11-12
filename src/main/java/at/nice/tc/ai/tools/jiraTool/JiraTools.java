@@ -1,4 +1,4 @@
-package at.nice.tc.aiTools.JiraTool;
+package at.nice.tc.ai.tools.jiraTool;
 
 import at.nice.tc.service.JiraService;
 import at.nice.tc.utils.ThrowableUtils;
@@ -16,27 +16,6 @@ import java.util.List;
 public class JiraTools {
 
     private final JiraService jiraService;
-
-
-    //    @Cacheable(value = "jiraATestFromJira", key = "#id + ':' + #fields.toString()") // FIXME: кэширование тупое
-    @Tool(description = """
-            Получает данные тест-кейса из Jira.
-            Возвращает полный тест-кейс в виде markdown.
-            Содержит вложенные тест-кейсы из шагов.
-            Содержит всю доступную информацию о тест-кейсе.
-            Нет необходимости преобразовывать ответ.
-            """)
-    public String readTestFromJira(
-            @ToolParam(description = "Уникальный идентификатор версии тест-кейса (вида 123456) или ключ (вида PERUFR-E35)")
-            String idOrKey
-    ) {
-        return jiraService.getTestWithNestedMarkdown(idOrKey)
-//                .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
-//                .thenApplyAsync(JiraUtils::parseTreeMapJson)
-//                .thenApplyAsync(JiraUtils::sortSteps)
-//                .thenApplyAsync(JiraUtils::toString)
-                .join();
-    }
 
     //    @Cacheable("availableTestProperties")
     @Tool(name = "getAvailableTestProperties", description = "Перечень доступных свойств тест-кейса")
@@ -113,4 +92,24 @@ public class JiraTools {
     public List<String> getAvailableTestExecutionProperties(@ToolParam(description = "передай букву 'a'") String ignore) throws IOException {
         return jiraService.getAvailableTestExecutionProperties();
     }
+
+    /*    @Cacheable(value = "jiraATestFromJira", key = "#id + ':' + #fields.toString()") // FIXME: кэширование тупое
+    @Tool(description = """
+            Получает данные тест-кейса из Jira.
+            Возвращает полный тест-кейс в виде markdown.
+            Содержит вложенные тест-кейсы из шагов.
+            Содержит всю доступную информацию о тест-кейсе.
+            Нет необходимости преобразовывать ответ.
+            """)
+    public String readTestFromJira(
+            @ToolParam(description = "Уникальный идентификатор версии тест-кейса (вида 123456) или ключ (вида PERUFR-E35)")
+            String idOrKey
+    ) {
+        return jiraService.getTestWithNestedMarkdown(idOrKey)
+                .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
+                .thenApplyAsync(JiraUtils::parseTreeMapJson)
+                .thenApplyAsync(JiraUtils::sortSteps)
+                .thenApplyAsync(JiraUtils::toString)
+                .join();
+    }*/
 }

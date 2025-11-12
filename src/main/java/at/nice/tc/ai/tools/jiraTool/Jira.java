@@ -1,7 +1,4 @@
-package at.nice.tc.aiTools.JiraTool;
-
-import dto.testCase.VersionDTO;
-import impl.TestCase;
+package at.nice.tc.ai.tools.jiraTool;
 
 import java.util.List;
 

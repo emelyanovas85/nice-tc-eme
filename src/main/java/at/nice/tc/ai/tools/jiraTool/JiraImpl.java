@@ -1,11 +1,10 @@
-package at.nice.tc.aiTools.JiraTool;
+package at.nice.tc.ai.tools.jiraTool;
 
 import at.nice.tc.utils.ThrowableUtils;
 import bugbusters.modules.restclients.httpclient.HttpClient;
 import bugbusters.modules.restclients.httpclient.HttpRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dto.testCase.VersionDTO;
 import jira.api.testCaseAPI.JiraTestCaseAPI;
 import jira.api.testRunAPI.JiraTestRunAPI;
 import jiraClient.JiraClient;
@@ -53,8 +52,8 @@ public class JiraImpl implements Jira {
     public String getTestExecutions(int versionId, List<String> fields) {
         if (fields == null || fields.isEmpty())
             // Без указания полей возвращает 500
-            fields = List.of("testResultStatus","environment","key","userKey","assignedTo","jiraVersionId",
-                    "estimatedTime","executionTime","executionDate","automated","testRun","testCase","issueLinks","sprint");
+            fields = List.of("testResultStatus", "environment", "key", "userKey", "assignedTo", "jiraVersionId",
+                    "estimatedTime", "executionTime", "executionDate", "automated", "testRun", "testCase", "issueLinks", "sprint");
 
         HttpClient httpClient = JiraClientSingleton.getJiraClient().getHttpClient();
         HttpRequest request = httpClient.GET("/rest/tests/1.0/testcase/" + versionId + "/testresults");

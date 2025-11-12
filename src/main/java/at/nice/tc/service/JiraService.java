@@ -1,6 +1,6 @@
 package at.nice.tc.service;
 
-import at.nice.tc.aiTools.JiraTool.Jira;
+import at.nice.tc.ai.tools.jiraTool.Jira;
 import at.nice.tc.utils.JiraUtils;
 import at.nice.tc.utils.ThrowableUtils;
 import org.springframework.cache.annotation.Cacheable;
@@ -52,7 +52,7 @@ public class JiraService {
                     }
 
                     //region добавление вкладки Выполнение
-                    List<Map<String,Object>> tests = new ArrayList<>();
+                    List<Map<String, Object>> tests = new ArrayList<>();
                     tests.add(test);
                     tests.addAll(nestedId$nestedTest.values());
 
@@ -68,19 +68,7 @@ public class JiraService {
                     //endregion
 
                     return JiraUtils.toMarkdown(test, nestedId$nestedTest);
-//                    return """
-//                            # Проверяемый тест
-//                            %s
-//
-//                            # Вложенные тесты
-//                            %s
-//                            """.formatted(
-//                                    JiraUtils.toString(test),
-//                                    nestedId$nestedTest.values().stream().map(JiraUtils::toString).collect(Collectors.joining("\n", "[\n", "\n]"))
-//                            );
-//                    return JiraUtils.insertNestedTests(test, nestedId$nestedTest);
                 });
-//                .thenApplyAsync(JiraUtils::toString);
     }
 
 
@@ -102,7 +90,6 @@ public class JiraService {
 
     @Cacheable
     public List<String> getRequiredTestProperties() {
-        // Читаем файл (построчный текст)
         ClassPathResource resource = new ClassPathResource("testcase_required_fields.txt");
         try {
             return Files.readAllLines(resource.getFile().toPath())
@@ -129,7 +116,6 @@ public class JiraService {
     }
 
     public List<String> getAvailableTestProperties() throws IOException {
-        // Читаем файл (построчный текст)
         ClassPathResource resource = new ClassPathResource("testcase_fields_description.json");
         return Files.readAllLines(resource.getFile().toPath())
                 .stream()
@@ -138,7 +124,6 @@ public class JiraService {
     }
 
     public List<String> getAvailableTestExecutionProperties() throws IOException {
-        // Читаем файл (построчный текст)
         ClassPathResource resource = new ClassPathResource("availableTestExecutionProperties.txt");
         return Files.readAllLines(resource.getFile().toPath())
                 .stream()

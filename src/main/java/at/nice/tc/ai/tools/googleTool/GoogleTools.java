@@ -1,4 +1,4 @@
-package at.nice.tc.aiTools.googleTool;
+package at.nice.tc.ai.tools.googleTool;
 
 import at.nice.tc.service.GoogleDocsService;
 import lombok.RequiredArgsConstructor;
@@ -77,16 +77,16 @@ public class GoogleTools {
                     function doGet(e) {
                       try {
                         if (!e || !e.parameter) e = { parameter: {} };
-                                
+                    
                         //знчения по умолчанию добавлены для удобства отладки при неообходимости
                         const docId = getParameter(e, "docId", "1Q-mqX9hAcDhPTdLDtR7lj3MTocK-WmLkWHЗОпАl8WxE");
                         const tabName = getParameter(e, "tabName", null);
                         const tableIndex = parseInt(getParameter(e, "tableIndex", "0"));
                         const columns = parseColumns(getParameter(e, "columns", null));
-                                
+                    
                         const doc = DocumentApp.openById(docId);
                         const allTabs = getAllTabs(doc);
-                                
+                    
                         const tabToUse = findTabByName(allTabs, tabName);
                         if (tabName !== null && !tabToUse) {
                           // Пользователь указал имя вкладки, но она не найдена
@@ -96,18 +96,18 @@ public class GoogleTools {
                           // Вкладок вообще нет
                           return createErrorResponse("Вкладки не найдены в документе");
                         }
-                                
+                    
                         const tables = tabToUse.asDocumentTab().getBody().getTables();
-                                
+                    
                         if (tables.length === 0) {
                           return createErrorResponse("Таблицы не найдены во вкладке " + (tabName || tabToUse.getTitle()));
                         }
                         if (tableIndex >= tables.length) {
                           return createErrorResponse("Таблица с индексом " + tableIndex + " не найдена во вкладке " + (tabName || tabToUse.getTitle()));
                         }
-                                
+                    
                         const table = tables[tableIndex];
-                                
+                    
                         // Проверка валидности индексов колонок
                         if (columns !== null) {
                           const maxIndex = table.getRow(0).getNumCells() - 1;
@@ -117,15 +117,15 @@ public class GoogleTools {
                             }
                           }
                         }
-                                
+                    
                         const result = extractTableData(table, columns);
                         return createSuccessResponse(result);
-                                
+                    
                       } catch (error) {
                         return createErrorResponse("Ошибка: " + error.message);
                       }
                     }
-                                
+                    
                     /**
                      * Безопасно извлекает параметр из объекта e.parameter с дефолтным значением.
                      * @param {object} e Объект события запроса
@@ -138,7 +138,7 @@ public class GoogleTools {
                       const param = e.parameter[name];
                       return param !== undefined && param !== null ? param.trim() : defaultValue;
                     }
-                                
+                    
                     /**
                      * Преобразует параметр columns из строки в массив чисел
                      * @param {?string} columnsParam Строка с перечисленными индексами колонок, разделёнными запятыми
@@ -150,7 +150,7 @@ public class GoogleTools {
                         .map(s => Number(s.trim()))
                         .filter(n => !isNaN(n));
                     }
-                                
+                    
                     /**
                      * Ищет вкладку (таб) по названию в списке вкладок.
                      * Если имя не указано, возвращает первую вкладку из списка.
@@ -168,7 +168,7 @@ public class GoogleTools {
                         }
                       }) || null;
                     }
-                                
+                    
                     /**
                      * Рекурсивно собирает все вкладки документа, включая вложенные
                      * @param {Document} doc Объект документа Google Docs
@@ -179,7 +179,7 @@ public class GoogleTools {
                       for (const tab of doc.getTabs()) addCurrentAndChildTabs(tab, allTabs);
                       return allTabs;
                     }
-                                
+                    
                     /**
                      * Добавляет вкладку и её дочерние вкладки в список
                      * Вкладок, в т.ч. и вложенных, с одинаковыми названиями в Google Docs не создаются,
@@ -191,7 +191,7 @@ public class GoogleTools {
                       allTabs.push(tab);
                       for (const childTab of tab.getChildTabs()) addCurrentAndChildTabs(childTab, allTabs);
                     }
-                                
+                    
                     /**
                      * Извлекает данные из таблицы Google Docs
                      * @param {Table} table Таблица Google Docs
@@ -214,7 +214,7 @@ public class GoogleTools {
                       }
                       return result;
                     }
-                                
+                    
                     /**
                      * Формирует JSON-ответ с ошибкой
                      * @param {string} msg Сообщение об ошибке
@@ -223,7 +223,7 @@ public class GoogleTools {
                     function createErrorResponse(msg) {
                       return ContentService.createTextOutput(JSON.stringify({ error: msg, success: false })).setMimeType(ContentService.MimeType.JSON);
                     }
-                                
+                    
                     /**
                      * Формирует JSON-ответ с данными и статусом успеха
                      * @param {object|object[]} data Данные для возвращения
@@ -232,6 +232,6 @@ public class GoogleTools {
                     function createSuccessResponse(data) {
                       return ContentService.createTextOutput(JSON.stringify({ data: data, success: true })).setMimeType(ContentService.MimeType.JSON);
                     }
-                                
+                    
                     """;
 }

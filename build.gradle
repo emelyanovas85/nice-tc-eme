@@ -61,7 +61,7 @@ dependencies {
     implementation 'com.jayway.jsonpath:json-path:2.9.0'
 
     // HTTP Client для внешних интеграций
-    implementation 'org.apache.httpcomponents.client5:httpclient5'
+//    implementation 'org.apache.httpcomponents.client5:httpclient5'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
@@ -79,9 +79,6 @@ dependencies {
     // Markdown processing
     implementation 'org.commonmark:commonmark:0.21.0'
     implementation 'org.commonmark:commonmark-ext-gfm-tables:0.21.0'
-
-    // работа с развернутыми ключами в мапе
-    implementation 'org.apache.commons:commons-configuration2:2.12.0'
 
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
