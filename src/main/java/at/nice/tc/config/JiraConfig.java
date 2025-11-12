@@ -16,19 +16,16 @@ import org.springframework.context.annotation.Lazy;
 public class JiraConfig {
 
     @Bean
-    @Lazy
     public JiraClient getJiraClient() {
         return JiraClientSingleton.getJiraClient();
     }
 
     @Bean
-    @Lazy
     public JiraTestCaseAPI getJiraTestCaseAPI() {
         return JiraTestCaseAPI.getDefault();
     }
 
     @Bean
-    @Lazy
     public JiraTestRunAPI getJiraTestRunAPI() {
         return JiraTestRunAPI.getDefault();
     }

@@ -208,14 +208,14 @@ public abstract class JiraUtils {
             if (testData.isEmpty())
                 return;
             markdown.appendRow("\n### Наборы тестовых данных");
-            Map<Integer, String> headersMap = testData.stream().reduce(new HashMap<>(), (map,row) -> {
+            Map<Integer, String> headersMap = testData.stream().reduce(new HashMap<>(), (map, row) -> {
                 row.remove("id"); // ломает структуру
                 row.keySet().forEach(header -> {
                     int index = (int) new OptionalMap<>(row).optionalMap(header).get().get("index");
                     map.put(index, header);
                 });
                 return map;
-            }, (m1,m2) -> m1);
+            }, (m1, m2) -> m1);
             List<String> headers = headersMap.keySet().stream().sorted().map(headersMap::get).toList();
             markdown.append("|№").append("|").append(String.join("|", headers)).appendRow("|");
 
@@ -243,12 +243,12 @@ public abstract class JiraUtils {
         markdown.appendRow("\n### Шаги");
         markdown.optionalMap("testScript").ifPresent(tScript -> {
             //noinspection unchecked
-            List<Map<String,Object>> steps = (List<Map<String, Object>>) tScript.get("steps");
+            List<Map<String, Object>> steps = (List<Map<String, Object>>) tScript.get("steps");
 
             markdown.appendRow("|№|наименование|вложения|тестовые данные|ожидаемый результат|")
                     .appendRow("|-|-|-|-|-|");
             steps.forEach(step0 -> {
-                OptionalMap<String,Object> step = new OptionalMap<>(step0);
+                OptionalMap<String, Object> step = new OptionalMap<>(step0);
 
                 markdown.append("|").append(step.get("index"))
                         .append("|").append(step.optional("description").orElseGet(
@@ -261,20 +261,20 @@ public abstract class JiraUtils {
 
                         .append("|").append(step.optional("testData").orElseGet(() -> // если вложенный тест, то параметры, с которыми нужно вызвать
                                 step.optionalListMap("stepParameters").map(stepParameters -> {
-                                    if (stepParameters.isEmpty())
-                                        return "";
-                                    for (var stepParamMap : stepParameters) { // добавление индекса и названия параметра в stepParamMap
-                                        new OptionalMap<>(stepParamMap).optionalMap("testCaseParameter").ifPresent(stepParamMap::putAll);
-                                    }
-                                    stepParameters.sort(Comparator.comparingInt(stepParamMap -> (int) stepParamMap.getOrDefault("index", -1)));
-                                    var paramsJson = new LinkedHashMap<>();
-                                    stepParameters.forEach(stepParamMap -> paramsJson.put(stepParamMap.get("name"), stepParamMap.get("value")));
-                                    try {
-                                        return simplifyHtmlVariables(MAPPER.writeValueAsString(paramsJson));
-                                    } catch (JsonProcessingException e) {
-                                        return ThrowableUtils.reThrow(e);
-                                    }
-                                })
+                                            if (stepParameters.isEmpty())
+                                                return "";
+                                            for (var stepParamMap : stepParameters) { // добавление индекса и названия параметра в stepParamMap
+                                                new OptionalMap<>(stepParamMap).optionalMap("testCaseParameter").ifPresent(stepParamMap::putAll);
+                                            }
+                                            stepParameters.sort(Comparator.comparingInt(stepParamMap -> (int) stepParamMap.getOrDefault("index", -1)));
+                                            var paramsJson = new LinkedHashMap<>();
+                                            stepParameters.forEach(stepParamMap -> paramsJson.put(stepParamMap.get("name"), stepParamMap.get("value")));
+                                            try {
+                                                return simplifyHtmlVariables(MAPPER.writeValueAsString(paramsJson));
+                                            } catch (JsonProcessingException e) {
+                                                return ThrowableUtils.reThrow(e);
+                                            }
+                                        })
                                         .orElse("")
                         ))
 
@@ -326,7 +326,7 @@ public abstract class JiraUtils {
     }
 
 
-    public static class OptionalMap<K,V> extends LinkedHashMap<K,V> {
+    public static class OptionalMap<K, V> extends LinkedHashMap<K, V> {
 
         public OptionalMap(Map<? extends K, ? extends V> m) {
             super(m);
@@ -338,7 +338,7 @@ public abstract class JiraUtils {
 
         public Optional<Map<String, Object>> optionalMap(K k) {
             //noinspection unchecked
-            return Optional.ofNullable(get(k)).filter(v -> v instanceof Map<?,?>).map(Map.class::cast);
+            return Optional.ofNullable(get(k)).filter(v -> v instanceof Map<?, ?>).map(Map.class::cast);
         }
 
         public Optional<List<Map<String, Object>>> optionalListMap(K k) {
@@ -348,23 +348,23 @@ public abstract class JiraUtils {
     }
 
 
-    public static class MarkdownMap<K,V> extends OptionalMap<K,V> {
+    public static class MarkdownMap<K, V> extends OptionalMap<K, V> {
         StringBuilder markdown = new StringBuilder();
 
         public MarkdownMap(Map<? extends K, ? extends V> m) {
             super(m);
         }
 
-        public MarkdownMap<K,V> appendRow(String prefix, Object key) {
+        public MarkdownMap<K, V> appendRow(String prefix, Object key) {
             Optional.ofNullable(get(key)).ifPresent(value -> append(prefix).appendRow(value));
             return this;
         }
 
-        public MarkdownMap<K,V> appendRow(Object text) {
+        public MarkdownMap<K, V> appendRow(Object text) {
             return append(text).append("\n");
         }
 
-        public MarkdownMap<K,V> append(Object text) {
+        public MarkdownMap<K, V> append(Object text) {
             if (text != null)
                 markdown.append(text);
             return this;
