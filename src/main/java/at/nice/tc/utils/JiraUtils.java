@@ -230,7 +230,7 @@ public abstract class JiraUtils {
                 headers.forEach(header -> {
                     //noinspection unchecked
                     Map<String, Object> cell = (Map<String, Object>) row.get(header);
-                    Object value = cell.get("value");
+                    Object value = cell == null ? "" : cell.get("value");
                     markdown.append("|").append(value);
                 });
                 markdown.appendRow("|");
