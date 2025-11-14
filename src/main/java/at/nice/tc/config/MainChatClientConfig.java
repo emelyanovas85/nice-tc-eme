@@ -10,6 +10,7 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -27,11 +28,15 @@ public class MainChatClientConfig {
     public ChatClient mainChatClient() {
         return ChatClient.builder(chatModel)
                 .defaultTools(mainChatTools, googleTools, jiraTools)
-                .defaultOptions(ChatOptions.builder()
-                        .temperature(0.8)
-                        .topP(0.8)
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .temperature(0.5)
+                        .topP(0.5)
+                        .frequencyPenalty(0.01)
+                        .presencePenalty(0.01)
                         .build())
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory)
+                        .conversationId("default")
+                        .build())
                 .build();
     }
 }

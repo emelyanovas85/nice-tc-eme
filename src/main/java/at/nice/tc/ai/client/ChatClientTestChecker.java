@@ -1,5 +1,6 @@
 package at.nice.tc.ai.client;
 
+import at.nice.tc.ai.tools.googleTool.GoogleTools;
 import at.nice.tc.service.JiraService;
 import at.nice.tc.utils.JiraUtils;
 import lombok.RequiredArgsConstructor;
@@ -8,7 +9,7 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -21,6 +22,7 @@ public class ChatClientTestChecker {
 
     private final ChatModel chatModel;
     private final JiraService jiraService;
+    private final GoogleTools googleTools;
     private final ConcurrentMap<Integer, ChatClientHolder> clients = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Integer, String> id$key = new ConcurrentHashMap<>();
 
@@ -36,13 +38,19 @@ public class ChatClientTestChecker {
                 .join();
 
         String markdownTest = JiraUtils.toMarkdown(testAsMap);
+        String requirements = googleTools.getTestCaseRequirements("ignore");
+        String prompt = String.join("\n\n", requirements, markdownTest);
 
-        //todo нормальный промпт для агрегатора и, собственно, нужен сам агрегатор как отдельный чат клиент
-        String prompt = String.join("\n\n", Prompt.get(), markdownTest);
         return holder.chatClient.prompt()
                 .user(prompt)
-                .call()
-                .content();
+                .stream()
+                .content()
+//                .doOnNext(c -> {
+//                    System.out.println(c);
+//                    System.out.flush();
+//                })
+                .reduce("", String::concat)
+                .block();
     }
 
     public String askQuestionByKey(String key, String question) {
@@ -59,16 +67,16 @@ public class ChatClientTestChecker {
         }
 
         return holder.chatClient
-                .mutate()
-                .defaultOptions(ChatOptions.builder()//todo тут нужно подумать стоит ли менять настройки на мягкие
-                        .temperature(0.7)
-                        .topP(0.8)
-                        .build())
-                .build()
                 .prompt()
                 .user(question)
-                .call()
-                .content();//todo Flux<String> для UI части с отдельными чатами по ТК
+                .stream()
+                .content()
+//                .doOnNext(c -> {
+//                    System.out.println(c);
+//                    System.out.flush();
+//                })
+                .reduce("", String::concat)
+                .block();//todo Flux<String> для UI части с отдельными чатами по ТК
     }
 
 
@@ -85,10 +93,11 @@ public class ChatClientTestChecker {
                 .build();
 
         ChatClient client = ChatClient.builder(chatModel)
-//            .defaultTools(jiraTools, googleTools)
-                .defaultOptions(ChatOptions.builder()
-                        .temperature(0.3)
-                        .topP(0.3)
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .temperature(0.1)
+                        .topP(0.1)
+                        .frequencyPenalty(0.01)
+                        .presencePenalty(0.01)
                         .build())
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(memory).build())
                 .build();
