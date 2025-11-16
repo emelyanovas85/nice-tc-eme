@@ -2,21 +2,21 @@ package at.nice.tc.ai.aggregator;
 
 import at.nice.tc.ai.client.ChatClientTestChecker;
 import at.nice.tc.ai.dto.jira.DTOTestWithNested;
+import at.nice.tc.events.ChatEventPublisher;
+import at.nice.tc.events.CheckEvent;
+import at.nice.tc.events.LogEvent;
+import at.nice.tc.model.Attachment;
+import at.nice.tc.model.TestTree;
 import at.nice.tc.service.JiraService;
 import at.nice.tc.utils.ThrowableUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
-import static java.util.Objects.nonNull;
-import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.stream.Collectors.toList;
 
@@ -31,72 +31,56 @@ public class TestCheckersAggregator {
             "id",
             "key",
             "majorVersion",
-            "testScript.steps.testCase.key",
-            "testScript.steps.testCase.id",
             "testScript.steps.index",
-            "testScript.steps.testCase.majorVersion");
+            "testScript.steps.testCase.id"//,
+//            "testScript.steps.testCase.key",
+//            "testScript.steps.testCase.majorVersion"
+    );
 
     /**
      * Запускает проверку теста с учетом вложенных по ключу
      */
-    public CompletableFuture<List<CompletableFuture<String>>> checkTestCase(String keyTestCase) {
-        return this.testChain(keyTestCase)
-                .thenApply(testsList ->
-                        testsList.stream()
-                                .map(DTOTestWithNested::id)
-                                .map(testKey -> supplyAsync(() -> chatClientTestChecker.checkTestCase(testKey)))
-                                .collect(toList()));
+    public CompletableFuture<List<CompletableFuture<String>>> checkTestCase(String keyTestCase, ChatEventPublisher publisher) {
+        return collectNestedTests(keyTestCase, publisher)
+                .thenApply(testTree -> {
+                    publisher.publish(conversationId -> new CheckEvent.AgentBuiltTestTreeEvent(conversationId, testTree));
+                    return testTree.getDescendants();
+                })
+                .thenApply(testsList -> testsList.stream()
+                        .map(test -> supplyAsync(() -> chatClientTestChecker.checkTestCase(test, publisher)))
+                        .collect(toList())
+                );
     }
 
     /**
-     * Собирает цепочку тестов рекурсивно по ключу/ID,
+     * Рекурсивно проходит по тестам и строит дерево тестов
      */
-    public CompletableFuture<List<DTOTestWithNested>> testChain(String keyOrId) {
-        Set<Integer> allIds = ConcurrentHashMap.newKeySet();
-        Set<Integer> processedIds = ConcurrentHashMap.newKeySet();
-
-        return collectNestedTests(keyOrId, allIds, processedIds)
-                .thenCompose(ignored -> sequence(
-                        allIds.stream()
-                                .map(id -> jiraService.getTest(String.valueOf(id), jiraFields)
-                                        .thenApply(this::parseJsonToDTOTestsList))
-                                .collect(toList())
-                ));
-    }
-
-    /**
-     * Рекурсивно собирает ID вложенных тестов в allIds с учетом уже обработанных.
-     */
-    private CompletableFuture<Void> collectNestedTests(String keyTestCase, Set<Integer> allIds, Set<Integer> processedIds) {
-        return jiraService.getTest(keyTestCase, jiraFields)
+    private CompletableFuture<TestTree.Test> collectNestedTests(String testId, ChatEventPublisher publisher) {
+        publisher.publish(cId -> new LogEvent("Получение тестов, вложенных в тест " + testId, cId));
+        return jiraService.getTest(testId, jiraFields)
                 .thenCompose(json -> {
                     DTOTestWithNested dto = parseJsonToDTOTestsList(json);
-                    Integer currentId = dto.id();
+                    TestTree.Test test = new TestTree.Test(dto.id(), dto.key(), dto.majorVersion());
 
-                    chatClientTestChecker.addIdKeyMapping(currentId, keyTestCase);
-
-                    if (processedIds.contains(currentId)) return completedFuture(null);
-
-                    processedIds.add(currentId);
+                    publisher.publish(cId ->
+                            new LogEvent("Получение тестов, вложенных в тест " + test + ", завершено", cId,
+                                    new Attachment.Text(test + ".json", json)
+                            )
+                    );
 
                     List<CompletableFuture<Void>> futures = dto.testScript().stepByStepScript().steps()
                             .stream()
                             .filter(Objects::nonNull)
-                            .filter(step -> nonNull(step.testCase()))
-                            .map(step -> collectNestedTests(step.testCase().key(), allIds, processedIds))
+                            .map(DTOTestWithNested.StepDTO::testCase)
+                            .filter(Objects::nonNull)
+                            .map(DTOTestWithNested.TestCaseDTO::id)
+                            .map(String::valueOf)
+                            .map(id -> collectNestedTests(id, publisher).thenAccept(test::addTest))
                             .toList();
 
-                    allIds.add(currentId);
-
-                    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+                    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                            .thenApply(done -> test);
                 });
-    }
-
-    /**
-     * Задаёт вопрос чат-клиенту по ключу теста.
-     */
-    public CompletableFuture<String> askQuestionByKey(String keyTestCase, String question) {
-        return supplyAsync(() -> chatClientTestChecker.askQuestionByKey(keyTestCase, question));
     }
 
     private DTOTestWithNested parseJsonToDTOTestsList(String json) {
@@ -105,25 +89,5 @@ public class TestCheckersAggregator {
         } catch (Exception e) {
             return ThrowableUtils.reThrow(e);
         }
-    }
-
-    /**
-     * Асинхронно превращает список CompletableFuture<T> в CompletableFuture<List<T>> без блокировок.
-     * Это делается последовательным объединением результатов через thenCompose.
-     */
-    private static <T> CompletableFuture<List<T>> sequence(List<CompletableFuture<T>> futures) {
-        CompletableFuture<List<T>> result = completedFuture(List.of());
-
-        for (CompletableFuture<T> future : futures) {
-            result = result.thenCombine(future, (list, elem) -> {
-                // Создаем новый список с добавленным элементом, чтобы избежать мутаций
-                List<T> newList = List.copyOf(list);
-                return new ArrayList<T>(newList) {{
-                    add(elem);
-                }};
-            });
-        }
-
-        return result;
     }
 }

@@ -1,14 +1,19 @@
 package at.nice.tc.ai.tools.jiraTool;
 
+import at.nice.tc.events.ChatEventPublisher;
+import at.nice.tc.events.OnGetValue;
 import at.nice.tc.service.JiraService;
+import at.nice.tc.utils.EventUtils;
+import at.nice.tc.utils.ThrowableSupplier;
 import at.nice.tc.utils.ThrowableUtils;
+import at.nice.tc.utils.ToolUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.List;
 
 @Component
@@ -16,17 +21,23 @@ import java.util.List;
 public class JiraTools {
 
     private final JiraService jiraService;
+    private final ChatEventPublisher.Factory publisherFactory;
 
     //    @Cacheable("availableTestProperties")
     @Tool(name = "getAvailableTestProperties", description = "Перечень доступных свойств тест-кейса")
-    public List<String> getAvailableTestProperties(@ToolParam(description = "передай букву 'a'") String ignore) throws IOException {
-        return jiraService.getAvailableTestProperties();
+    public List<String> getAvailableTestProperties(@ToolParam(description = "передай букву 'a'") String ignore,
+                                                   ToolContext toolContext) {
+        return sendEvents("Получение списка доступных json-свойств теста",
+                jiraService::getAvailableTestProperties,
+                toolContext);
     }
 
 
     @Tool(description = "Получает информацию о доступности Jira")
-    public String isAvailable(@ToolParam(description = "передай букву 'a'") String ignore) {//todo ignore избавиться от заплатки в виде параметра в методе
-        return jiraService.isAvailable().join().toString();
+    public String isAvailable(@ToolParam(description = "передай букву 'a'") String ignore, ToolContext context) {//todo ignore избавиться от заплатки в виде параметра в методе
+        return sendEvents("Проверка доступности Jira",
+                () -> jiraService.isAvailable().join().toString(),
+                context);
     }
 
     @Cacheable(value = "jiraAllVersions", key = "#testKey")
@@ -45,10 +56,12 @@ public class JiraTools {
                                     	...
                                     ]
                     """)
-    public String getAllVersions(String testKey) {
-        return jiraService.getAllVersionsAsync(testKey)
-                .exceptionally(ThrowableUtils::asString)
-                .join();
+    public String getAllVersions(String testKey, ToolContext context) {
+        return sendEvents("Получение версий теста " + testKey,
+                () -> jiraService.getAllVersionsAsync(testKey)
+                        .exceptionally(ThrowableUtils::asString)
+                        .join(),
+                context);
     }
 
 
@@ -83,14 +96,28 @@ public class JiraTools {
             @ToolParam(description = "Перечень свойств, которые должен содержать результирующий json. " +
                     "Список доступных свойств можно получить с помощью getAvailableTestExecutionProperties. " +
                     "Выбирай только необходимые свойства!")
-            List<String> fields) {
-        return jiraService.getTestExecutions(versionId, fields).join();
+            List<String> fields,
+            ToolContext context) {
+        return sendEvents("Получение перечня выполнений теста " + versionId,
+                jiraService.getTestExecutions(versionId, fields)::join,
+                context);
     }
 
     //    @Cacheable("availableTestExecutionProperties")
     @Tool(name = "getAvailableTestExecutionProperties", description = "Перечень доступных свойств выполнений тест-кейс")
-    public List<String> getAvailableTestExecutionProperties(@ToolParam(description = "передай букву 'a'") String ignore) throws IOException {
-        return jiraService.getAvailableTestExecutionProperties();
+    public List<String> getAvailableTestExecutionProperties(
+            @ToolParam(description = "передай букву 'a'") String ignore,
+            ToolContext context) {
+        return sendEvents("Получение перечня доступных json-свойств выполнений теста",
+                jiraService::getAvailableTestExecutionProperties,
+                context);
+    }
+
+    private <T> T sendEvents(String description, ThrowableSupplier<T> valueSupplier, ToolContext context) {
+        String chatId = ToolUtils.conversationId(context);
+        ChatEventPublisher publisher = publisherFactory.forConversation(chatId);
+        var eventBase = new OnGetValue<T>(description, chatId);
+        return EventUtils.getValueSendingEvents(valueSupplier, eventBase, publisher);
     }
 
     /*    @Cacheable(value = "jiraATestFromJira", key = "#id + ':' + #fields.toString()") // FIXME: кэширование тупое

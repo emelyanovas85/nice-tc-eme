@@ -1,20 +1,15 @@
 package at.nice.tc.ui;
 
+import at.nice.tc.events.*;
 import at.nice.tc.service.AiService;
-import at.nice.tc.service.JiraService;
-import com.vaadin.flow.component.ClickEvent;
-import com.vaadin.flow.component.ClientCallable;
-import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.Composite;
+import at.nice.tc.service.EventService;
+import at.nice.tc.service.MemoryService;
+import at.nice.tc.ui.components.ChatInputComponent;
+import at.nice.tc.ui.components.MarkdownMessageWithThinking;
+import at.nice.tc.ui.components.SmartScroller;
+import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.details.Details;
-import com.vaadin.flow.component.markdown.Markdown;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
@@ -22,37 +17,37 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.Lumo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.vaadin.flow.component.Unit.PERCENTAGE;
 import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
-import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.END;
 
+@Slf4j
 @Route("")
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class ChatView extends Composite<VerticalLayout> implements BeforeEnterObserver {
 
     private final AiService aiService;
-    private final JiraService jiraService;
+    private final EventService eventService;
+    private final MemoryService memoryService;
+//    private final JiraService jiraService;
 
     private SmartScroller scroll; // обертка для панели сообщений
     private VerticalLayout messageList; // панель сообщений
     private ChatInputComponent inputLayout; // textArea с кнопками
 
 
-    private final Config config = new Config("browser", 70, 70, "", "", "Пользователь");
+    private final Config config = new Config(UUID.randomUUID().toString(), "browser", 70, 70, "", "", "Пользователь");
 
     /**
      * - mode        browser/extension (просто мета-инфа)
@@ -65,6 +60,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     @Data
     @AllArgsConstructor
     public static class Config {
+        private String chatId;
         private String mode;
         private int heightPerc;
         private int widthPerc;
@@ -73,10 +69,18 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         private String userFio;
     }
 
+    public static class Constants {
+        public static final String CHAT_ID = "chatId";
+    }
+
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         QueryParameters query = event.getLocation().getQueryParameters();
+        query.getSingleParameter(Constants.CHAT_ID).ifPresentOrElse(config::setChatId, () -> {
+            QueryParameters updated = query.merging(Constants.CHAT_ID, config.getChatId());
+            UI.getCurrent().navigate(ChatView.class, updated);
+        });
         query.getSingleParameter("mode").ifPresent(config::setMode);
         query.getSingleParameter("heightPerc").map(Integer::parseInt).ifPresent(config::setHeightPerc);
         query.getSingleParameter("widthPerc").map(Integer::parseInt).ifPresent(config::setWidthPerc);
@@ -127,14 +131,55 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         getContent().add(inputLayout);
         getContent().setSizeFull();
         inputLayout.showSendButton();
+
+        // restore all previous/active messages on UI init
+        restoreUI();
     }
 
-    private void onStop(ClickEvent<Button> buttonClickEvent) {
-        stopChat();
-        inputLayout.showSendButton();
+
+    /**
+     * Добавляет в чат сообщения из истории, в том числе сообщения, которые ИИ генерит прямо сейчас
+     */
+    private void restoreUI() {
+        final String chatId = config.getChatId();
+        final Restorer restorer = new Restorer();
+        final List<Message> completedMessages = memoryService.getCompletedMessages(chatId);
+        Collections.reverse(completedMessages); // отрисовывать снизу вверх
+        completedMessages.forEach(m -> {
+            switch (m.getMessageType()) {
+                case ASSISTANT -> restorer.createCompletedAssistantMessage(Flux.just(m.getText()));
+                case USER -> restorer.createUserMessage(m.getText());
+                default -> log.warn("Не обработано сообщение {}:\n{}", m.getMessageType(), m.getText());
+            }
+        });
     }
+
 
     private Disposable subscription;
+    private MarkdownMessageWithThinking actualBotMessage;
+
+    class Restorer {
+
+        public void createCompletedAssistantMessage(Flux<String> flux) {
+            actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now()); // TODO: указать правильное время
+            actualBotMessage.getMainMessage().setUserColorIndex(5);
+            messageList.addComponentAtIndex(0, actualBotMessage);
+
+            getUI().ifPresent(ui ->
+                    flux.doOnNext(token -> ui.access(() ->
+                            actualBotMessage.appendMarkdownAsync(token)
+                    ))
+            );
+        }
+
+
+        public void createUserMessage(String text) {
+            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), LocalDateTime.now()); // TODO: указать правильное время
+            userMessage.setUserColorIndex(3);
+            messageList.addComponentAtIndex(0, userMessage);
+        }
+    }
+
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
         String userText = inputLayout.getArea().getValue().trim();
@@ -149,9 +194,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         userMessage.setUserColorIndex(3);
         messageList.add(userMessage);
 
-        MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
-        botMessage.getMainMessage().setUserColorIndex(5);
-        messageList.add(botMessage);
+        actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
+        actualBotMessage.getMainMessage().setUserColorIndex(5);
+        messageList.add(actualBotMessage);
 
         StringBuilder prompt = new StringBuilder();
         if (!config.getUserId().isBlank())
@@ -159,340 +204,78 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (!config.getScope().isBlank())
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
-
-
-        getUI().ifPresent(ui -> {
-            Flux<String> responseFlux = aiService.sendMessageStream(prompt.toString());
-            inputLayout.area.clear();
-            subscription = responseFlux.subscribe(
-                    token -> ui.access(() -> {
-                        botMessage.appendMarkdownAsync(token);
-                        scroll.scrollToBottom();
-                    }),
-                    err -> ui.access(() -> {
-                        botMessage.appendMarkdownAsync("\n\nОшибка: " + err.getMessage());
-                        inputLayout.showSendButton();
-                        subscription = null;
-                    }),
-                    () -> ui.access(() -> {
-                        botMessage.finish();
-                        inputLayout.showSendButton();
-                        subscription = null;
-                    }));
-        });
+        aiService.sendMainMessageStream(prompt.toString(), config.getChatId()) // Токены будут push-иться в MemoryService
+                .doOnComplete(actualBotMessage::finish);
     }
 
-    private void stopChat() {
+    private void onStop(ClickEvent<Button> buttonClickEvent) {
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
             subscription = null;
         }
+        inputLayout.showSendButton();
     }
 
 
-    /**
-     * Поле для ввода текста и кнопки "Отправить" и "Стоп"
-     */
-    @Getter
-    public static class ChatInputComponent extends HorizontalLayout {
 
-        private final TextArea area = new TextArea();
-        private final Button sendButton = new Button("Отправить");
-        private final Button stopButton = new Button("Стоп");
+    private EventService.Registration eventServiceRegistration;
 
-        public ChatInputComponent() {
-            configureInput();
-            configureButtons();
-            addComponents();
-            setLayoutDefaults();
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+        // Подписка на ответ ассистента
+        subscribeToChatStream();
+        // Подписка на события для текущего chatId
+        eventServiceRegistration = eventService.subscribe(config.getChatId(), this::handleBroadcastEvent);
+    }
+
+    @Override
+    protected void onDetach(DetachEvent detachEvent) {
+        super.onDetach(detachEvent);
+        if (subscription != null && !subscription.isDisposed()) {
+            subscription.dispose();
         }
-
-        private void configureButtons() {
-            sendButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-            stopButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-
-            sendButton.setWidth("8em");
-            stopButton.setWidth("8em");
-        }
-
-        private void configureInput() {
-            area.setPlaceholder("Напишите ваше сообщение здесь...");
-            area.setValueChangeMode(ValueChangeMode.EAGER); // Реагировать сразу на изменения
-            area.addFocusListener(e -> area.setPlaceholder(""));
-            area.addBlurListener(e -> area.setPlaceholder("Напишите ваше сообщение здесь..."));
-        }
-
-        private void addComponents() {
-            add(area, sendButton, stopButton);
-        }
-
-        private void setLayoutDefaults() {
-            setPadding(true);
-            setSpacing(true);
-            // Растягиваем TextField по ширине родителя
-            area.setWidthFull();
-            setVerticalComponentAlignment(END, area, sendButton, stopButton);
-        }
-
-        public void showSendButton() {
-            sendButton.setVisible(true);
-            stopButton.setVisible(false);
-        }
-
-        public void showStopButton() {
-            sendButton.setVisible(false);
-            stopButton.setVisible(true);
+        if (eventServiceRegistration != null) {
+            eventServiceRegistration.unsubscribe();
+            eventServiceRegistration = null;
         }
     }
 
 
-    /**
-     * Расширяет стандартный {@link Scroller} методом {@link #scrollToBottom()},
-     * который скроллит к низу панели, если установлен флаг {@link #stickDown}
-     */
-    public static class SmartScroller extends Scroller {
-        private final AtomicBoolean stickDown = new AtomicBoolean(true);
-
-        public SmartScroller(Component content) {
-            super(content);
-            addAttachListener(e -> {
-                getElement().executeJs(
-                        // language=jav
-                        """
-                                    var el = this;
-                                    var lastScrollTop = 0;
-                                
-                                    el.addEventListener("scroll", function(e) {
-                                        var currentScrollTop = el.scrollTop;
-                                
-                                        if (currentScrollTop < lastScrollTop) { // Скролл вверх
-                                            el.$server.onScrollUp();
-                                
-                                        } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) { // достигли дна (добавляем небольшой допуск (1px) для защиты от ошибок округления)
-                                            el.$server.onScrolledToBottom();
-                                        }
-                                        lastScrollTop = currentScrollTop;
-                                    });
-                                """,
-                        getElement()
-                );
-            });
+    private void subscribeToChatStream() {
+        if (subscription != null && !subscription.isDisposed()) {
+            subscription.dispose();
         }
-
-        /**
-         * вызывается из javascript
-         */
-        @SuppressWarnings("unused")
-        @ClientCallable
-        public void onScrollUp() {
-            setStickDown(false);
-        }
-
-        /**
-         * вызывается из javascript
-         */
-        @SuppressWarnings("unused")
-        @ClientCallable
-        public void onScrolledToBottom() {
-            setStickDown(true);
-        }
-
-        /**
-         * Переключает флаг: true - скроллить, false - не скроллить
-         */
-        public void setStickDown(boolean flag) {
-            stickDown.set(flag);
-        }
-
-        @Override
-        public void scrollToBottom() {
-            if (stickDown.get())
-                super.scrollToBottom();
-        }
-    }
-
-
-    @Getter
-    public static class MarkdownMessageWithThinking extends VerticalLayout {
-
-        private Details thinkingDetails;
-        private Markdown thinkingMessage;
-        private final MarkdownMessage mainMessage;
-
-        private ProcessingState state;
-
-        private static final String THINK_OPEN = "<think>";
-        private static final String THINK_CLOSE = "</think>";
-
-        public MarkdownMessageWithThinking(String name, LocalDateTime timestamp) {
-            mainMessage = new MarkdownMessage(name, timestamp);
-            add(mainMessage);
-            state = new InitialState();
-        }
-
-        public void appendMarkdownAsync(String chunk) {
-            if (chunk == null || chunk.isEmpty()) {
-                return;
-            }
-
-            getUI().ifPresent(ui -> ui.access(() -> {
-                state = state.process(chunk, this);
-            }));
-        }
-
-        public void ensureThinkingDetailsCreated() {
-            if (thinkingDetails == null) {
-                thinkingMessage = new Markdown();
-                thinkingDetails = new Details("Размышления модели", thinkingMessage);
-                thinkingDetails.setOpened(true);
-
-                state.addChangeStateListener((oldState, newState) -> {
-                    // когда размышления закончатся:
-                    if (newState.getClass() == MainState.class) {
-                        getUI().ifPresent(ui -> ui.access(() -> thinkingDetails.setOpened(false)));
+        subscription = memoryService.subscribe(config.getChatId())
+                .subscribe(token -> getUI().ifPresent(ui -> ui.access(() -> {
+                    if (actualBotMessage == null) {
+                        actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
+                        actualBotMessage.getMainMessage().setUserColorIndex(5);
+                        messageList.add(actualBotMessage);
                     }
-                });
+                    actualBotMessage.appendMarkdownAsync(token);
+                    scroll.scrollToBottom();
+                })));
+    }
 
-                addComponentAsFirst(thinkingDetails);
-            }
-        }
+    private void handleBroadcastEvent(ChatEvent event) {
+        if (event instanceof CheckEvent.AgentBuiltTestTreeEvent built) {
+            Optional.ofNullable(actualBotMessage).ifPresent(message -> message.getHandlers().check.doOnBuiltTestTree(built));
+            // TODO: тут можно добавить отрисовку в истории (pending = неактивые кнопки)
 
-        public void finish() {
-            getUI().ifPresent(ui -> ui.access(() -> {
-                state.flush(this);
-            }));
-        }
+        } else if (event instanceof CheckEvent.CheckStartedEvent started) {
+            Optional.ofNullable(actualBotMessage).ifPresent(message -> message.getHandlers().check.doOnCheckStarted(started));
+            // TODO: тут можно добавить отрисовку в истории (inProgress = появление спиннера + делать кнопку активной)
 
+        } else if (event instanceof CheckEvent.CheckFinishedEvent finished) {
+            Optional.ofNullable(actualBotMessage).ifPresent(message -> message.getHandlers().check.doOnCheckFinished(finished));
+            // TODO: тут можно добавить отрисовку в истории (finished = убрать спиннер)
 
-        /**
-         * State Pattern:
-         * - InitialState   → проверка первых 7+ символов на предмет наличия <think>
-         * - ThinkingState  → передача потока в thinkingMessage + поиск </think> с помощью буферизации
-         * - MainState      → прямая передача потока в mainMessage (без буферизации)
-         */
-        //
-        private static abstract class ProcessingState {
-            public abstract ProcessingState process(String chunk, MarkdownMessageWithThinking context);
+        } else if (event instanceof LogEvent logEvent) {
+            Optional.ofNullable(actualBotMessage).ifPresent(message -> message.getHandlers().log.doOnLog(logEvent));
 
-            public abstract void flush(MarkdownMessageWithThinking context);
-
-            // <editor-fold desc="Функциональность слушателей" defaultstate="collapsed">
-
-            private static final List<Listener> LISTENERS = new CopyOnWriteArrayList<>();
-            private static ProcessingState currentState;
-
-            public void addChangeStateListener(ProcessingState.Listener l) {
-                LISTENERS.add(l);
-            }
-
-            {
-                LISTENERS.forEach(l -> l.changed(currentState, this));
-                currentState = this;
-            }
-
-            @FunctionalInterface
-            public interface Listener {
-                void changed(ProcessingState oldState, ProcessingState newState);
-            }
-            // </editor-fold>
-        }
-
-        // Начальное состояние: проверяем первые 7 символов
-        private static class InitialState extends ProcessingState {
-            private final StringBuilder buffer = new StringBuilder();
-
-            @Override
-            public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
-                buffer.append(chunk);
-
-                if (buffer.length() < THINK_OPEN.length()) {
-                    return this; // Ждём ещё данных
-                }
-
-                int tagPos = buffer.indexOf(THINK_OPEN);
-                if (tagPos >= 0) {
-                    // Есть тег - переходим в thinking режим
-                    context.ensureThinkingDetailsCreated();
-                    buffer.delete(tagPos, tagPos + THINK_OPEN.length());
-                    return new ThinkingState().process(buffer.toString(), context);
-                } else {
-                    // Нет тега - переходим в обычный режим
-                    context.mainMessage.appendMarkdownAsync(buffer.toString());
-                    return new MainState();
-                }
-            }
-
-            @Override
-            public void flush(MarkdownMessageWithThinking context) {
-                if (!buffer.isEmpty()) {
-                    context.mainMessage.appendMarkdownAsync(buffer.toString());
-                }
-            }
-        }
-
-        // Thinking режим: буферизация и поиск </think>
-        private static class ThinkingState extends ProcessingState {
-            private final StringBuilder buffer = new StringBuilder();
-
-            @Override
-            public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
-                buffer.append(chunk);
-
-                String text = buffer.toString();
-                int closeIdx = text.indexOf(THINK_CLOSE);
-
-                if (closeIdx >= 0) {
-                    // Нашли закрывающий тег
-                    return handleCloseTag(closeIdx, text, context);
-                } else {
-                    // Закрывающего тега нет - отдаём безопасную часть
-                    flushSafePart(context);
-                    return this;
-                }
-            }
-
-            private ProcessingState handleCloseTag(int closeIdx, String text, MarkdownMessageWithThinking context) {
-                if (closeIdx > 0) {
-                    context.thinkingMessage.appendContent(text.substring(0, closeIdx));
-                }
-
-                String remaining = text.substring(closeIdx + THINK_CLOSE.length());
-                if (!remaining.isEmpty()) {
-                    context.mainMessage.appendMarkdownAsync(remaining);
-                }
-
-                return new InitialState();
-            }
-
-            private void flushSafePart(MarkdownMessageWithThinking context) {
-                int safeLength = Math.max(0, buffer.length() - THINK_CLOSE.length());
-                if (safeLength > 0) {
-                    context.thinkingMessage.appendContent(buffer.substring(0, safeLength));
-                    buffer.delete(0, safeLength);
-                }
-            }
-
-            @Override
-            public void flush(MarkdownMessageWithThinking context) {
-                if (!buffer.isEmpty()) {
-                    context.thinkingMessage.appendContent(buffer.toString());
-                }
-            }
-        }
-
-        // Обычный режим: прямая передача без буфера
-        private static class MainState extends ProcessingState {
-            @Override
-            public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
-                context.mainMessage.appendMarkdownAsync(chunk);
-                return this;
-            }
-
-            @Override
-            public void flush(MarkdownMessageWithThinking context) {
-                // Нечего сбрасывать - буфера нет
-            }
         }
     }
+
 
 }

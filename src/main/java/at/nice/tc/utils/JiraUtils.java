@@ -1,5 +1,6 @@
 package at.nice.tc.utils;
 
+import at.nice.tc.model.TestTree;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -8,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -374,5 +376,12 @@ public abstract class JiraUtils {
         public String toString() {
             return markdown.toString();
         }
+    }
+
+
+    public static String toMarkdownTree(TestTree tree, Function<TestTree.Test, String> stringifier) {
+        return tree.getDescendants().stream()
+                .map(test -> " ".repeat(test.getDepth() * 2) + "- " + stringifier.apply(test))
+                .collect(Collectors.joining("\n"));
     }
 }
