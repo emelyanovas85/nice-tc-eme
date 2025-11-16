@@ -2,18 +2,79 @@ package at.nice.tc.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.util.Map;
+
+/**
+ * Сервис для взаимодействия с AI моделями через Spring AI ChatClient.
+ * Управляет отправкой сообщений и интеграцией с MemoryService для поддержки
+ * множественных подписок и сохранения истории разговоров.
+ */
 @Service
 @RequiredArgsConstructor
 public class AiService {
     private final ChatClient mainChatClient;
+    private final ChatClient agentChatClient;
+    private final MemoryService memoryService;
 
-    public Flux<String> sendMessageStream(String message) {
-        return mainChatClient.prompt()
+    /**
+     * Отправляет пользовательское сообщение в основной чат.
+     * Использует mainChatClient с доступом ко всем инструментам (tools).
+     * 
+     * @param message текст сообщения от пользователя
+     * @param chatId уникальный идентификатор разговора
+     * @return Flux токенов ответа AI модели с поддержкой множественных подписок
+     */
+    public Flux<String> sendMainMessageStream(String message, String chatId) {
+        return sendMessageStream(mainChatClient, message, chatId);
+    }
+
+    /**
+     * Отправляет агентское сообщение для проверки тест-кейса.
+     * Использует agentChatClient без доступа к инструментам, данные передаются готовыми.
+     * 
+     * @param message промпт для агента с данными теста
+     * @param chatId уникальный идентификатор разговора агента
+     * @return Flux токенов ответа AI модели с поддержкой множественных подписок
+     */
+    public Flux<String> sendAgentMessageStream(String message, String chatId) {
+        return sendMessageStream(agentChatClient, message, chatId);
+    }
+
+    /**
+     * Главная точка интеграции с MemoryService и реактивными потоками.
+     * Все токены от AI пушатся в MemoryService через Sinks.Many (replay),
+     * что позволяет множеству подписчиков получать одни и те же данные:
+     * - Несколько вкладок браузера на одном chatId
+     * - Перезагрузка страницы с восстановлением всей истории токенов
+     * - Параллельная подписка без дублирования запросов к AI
+     * 
+     * @param chatClient экземпляр ChatClient (main или agent)
+     * @param message текст сообщения для отправки AI модели
+     * @param conversationId уникальный идентификатор чата для сохранения контекста
+     * @return Flux токенов ответа, подключенный к MemoryService через replay sink
+     */
+    public Flux<String> sendMessageStream(ChatClient chatClient, String message, String conversationId) {
+        // Получаем или создаем Sink для данного conversationId
+        memoryService.getOrCreateSink(conversationId);
+
+        // Запускаем генерацию ответа AI и пушим все токены в Sink
+        chatClient.prompt()
                 .user(message)
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
+                .toolContext(Map.of(ChatMemory.CONVERSATION_ID, conversationId))
                 .stream()
-                .content();
+                .content()
+                .subscribe(
+                        token -> memoryService.pushToken(conversationId, token),
+                        error -> memoryService.errorStream(conversationId, error),
+                        () -> memoryService.completeStream(conversationId)
+                );
+
+        // Возвращаем Flux для подписки - новые подписчики получат всю историю + новые токены
+        return memoryService.subscribe(conversationId);
     }
 }
