@@ -105,7 +105,7 @@ public class MemoryService {
         Sinks.Many<String> sink = replaySinks.get(conversationId);
         if (sink != null) {
             sink.tryEmitComplete();
-            removeConversation(conversationId);
+            replaySinks.remove(conversationId);
             log.debug("Поток завершен для conversationId: {}", conversationId);
         }
     }

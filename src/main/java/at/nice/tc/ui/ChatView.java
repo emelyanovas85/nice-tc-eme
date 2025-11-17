@@ -143,11 +143,14 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private void restoreUI() {
         final String chatId = config.getChatId();
         final Restorer restorer = new Restorer();
+        // Подписка на активный ответ ассистента
+        subscribeToChatStream();
+        // Добавление сообщений из истории снизу вверх
         final List<Message> completedMessages = memoryService.getCompletedMessages(chatId);
         Collections.reverse(completedMessages); // отрисовывать снизу вверх
         completedMessages.forEach(m -> {
             switch (m.getMessageType()) {
-                case ASSISTANT -> restorer.createCompletedAssistantMessage(Flux.just(m.getText()));
+                case ASSISTANT -> restorer.createCompletedAssistantMessage(m.getText());
                 case USER -> restorer.createUserMessage(m.getText());
                 default -> log.warn("Не обработано сообщение {}:\n{}", m.getMessageType(), m.getText());
             }
@@ -155,21 +158,13 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
 
-    private Disposable subscription;
-    private MarkdownMessageWithThinking actualBotMessage;
-
     class Restorer {
 
-        public void createCompletedAssistantMessage(Flux<String> flux) {
-            actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now()); // TODO: указать правильное время
-            actualBotMessage.getMainMessage().setUserColorIndex(5);
-            messageList.addComponentAtIndex(0, actualBotMessage);
-
-            getUI().ifPresent(ui ->
-                    flux.doOnNext(token -> ui.access(() ->
-                            actualBotMessage.appendMarkdownAsync(token)
-                    ))
-            );
+        public void createCompletedAssistantMessage(String text) {
+            MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now()); // TODO: указать правильное время
+            botMessage.appendMarkdownAsync(text);
+            botMessage.getMainMessage().setUserColorIndex(5);
+            messageList.addComponentAtIndex(0, botMessage);
         }
 
 
@@ -181,6 +176,10 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
 
+    private Disposable subscription;
+    private MarkdownMessageWithThinking actualBotMessage;
+
+
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
         String userText = inputLayout.getArea().getValue().trim();
         if (userText.isEmpty()) {
@@ -189,6 +188,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         scroll.setStickDown(true);
         inputLayout.showStopButton();
+        inputLayout.getArea().clear();
 
         MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), LocalDateTime.now());
         userMessage.setUserColorIndex(3);
@@ -204,11 +204,16 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (!config.getScope().isBlank())
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
-        aiService.sendMainMessageStream(prompt.toString(), config.getChatId()) // Токены будут push-иться в MemoryService
-                .doOnComplete(actualBotMessage::finish);
+        aiService.sendMainMessageStream(prompt.toString(), config.getChatId()); // Токены будут push-иться в MemoryService
+        // Подписка на ответ ассистента
+        subscribeToChatStream();
     }
 
     private void onStop(ClickEvent<Button> buttonClickEvent) {
+        stop();
+    }
+
+    private void stop() {
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
             subscription = null;
@@ -246,16 +251,29 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
         }
+        if (getUI().isEmpty()) {
+            return;
+        }
+        final UI ui = getUI().get();
         subscription = memoryService.subscribe(config.getChatId())
-                .subscribe(token -> getUI().ifPresent(ui -> ui.access(() -> {
-                    if (actualBotMessage == null) {
-                        actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
-                        actualBotMessage.getMainMessage().setUserColorIndex(5);
-                        messageList.add(actualBotMessage);
-                    }
-                    actualBotMessage.appendMarkdownAsync(token);
-                    scroll.scrollToBottom();
-                })));
+                .subscribe(token -> ui.access(() -> {
+                            if (actualBotMessage == null) {
+                                actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
+                                actualBotMessage.getMainMessage().setUserColorIndex(5);
+                                messageList.add(actualBotMessage);
+                            }
+                            actualBotMessage.appendMarkdownAsync(token);
+                            scroll.scrollToBottom();
+                        }),
+                        err -> ui.access(() -> {
+                            actualBotMessage.appendMarkdownAsync("\n\nОшибка: " + err.getMessage());
+                            stop();
+                        }),
+                        () -> ui.access(() -> {
+                            actualBotMessage.finish();
+                            stop();
+                        })
+                );
     }
 
     private void handleBroadcastEvent(ChatEvent event) {
