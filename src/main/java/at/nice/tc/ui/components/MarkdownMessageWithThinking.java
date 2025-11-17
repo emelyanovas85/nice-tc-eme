@@ -45,7 +45,10 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             return;
         }
 
-        state = state.process(fullText, this);
+        getUI().ifPresent(ui -> ui.access(() -> {
+            state = state.process(fullText, this);
+            finish();
+        }));
     }
 
     public void appendMarkdownAsync(String chunk) {

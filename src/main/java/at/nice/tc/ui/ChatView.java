@@ -130,9 +130,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         getContent().add(inputLayout);
         getContent().setSizeFull();
         inputLayout.showSendButton();
-
-        // restore all previous/active messages on UI init
-        restoreUI();
     }
 
 
@@ -159,7 +156,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         public void createCompletedAssistantMessage(String text) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now()); // TODO: указать правильное время
-            botMessage.appendMarkdownAsync(text);
+            botMessage.appendMarkdown(text);
             botMessage.getMainMessage().setUserColorIndex(5);
             messageList.addComponentAtIndex(0, botMessage);
         }
@@ -225,6 +222,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
+
+        // restore all previous/active messages on UI init
+        restoreUI();
         // Подписка на ответ ассистента
         subscribeToChatStream();
         // Подписка на события для текущего chatId
