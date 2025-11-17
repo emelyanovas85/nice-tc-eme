@@ -39,12 +39,23 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         state = new InitialState();
     }
 
+
+    public void appendMarkdown(String fullText) {
+        if (fullText == null || fullText.isEmpty()) {
+            return;
+        }
+
+        state = state.process(fullText, this);
+    }
+
     public void appendMarkdownAsync(String chunk) {
         if (chunk == null || chunk.isEmpty()) {
             return;
         }
 
-        state = state.process(chunk, this);
+        getUI().ifPresent(ui -> ui.access(() ->
+                state = state.process(chunk, this)
+        ));
     }
 
     public void ensureThinkingDetailsCreated() {
@@ -65,7 +76,9 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     }
 
     public void finish() {
-        state.flush(this);
+        getUI().ifPresent(ui -> ui.access(() ->
+                state.flush(this)
+        ));
     }
 
 
@@ -182,12 +195,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         public abstract void flush(MarkdownMessageWithThinking context);
 
-        protected void accessUi(Runnable r) {
-            UI ui = UI.getCurrent();
-            if (ui != null)
-                ui.access(r::run);
-        }
-
         // <editor-fold desc="Функциональность слушателей" defaultstate="collapsed">
 
         private static final List<Listener> LISTENERS = new CopyOnWriteArrayList<>();
@@ -229,9 +236,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 return new ThinkingState().process(buffer.toString(), context);
             } else {
                 // Нет тега - переходим в обычный режим
-                accessUi(() ->
-                        context.mainMessage.appendMarkdownAsync(buffer.toString())
-                );
+                context.mainMessage.appendMarkdownAsync(buffer.toString());
                 return new MainState();
             }
         }
@@ -239,9 +244,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         @Override
         public void flush(MarkdownMessageWithThinking context) {
             if (!buffer.isEmpty()) {
-                accessUi(() ->
-                        context.mainMessage.appendMarkdownAsync(buffer.toString())
-                );
+                context.mainMessage.appendMarkdownAsync(buffer.toString());
             }
         }
     }
@@ -269,16 +272,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         private ProcessingState handleCloseTag(int closeIdx, String text, MarkdownMessageWithThinking context) {
             if (closeIdx > 0) {
-                accessUi(() ->
-                        context.thinkingMessage.appendContent(text.substring(0, closeIdx))
-                );
+                context.thinkingMessage.appendContent(text.substring(0, closeIdx));
             }
 
             String remaining = text.substring(closeIdx + THINK_CLOSE.length());
             if (!remaining.isEmpty()) {
-                accessUi(() ->
-                        context.mainMessage.appendMarkdownAsync(remaining)
-                );
+                context.mainMessage.appendMarkdownAsync(remaining);
             }
 
             return new InitialState();
@@ -287,9 +286,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         private void flushSafePart(MarkdownMessageWithThinking context) {
             int safeLength = Math.max(0, buffer.length() - THINK_CLOSE.length());
             if (safeLength > 0) {
-                accessUi(() ->
-                        context.thinkingMessage.appendContent(buffer.substring(0, safeLength))
-                );
+                context.thinkingMessage.appendContent(buffer.substring(0, safeLength));
                 buffer.delete(0, safeLength);
             }
         }
@@ -297,9 +294,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         @Override
         public void flush(MarkdownMessageWithThinking context) {
             if (!buffer.isEmpty()) {
-                accessUi(() ->
-                        context.thinkingMessage.appendContent(buffer.toString())
-                );
+                context.thinkingMessage.appendContent(buffer.toString());
             }
         }
     }
@@ -308,9 +303,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private static class MainState extends ProcessingState {
         @Override
         public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
-            accessUi(() ->
-                    context.mainMessage.appendMarkdownAsync(chunk)
-            );
+            context.mainMessage.appendMarkdownAsync(chunk);
             return this;
         }
 

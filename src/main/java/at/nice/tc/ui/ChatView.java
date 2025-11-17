@@ -23,7 +23,6 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
 import java.util.*;
