@@ -4,6 +4,7 @@ import at.nice.tc.events.*;
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.EventService;
 import at.nice.tc.service.MemoryService;
+import org.springframework.context.ApplicationEventPublisher;
 import at.nice.tc.ui.components.ChatInputComponent;
 import at.nice.tc.ui.components.MarkdownMessageWithThinking;
 import at.nice.tc.ui.components.SmartScroller;
@@ -40,12 +41,15 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private final AiService aiService;
     private final EventService eventService;
     private final MemoryService memoryService;
+    private final ApplicationEventPublisher eventPublisher;
 //    private final JiraService jiraService;
 
     private SmartScroller scroll; // обертка для панели сообщений
     private VerticalLayout messageList; // панель сообщений
     private ChatInputComponent inputLayout; // textArea с кнопками
 
+    // Хранилище timestamp последних добавленных сообщений для предотвращения дублирования
+    private final Set<Long> addedMessageTimestamps = new HashSet<>();
 
     private final Config config = new Config(UUID.randomUUID().toString(), "browser", 70, 70, "", "", "Пользователь");
 
@@ -148,28 +152,39 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         // Добавление сообщений из истории снизу вверх
         final List<Message> completedMessages = memoryService.getCompletedMessages(chatId);
         Collections.reverse(completedMessages); // отрисовывать снизу вверх
-        completedMessages.forEach(m -> {
+        
+        // Вычисляем время для каждого сообщения на основе его позиции
+        // Предполагаем, что сообщения идут последовательно с интервалом ~2 секунды
+        final LocalDateTime now = LocalDateTime.now();
+        final int messageCount = completedMessages.size();
+        
+        for (int i = 0; i < completedMessages.size(); i++) {
+            Message m = completedMessages.get(i);
+            // Время вычисляется от текущего момента назад, предполагая интервал ~2 секунды между сообщениями
+            // Самое старое сообщение будет иметь время (messageCount - i) * 2 секунд назад
+            LocalDateTime messageTime = now.minusSeconds((long) (messageCount - i) * 2);
+            
             switch (m.getMessageType()) {
-                case ASSISTANT -> restorer.createCompletedAssistantMessage(m.getText());
-                case USER -> restorer.createUserMessage(m.getText());
+                case ASSISTANT -> restorer.createCompletedAssistantMessage(m.getText(), messageTime);
+                case USER -> restorer.createUserMessage(m.getText(), messageTime);
                 default -> log.warn("Не обработано сообщение {}:\n{}", m.getMessageType(), m.getText());
             }
-        });
+        }
     }
 
 
     class Restorer {
 
-        public void createCompletedAssistantMessage(String text) {
-            MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now()); // TODO: указать правильное время
+        public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
+            MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp);
             botMessage.setMarkdown(text);
             botMessage.getMainMessage().setUserColorIndex(5);
             messageList.addComponentAtIndex(0, botMessage);
         }
 
 
-        public void createUserMessage(String text) {
-            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), LocalDateTime.now()); // TODO: указать правильное время
+        public void createUserMessage(String text, LocalDateTime timestamp) {
+            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), timestamp);
             userMessage.setUserColorIndex(3);
             messageList.addComponentAtIndex(0, userMessage);
         }
@@ -190,9 +205,16 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         inputLayout.showStopButton();
         inputLayout.getArea().clear();
 
-        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), now);
         userMessage.setUserColorIndex(3);
         messageList.add(userMessage);
+
+        // Публикуем событие о новом сообщении пользователя для синхронизации между вкладками
+        long timestamp = System.currentTimeMillis();
+        // Добавляем timestamp в Set, чтобы не добавить это сообщение снова при получении события
+        addedMessageTimestamps.add(timestamp);
+        eventPublisher.publishEvent(new UserMessageEvent(config.getChatId(), userText, config.getUserFio(), timestamp));
 
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
         actualBotMessage.getMainMessage().setUserColorIndex(5);
@@ -306,6 +328,32 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                 } else if (event instanceof LogEvent logEvent) {
                     actualBotMessage.getHandlers().log.doOnLog(logEvent);
 
+                } else if (event instanceof UserMessageEvent userMessageEvent) {
+                    // Синхронизация сообщений пользователя между вкладками
+                    // Проверяем, что это сообщение еще не было добавлено (чтобы не дублировать)
+                    long timestamp = userMessageEvent.getTimestamp();
+                    if (!addedMessageTimestamps.contains(timestamp)) {
+                        addedMessageTimestamps.add(timestamp);
+                        // Очищаем старые timestamp (оставляем только последние 100)
+                        if (addedMessageTimestamps.size() > 100) {
+                            addedMessageTimestamps.clear();
+                            addedMessageTimestamps.add(timestamp);
+                        }
+                        
+                        // Используем timestamp из события для правильного времени
+                        LocalDateTime messageTime = LocalDateTime.ofInstant(
+                                java.time.Instant.ofEpochMilli(userMessageEvent.getTimestamp()),
+                                java.time.ZoneId.systemDefault()
+                        );
+                        MarkdownMessage userMessage = new MarkdownMessage(
+                                userMessageEvent.getUserText(),
+                                userMessageEvent.getUserFio(),
+                                messageTime
+                        );
+                        userMessage.setUserColorIndex(3);
+                        messageList.addComponentAtIndex(0, userMessage);
+                        scroll.scrollToBottom();
+                    }
                 }
             });
         });
