@@ -3,6 +3,7 @@ package at.nice.tc.ai.tools.jiraTool;
 import at.nice.tc.events.ChatEventPublisher;
 import at.nice.tc.events.OnGetValue;
 import at.nice.tc.service.JiraService;
+import at.nice.tc.service.MemoryService;
 import at.nice.tc.utils.EventUtils;
 import at.nice.tc.utils.ThrowableSupplier;
 import at.nice.tc.utils.ThrowableUtils;
@@ -21,6 +22,7 @@ import java.util.List;
 public class JiraTools {
 
     private final JiraService jiraService;
+    private final MemoryService memoryService;
     private final ChatEventPublisher.Factory publisherFactory;
 
     //    @Cacheable("availableTestProperties")
@@ -35,9 +37,15 @@ public class JiraTools {
 
     @Tool(description = "Получает информацию о доступности Jira")
     public String isAvailable(@ToolParam(description = "передай букву 'a'") String ignore, ToolContext context) {//todo ignore избавиться от заплатки в виде параметра в методе
-        return sendEvents("Проверка доступности Jira",
-                () -> jiraService.isAvailable().join().toString(),
-                context);
+        String chatId = ToolUtils.conversationId(context);
+
+        memoryService.getOrCreateSink(chatId).tryEmitNext("\n\nbefore\n\n");
+        final String s = jiraService.isAvailable().join().toString();
+        memoryService.getOrCreateSink(chatId).tryEmitNext("\n\nafter\n\n");
+        return s;
+//        return sendEvents("Проверка доступности Jira",
+//                () -> s,
+//                context);
     }
 
     @Cacheable(value = "jiraAllVersions", key = "#testKey")

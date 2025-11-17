@@ -27,8 +27,9 @@ public class ChatClientConfig {
                                      JiraTools jiraTools) {
         return ChatClient.builder(chatModel)
                 .defaultTools(mainChatTools, googleTools, jiraTools)
-                .defaultOptions(OpenAiChatOptions.builder()
-                        .internalToolExecutionEnabled(false)
+                .defaultOptions(//OpenAiChatOptions.builder()
+//                        .internalToolExecutionEnabled(false)
+                        ChatOptions.builder()
                         .temperature(0.8)
                         .topP(0.8)
                         .build())
@@ -40,8 +41,9 @@ public class ChatClientConfig {
     public ChatClient agentChatClient(ChatMemory chatMemory, ChatModel chatModel) {
         return ChatClient.builder(chatModel)
 //            .defaultTools(jiraTools, googleTools) // промпт и данные получит в готовом виде
-                .defaultOptions(OpenAiChatOptions.builder()
-                        .internalToolExecutionEnabled(false)
+                .defaultOptions(//OpenAiChatOptions.builder()
+//                        .internalToolExecutionEnabled(false)
+                        ChatOptions.builder()
                         .temperature(0.3)
                         .topP(0.3)
                         .build())
