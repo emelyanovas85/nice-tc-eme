@@ -239,6 +239,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         super.onDetach(detachEvent);
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
+            subscription = null;
         }
         if (eventServiceRegistration != null) {
             eventServiceRegistration.unsubscribe();
