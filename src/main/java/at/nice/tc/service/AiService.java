@@ -67,9 +67,9 @@ public class AiService {
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .toolContext(Map.of(ChatMemory.CONVERSATION_ID, conversationId))
                 .stream()
-                .content()
+                .chatResponse()
                 .subscribe(
-                        token -> memoryService.pushToken(conversationId, token),
+                        token -> memoryService.pushToken2(conversationId, token),
                         error -> memoryService.errorStream(conversationId, error),
                         () -> memoryService.completeStream(conversationId)
                 );

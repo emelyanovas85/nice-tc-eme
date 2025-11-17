@@ -10,6 +10,7 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -26,7 +27,8 @@ public class ChatClientConfig {
                                      JiraTools jiraTools) {
         return ChatClient.builder(chatModel)
                 .defaultTools(mainChatTools, googleTools, jiraTools)
-                .defaultOptions(ChatOptions.builder()
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .internalToolExecutionEnabled(false)
                         .temperature(0.8)
                         .topP(0.8)
                         .build())
@@ -38,7 +40,8 @@ public class ChatClientConfig {
     public ChatClient agentChatClient(ChatMemory chatMemory, ChatModel chatModel) {
         return ChatClient.builder(chatModel)
 //            .defaultTools(jiraTools, googleTools) // промпт и данные получит в готовом виде
-                .defaultOptions(ChatOptions.builder()
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .internalToolExecutionEnabled(false)
                         .temperature(0.3)
                         .topP(0.3)
                         .build())

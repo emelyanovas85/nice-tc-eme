@@ -4,41 +4,46 @@ import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.UI;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.publisher.Flux;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@Setter
 public class MarkdownMessageWithThinking2 extends VerticalLayout {
 
     private final Details details;
-    private final MarkdownMessage markdownMessage;
+    private final MarkdownMessage mainMessage;
     private final UI ui;
 
-    private ProcessingState currentState;
+    private ProcessingState state;
     private final StringBuilder buffer;
     private Markdown currentThinkingMarkdown;
     private Markdown currentToolMarkdown;
     private final List<String> streamBuffer;
 
-    public MarkdownMessageWithThinking2() {
-        this.details = new Details("Thinking & Tools");
-        this.markdownMessage = new MarkdownMessage();
+    public MarkdownMessageWithThinking2(String name, LocalDateTime timestamp) {
+        this.details = new Details("Размышления модели");
+        this.mainMessage = new MarkdownMessage(name, timestamp);
         this.ui = UI.getCurrent();
         this.buffer = new StringBuilder();
         this.streamBuffer = new ArrayList<>();
 
         details.setOpened(false);
 
-        add(details, markdownMessage);
+        add(details, mainMessage);
         setPadding(false);
         setSpacing(false);
 
-        this.currentState = new InitialState(this);
+        this.state = new InitialState(this);
     }
 
     public void handleStreamingResponse(Flux<ChatResponse> responseFlux) {
@@ -56,15 +61,15 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
         streamBuffer.clear();
         currentThinkingMarkdown = null;
         currentToolMarkdown = null;
-        currentState = new InitialState(this);
+        state = new InitialState(this);
 
         ui.access(() -> {
             details.removeAll();
-            markdownMessage.setMarkdown("");
+            mainMessage.setMarkdown("");
         });
     }
 
-    private void processResponse(ChatResponse chatResponse) {
+    public void processResponse(ChatResponse chatResponse) {
         if (chatResponse == null || chatResponse.getResults().isEmpty()) {
             return;
         }
@@ -72,13 +77,13 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
         Generation generation = chatResponse.getResult();
 
         if (isToolCall(generation)) {
-            currentState.handleToolCall(generation);
+            state.handleToolCall(generation);
             return;
         }
 
         String content = generation.getOutput().getText();
         if (content != null && !content.isEmpty()) {
-            currentState.processContent(content);
+            state.processContent(content);
         }
     }
 
@@ -87,62 +92,25 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
     }
 
     public void onToolExecuted(String toolResult) {
-        currentState.onToolExecuted(toolResult);
+        state.onToolExecuted(toolResult);
     }
 
-    private void handleError(Throwable error) {
-        ui.access(() -> markdownMessage.appendMarkdownAsync("\n\n❌ Error: " + error.getMessage()));
+    public void handleError(Throwable error) {
+        ui.access(() -> mainMessage.appendMarkdownAsync("\n\n❌ Error: " + error.getMessage()));
     }
 
-    private void handleComplete() {
+    public void handleComplete() {
         ui.access(() -> {
             if (buffer.isEmpty())
                 return;
-            markdownMessage.appendMarkdownAsync(buffer.toString());
+            mainMessage.appendMarkdownAsync(buffer.toString());
             buffer.setLength(0);
         });
     }
 
-    // Getters для состояний
-    void setState(ProcessingState newState) {
-        this.currentState = newState;
-    }
 
-    StringBuilder getBuffer() {
-        return buffer;
-    }
 
-    MarkdownMessage getMarkdownMessage() {
-        return markdownMessage;
-    }
 
-    Details getDetails() {
-        return details;
-    }
-
-    UI getUi() {
-        return ui;
-    }
-
-    Markdown getCurrentThinkingMarkdown() {
-        return currentThinkingMarkdown;
-    }
-
-    void setCurrentThinkingMarkdown(Markdown markdown) {
-        this.currentThinkingMarkdown = markdown;
-    }
-
-    Markdown getCurrentToolMarkdown() {
-        return currentToolMarkdown;
-    }
-
-    void setCurrentToolMarkdown(Markdown markdown) {
-        this.currentToolMarkdown = markdown;
-    }
-
-    List<String> getStreamBuffer() {
-        return streamBuffer;
-    }
 
     // ==================== СОСТОЯНИЯ ====================
 
@@ -187,7 +155,7 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
                 // Текст до <think> идет в main
                 if (!beforeThink.trim().isEmpty()) {
                     context.getUi().access(() ->
-                            context.getMarkdownMessage().appendMarkdownAsync(beforeThink)
+                            context.getMainMessage().appendMarkdownAsync(beforeThink)
                     );
                 }
 
@@ -195,19 +163,11 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
                 context.getBuffer().setLength(0);
                 context.getBuffer().append(afterThink);
 
-                // Создаем новый Markdown в Details
-                context.getUi().access(() -> {
-                    Markdown thinkingMd = new Markdown();
-                    context.setCurrentThinkingMarkdown(thinkingMd);
-                    context.getDetails().add(thinkingMd);
-                    context.getDetails().setOpened(true);
-                });
-
                 context.setState(new ThinkingState(context));
 
                 // Обрабатываем остаток
                 if (!afterThink.isEmpty()) {
-                    context.currentState.processContent(afterThink);
+                    context.state.processContent(afterThink);
                 }
             } else {
                 // <think> не найден
@@ -216,7 +176,7 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
                     String toFlush = context.getBuffer().substring(0, context.getBuffer().length() - 20);
                     context.getBuffer().delete(0, context.getBuffer().length() - 20);
                     context.getUi().access(() ->
-                            context.getMarkdownMessage().appendMarkdownAsync(toFlush)
+                            context.getMainMessage().appendMarkdownAsync(toFlush)
                     );
                 }
             }
@@ -226,9 +186,18 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
     // ==================== THINKING STATE ====================
 
     static class ThinkingState extends ProcessingState {
+        private static final String CLOSING_TAG = "</think>";
 
         ThinkingState(MarkdownMessageWithThinking2 context) {
             super(context);
+
+            // Создаем новый Markdown в Details
+            context.getUi().access(() -> {
+                Markdown thinkingMd = new Markdown();
+                context.setCurrentThinkingMarkdown(thinkingMd);
+                context.getDetails().add(thinkingMd);
+                context.getDetails().setOpened(true);
+            });
         }
 
         @Override
@@ -236,12 +205,27 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
             context.getBuffer().append(content);
             String buffered = context.getBuffer().toString();
 
-            int thinkEnd = buffered.indexOf("</think>");
+            if (buffered.trim().length() < CLOSING_TAG.length())
+                return; // накапливаем токены
 
-            if (thinkEnd != -1) {
+            int thinkEnd = buffered.indexOf(CLOSING_TAG);
+
+            if (thinkEnd < 0) {
+                // </think> не найден
+                int stayInBuffer = CLOSING_TAG.length() - 1; // 1 сливаем т.к. тег не найден и все равно нужен хотябы один новый токен
+                String toFlush = context.getBuffer().substring(0, context.getBuffer().length() - stayInBuffer);
+                context.getBuffer().delete(0, toFlush.length());
+
+                context.getUi().access(() -> {
+                    if (context.getCurrentThinkingMarkdown() != null) {
+                        context.getCurrentThinkingMarkdown().appendContent(toFlush);
+                    }
+                });
+
+            } else {
                 // Найден </think>
                 String thinkingContent = buffered.substring(0, thinkEnd);
-                String afterThink = buffered.substring(thinkEnd + 8);
+                String afterThink = buffered.substring(thinkEnd + CLOSING_TAG.length());
 
                 // Добавляем thinking контент
                 context.getUi().access(() -> {
@@ -253,24 +237,12 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
                 // Возвращаемся в INITIAL
                 context.getBuffer().setLength(0);
                 context.getBuffer().append(afterThink);
-                context.setCurrentThinkingMarkdown(null);
+//                context.setCurrentThinkingMarkdown(null); // TODO: проверить, нужно ли
                 context.setState(new InitialState(context));
 
                 // Обрабатываем остаток
                 if (!afterThink.isEmpty()) {
-                    context.currentState.processContent(afterThink);
-                }
-            } else {
-                // </think> не найден, продолжаем накапливать
-                if (context.getBuffer().length() > 100) {
-                    String toFlush = context.getBuffer().substring(0, context.getBuffer().length() - 20);
-                    context.getBuffer().delete(0, context.getBuffer().length() - 20);
-
-                    context.getUi().access(() -> {
-                        if (context.getCurrentThinkingMarkdown() != null) {
-                            context.getCurrentThinkingMarkdown().appendContent(toFlush);
-                        }
-                    });
+                    context.state.processContent(afterThink);
                 }
             }
         }
@@ -325,7 +297,7 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
 
             // Обрабатываем буфер
             for (String bufferedContent : context.getStreamBuffer()) {
-                context.currentState.processContent(bufferedContent);
+                context.state.processContent(bufferedContent);
             }
             context.getStreamBuffer().clear();
             context.setCurrentToolMarkdown(null);
@@ -343,7 +315,7 @@ public class MarkdownMessageWithThinking2 extends VerticalLayout {
         @Override
         void processContent(String content) {
             context.getUi().access(() ->
-                    context.getMarkdownMessage().appendMarkdownAsync(content)
+                    context.getMainMessage().appendMarkdownAsync(content)
             );
         }
     }

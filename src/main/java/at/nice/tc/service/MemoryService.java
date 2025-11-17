@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
@@ -43,6 +44,7 @@ public class MemoryService {
      * </ul>
      */
     private final Map<String, Sinks.Many<String>> replaySinks = new ConcurrentHashMap<>();
+    private final Map<String, Sinks.Many<ChatResponse>> replaySinks2 = new ConcurrentHashMap<>();
 
     /**
      * Получает или создает Sink для указанного conversationId.
@@ -54,6 +56,21 @@ public class MemoryService {
      */
     public Sinks.Many<String> getOrCreateSink(String conversationId) {
         return replaySinks.computeIfAbsent(conversationId, id -> {
+            log.debug("Создан новый Sink для conversationId: {}", id);
+            return Sinks.many().replay().all();
+        });
+    }
+
+    /**
+     * Получает или создает Sink для указанного conversationId.
+     * <p>
+     * Все подписчики на этот conversationId будут получать одни и те же токены.
+     *
+     * @param conversationId уникальный идентификатор разговора
+     * @return Sink для публикации токенов
+     */
+    public Sinks.Many<ChatResponse> getOrCreateSink2(String conversationId) {
+        return replaySinks2.computeIfAbsent(conversationId, id -> {
             log.debug("Создан новый Sink для conversationId: {}", id);
             return Sinks.many().replay().all();
         });
@@ -75,6 +92,21 @@ public class MemoryService {
     }
 
     /**
+     * Подписывается на поток токенов для указанного conversationId.
+     * <p>
+     * Новые подписчики получат всю историю токенов + новые в реальном времени.
+     * Используется для подключения UI компонентов к активному потоку ответа.
+     *
+     * @param conversationId уникальный идентификатор разговора
+     * @return Flux с историей и новыми токенами
+     */
+    public Flux<ChatResponse> subscribe2(String conversationId) {
+        Sinks.Many<ChatResponse> sink = getOrCreateSink2(conversationId);
+        log.debug("Подписка на поток для conversationId: {}", conversationId);
+        return sink.asFlux();
+    }
+
+    /**
      * Отправляет токен во все активные подписки для указанного conversationId.
      * <p>
      * Используется {@link AiService} для публикации токенов,
@@ -85,6 +117,25 @@ public class MemoryService {
      */
     public void pushToken(String conversationId, String token) {
         Sinks.Many<String> sink = replaySinks.get(conversationId);
+        if (sink != null) {
+            sink.tryEmitNext(token);
+            log.trace("Токен отправлен для conversationId: {}", conversationId);
+        } else {
+            log.warn("Sink не найден для conversationId: {}", conversationId);
+        }
+    }
+
+    /**
+     * Отправляет токен во все активные подписки для указанного conversationId.
+     * <p>
+     * Используется {@link AiService} для публикации токенов,
+     * полученных от AI модели, во все подключенные UI компоненты.
+     *
+     * @param conversationId уникальный идентификатор разговора
+     * @param token токен для отправки
+     */
+    public void pushToken2(String conversationId, ChatResponse token) {
+        Sinks.Many<ChatResponse> sink = replaySinks2.get(conversationId);
         if (sink != null) {
             sink.tryEmitNext(token);
             log.trace("Токен отправлен для conversationId: {}", conversationId);
