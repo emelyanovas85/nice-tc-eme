@@ -277,22 +277,38 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
     private void handleBroadcastEvent(ChatEvent event) {
-        if (event instanceof CheckEvent.AgentBuiltTestTreeEvent built) {
-            Optional.ofNullable(actualBotMessage).ifPresent(message -> message.getHandlers().check.doOnBuiltTestTree(built));
-            // TODO: тут можно добавить отрисовку в истории (pending = неактивые кнопки)
+        // События приходят не в UI потоке, поэтому нужно использовать ui.access()
+        getUI().ifPresent(ui -> {
+            if (!ui.isAttached()) {
+                return; // UI отсоединен, не обрабатываем событие
+            }
+            ui.access(() -> {
+                // Проверяем actualBotMessage внутри UI потока
+                if (actualBotMessage == null) {
+                    // Если сообщение еще не создано, создаем его
+                    actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
+                    actualBotMessage.getMainMessage().setUserColorIndex(5);
+                    messageList.add(actualBotMessage);
+                }
+                
+                if (event instanceof CheckEvent.AgentBuiltTestTreeEvent built) {
+                    actualBotMessage.getHandlers().check.doOnBuiltTestTree(built);
+                    // TODO: тут можно добавить отрисовку в истории (pending = неактивые кнопки)
 
-        } else if (event instanceof CheckEvent.CheckStartedEvent started) {
-            Optional.ofNullable(actualBotMessage).ifPresent(message -> message.getHandlers().check.doOnCheckStarted(started));
-            // TODO: тут можно добавить отрисовку в истории (inProgress = появление спиннера + делать кнопку активной)
+                } else if (event instanceof CheckEvent.CheckStartedEvent started) {
+                    actualBotMessage.getHandlers().check.doOnCheckStarted(started);
+                    // TODO: тут можно добавить отрисовку в истории (inProgress = появление спиннера + делать кнопку активной)
 
-        } else if (event instanceof CheckEvent.CheckFinishedEvent finished) {
-            Optional.ofNullable(actualBotMessage).ifPresent(message -> message.getHandlers().check.doOnCheckFinished(finished));
-            // TODO: тут можно добавить отрисовку в истории (finished = убрать спиннер)
+                } else if (event instanceof CheckEvent.CheckFinishedEvent finished) {
+                    actualBotMessage.getHandlers().check.doOnCheckFinished(finished);
+                    // TODO: тут можно добавить отрисовку в истории (finished = убрать спиннер)
 
-        } else if (event instanceof LogEvent logEvent) {
-            Optional.ofNullable(actualBotMessage).ifPresent(message -> message.getHandlers().log.doOnLog(logEvent));
+                } else if (event instanceof LogEvent logEvent) {
+                    actualBotMessage.getHandlers().log.doOnLog(logEvent);
 
-        }
+                }
+            });
+        });
     }
 
 

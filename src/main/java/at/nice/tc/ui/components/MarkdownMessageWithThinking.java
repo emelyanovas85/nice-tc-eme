@@ -45,6 +45,9 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             return;
         }
 
+        // Сбрасываем состояние в InitialState при установке полного текста
+        // чтобы избежать накопления данных в буферах предыдущих состояний
+        state = new InitialState();
         state = state.process(fullText, this);
     }
 
@@ -93,16 +96,20 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
             public void doOnLog(LogEvent log) {
                 if (isExpectedState(log.getConversationId())) {
-                    thinkingMessage.appendContent(timestamp() + "\t" + log.getText() + "\n");
-                    log.getAttachments().forEach(a -> thinkingMessage.appendContent(//"\n" +
-                            """
-                                    <details>
-                                      <summary>%s</summary>
-                                      
-                                      %s
-                                    </details>
-                                    """.formatted(a.getName(), a.getContent())
-                    ));
+                    // Убеждаемся, что thinkingDetails создан
+                    MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();
+                    if (thinkingMessage != null) {
+                        thinkingMessage.appendContent(timestamp() + "\t" + log.getText() + "\n");
+                        log.getAttachments().forEach(a -> thinkingMessage.appendContent(//"\n" +
+                                """
+                                        <details>
+                                          <summary>%s</summary>
+                                          
+                                          %s
+                                        </details>
+                                        """.formatted(a.getName(), a.getContent())
+                        ));
+                    }
                 }
             }
         }
@@ -119,6 +126,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
              */
             public void doOnBuiltTestTree(CheckEvent.AgentBuiltTestTreeEvent event) {
                 if (isExpectedState(event.getConversationId())) {
+                    // Убеждаемся, что thinkingDetails создан
+                    MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();
+                    if (thinkingMessage == null) {
+                        return;
+                    }
+                    
                     TestTree test = event.getTest();
                     thinkingMessage.appendContent(timestamp() + "Построено дерево тестов для проверки:\n");
 
@@ -126,9 +139,15 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                     test.getDescendants().forEach(t -> testId$text.put(t.getId(), "⏸️ " + t + " ожидает проверки"));
 
                     String tree = JiraUtils.toMarkdownTree(test, t -> testId$text.get(t.getId()));
-                    getUI().ifPresent(ui -> ui.access(() ->
-                            thinkingMessage.appendContent(tree)
-                    ));
+                    getUI().ifPresent(ui -> {
+                        if (ui.isAttached()) {
+                            ui.access(() -> {
+                                if (thinkingMessage != null) {
+                                    thinkingMessage.appendContent(tree);
+                                }
+                            });
+                        }
+                    });
                 }
             }
 
@@ -149,6 +168,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             void changeText(CheckEvent event, Function<TestTree.Test, String> stringifier) {
                 String conversationId = event.getConversationId();
                 if (isExpectedState(conversationId)) {
+                    // Убеждаемся, что thinkingDetails создан
+                    MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();
+                    if (thinkingMessage == null) {
+                        return;
+                    }
+                    
                     TestTree.Test test = (TestTree.Test) event.getTest();
 
                     String oldText = testId$text.get(test.getId());
@@ -156,9 +181,15 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                     testId$text.put(test.getId(), newText);
 
                     String content = thinkingMessage.getContent().replace(oldText, newText);
-                    getUI().ifPresent(ui -> ui.access(() ->
-                            thinkingMessage.setContent(content)
-                    ));
+                    getUI().ifPresent(ui -> {
+                        if (ui.isAttached()) {
+                            ui.access(() -> {
+                                if (thinkingMessage != null) {
+                                    thinkingMessage.setContent(content);
+                                }
+                            });
+                        }
+                    });
                 }
             }
 
@@ -169,10 +200,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         }
 
         String pageConversationId() {
-            return UI.getCurrent()
-                    .getActiveViewLocation()
-                    .getQueryParameters()
-                    .getSingleParameter(ChatView.Constants.CHAT_ID)
+            // Используем getUI() вместо UI.getCurrent(), так как события могут обрабатываться не в UI потоке
+            return MarkdownMessageWithThinking.this.getUI()
+                    .map(ui -> ui.getActiveViewLocation()
+                            .getQueryParameters()
+                            .getSingleParameter(ChatView.Constants.CHAT_ID)
+                            .orElse(""))
                     .orElse("");
         }
 
@@ -195,13 +228,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         public abstract void flush(MarkdownMessageWithThinking context);
 
-        public void checkUiAccessed(Consumer<Boolean> act) {
-            UI ui = UI.getCurrent();
-            if (ui == null) {
-                act.accept(false);
-                return;
-            }
-            act.accept(ui.isAttached());
+        // Используем getUI() из контекста вместо UI.getCurrent(),
+        // так как при восстановлении из истории UI.getCurrent() может быть null
+        public void checkUiAccessed(MarkdownMessageWithThinking context, Consumer<Boolean> act) {
+            context.getUI().ifPresentOrElse(
+                ui -> act.accept(ui.isAttached()),
+                () -> act.accept(false)
+            );
         }
 
         // <editor-fold desc="Функциональность слушателей" defaultstate="collapsed">
@@ -228,6 +261,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     // Начальное состояние: проверяем первые 7 символов
     private static class InitialState extends ProcessingState {
         private final StringBuilder  buffer = new StringBuilder();
+        private boolean bufferSent = false; // Флаг для отслеживания, был ли буфер уже отправлен
 
         @Override
         public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
@@ -245,14 +279,41 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 return new ThinkingState().process(buffer.toString(), context);
             } else {
                 // Нет тега - переходим в обычный режим
-                checkUiAccessed(isAccessed -> {
+                // Проблема: из-за асинхронности ui.access() несколько чанков могут обрабатываться
+                // в InitialState до перехода в MainState, что приводит к дублированию.
+                // Решение: отправляем весь буфер только один раз (при первом определении отсутствия тега),
+                // затем переходим в MainState. Следующие чанки будут обрабатываться в MainState.
+                
+                if (!bufferSent) {
+                    // Первый раз определяем отсутствие тега - отправляем весь буфер
                     final String markdownSnippet = buffer.toString();
-                    final MarkdownMessage mainMessage = context.mainMessage;
-                    if (isAccessed)
-                        mainMessage.appendMarkdownAsync(markdownSnippet);
-                    else
-                        mainMessage.appendMarkdown(markdownSnippet);
-                });
+                    bufferSent = true;
+                    
+                    checkUiAccessed(context, isAccessed -> {
+                        final MarkdownMessage mainMessage = context.mainMessage;
+                        if (isAccessed)
+                            mainMessage.appendMarkdownAsync(markdownSnippet);
+                        else
+                            mainMessage.appendMarkdown(markdownSnippet);
+                    });
+                    
+                    // Очищаем буфер после отправки
+                    buffer.setLength(0);
+                } else {
+                    // Буфер уже был отправлен, но из-за асинхронности мы все еще в InitialState
+                    // Отправляем только новый chunk, чтобы избежать дублирования
+                    checkUiAccessed(context, isAccessed -> {
+                        final MarkdownMessage mainMessage = context.mainMessage;
+                        if (isAccessed)
+                            mainMessage.appendMarkdownAsync(chunk);
+                        else
+                            mainMessage.appendMarkdown(chunk);
+                    });
+                    // Очищаем буфер, так как мы уже отправили новый chunk
+                    buffer.setLength(0);
+                }
+                
+                // Переходим в MainState - следующие чанки будут обрабатываться там
                 return new MainState();
             }
         }
@@ -260,7 +321,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         @Override
         public  void flush(MarkdownMessageWithThinking context) {
             if (!buffer.isEmpty()) {
-                checkUiAccessed(isAccessed -> {
+                checkUiAccessed(context, isAccessed -> {
                     final String markdownSnippet = buffer.toString();
                     final MarkdownMessage mainMessage = context.mainMessage;
                     if (isAccessed)
@@ -300,7 +361,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
             String remaining = text.substring(closeIdx + THINK_CLOSE.length());
             if (!remaining.isEmpty()) {
-                checkUiAccessed(isAccessed -> {
+                checkUiAccessed(context, isAccessed -> {
                     final MarkdownMessage mainMessage = context.mainMessage;
                     if (isAccessed)
                         mainMessage.appendMarkdownAsync(remaining);
@@ -332,7 +393,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private static class MainState extends ProcessingState {
         @Override
         public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
-            context.mainMessage.appendMarkdownAsync(chunk);
+            checkUiAccessed(context, isAccessed -> {
+                if (isAccessed)
+                    context.mainMessage.appendMarkdownAsync(chunk);
+                else
+                    context.mainMessage.appendMarkdown(chunk);
+            });
             return this;
         }
 
