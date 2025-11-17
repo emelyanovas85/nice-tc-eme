@@ -23,9 +23,9 @@ public class MarkdownView extends VerticalLayout {
     @Autowired
     private JiraService jiraService;
     private boolean isDarkTheme = false;
-    private final TextArea resultArea;
-    private final Markdown markdown;
-    private final ProgressBar progressBar;
+    private TextArea resultArea;
+    private Markdown markdown;
+    private ProgressBar progressBar;
 
     public MarkdownView() {
         setSizeFull();
