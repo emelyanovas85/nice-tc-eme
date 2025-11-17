@@ -142,8 +142,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private void restoreUI() {
         final String chatId = config.getChatId();
         final Restorer restorer = new Restorer();
-        // Подписка на активный ответ ассистента
-        subscribeToChatStream();
         // Добавление сообщений из истории снизу вверх
         final List<Message> completedMessages = memoryService.getCompletedMessages(chatId);
         Collections.reverse(completedMessages); // отрисовывать снизу вверх
