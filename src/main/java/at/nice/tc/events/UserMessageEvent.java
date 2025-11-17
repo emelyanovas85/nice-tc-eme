@@ -10,13 +10,15 @@ import lombok.Getter;
 public class UserMessageEvent extends ChatEvent {
     private final String userText;
     private final String userFio;
-    private final long timestamp;
+//    private final int messagePosition;
+    private final long messageTimestamp;
 
     public UserMessageEvent(String conversationId, String userText, String userFio, long timestamp) {
         super(conversationId);
         this.userText = userText;
         this.userFio = userFio;
-        this.timestamp = timestamp;
+//        this.messagePosition = messagePosition;
+        this.messageTimestamp = timestamp;
     }
 }
 
