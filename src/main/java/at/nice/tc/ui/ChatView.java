@@ -162,7 +162,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         public void createCompletedAssistantMessage(String text) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now()); // TODO: указать правильное время
-            botMessage.appendMarkdownAsync(text);
+            botMessage.setMarkdown(text);
             botMessage.getMainMessage().setUserColorIndex(5);
             messageList.addComponentAtIndex(0, botMessage);
         }
