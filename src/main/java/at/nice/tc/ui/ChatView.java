@@ -1,3 +1,4 @@
+/*
 package at.nice.tc.ui;
 
 import at.nice.tc.service.AiService;
@@ -40,7 +41,7 @@ import static com.vaadin.flow.component.Unit.PERCENTAGE;
 import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
 import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.END;
 
-@Route("")
+@Route("/123")
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class ChatView extends Composite<VerticalLayout> implements BeforeEnterObserver {
 
@@ -54,14 +55,16 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     private final Config config = new Config("browser", 70, 70, "", "", "Пользователь");
 
-    /**
+    */
+/**
      * - mode        browser/extension (просто мета-инфа)
      * - heightPerc  высота чата внутри контейнера
      * - widthPerc   ширина чата внутри контенера
      * - scope       "", либо ASDKO-T777, либо ASDKO-C666, либо 12345
      * - userId      40FamiliaIO (в нижнем регистре)
      * - userFio     инициалы пользователя
-     */
+     *//*
+
     @Data
     @AllArgsConstructor
     public static class Config {
@@ -190,9 +193,11 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
 
-    /**
+    */
+/**
      * Поле для ввода текста и кнопки "Отправить" и "Стоп"
-     */
+     *//*
+
     @Getter
     public static class ChatInputComponent extends HorizontalLayout {
 
@@ -246,10 +251,12 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
 
-    /**
+    */
+/**
      * Расширяет стандартный {@link Scroller} методом {@link #scrollToBottom()},
      * который скроллит к низу панели, если установлен флаг {@link #stickDown}
-     */
+     *//*
+
     public static class SmartScroller extends Scroller {
         private final AtomicBoolean stickDown = new AtomicBoolean(true);
 
@@ -279,27 +286,33 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             });
         }
 
-        /**
+        */
+/**
          * вызывается из javascript
-         */
+         *//*
+
         @SuppressWarnings("unused")
         @ClientCallable
         public void onScrollUp() {
             setStickDown(false);
         }
 
-        /**
+        */
+/**
          * вызывается из javascript
-         */
+         *//*
+
         @SuppressWarnings("unused")
         @ClientCallable
         public void onScrolledToBottom() {
             setStickDown(true);
         }
 
-        /**
+        */
+/**
          * Переключает флаг: true - скроллить, false - не скроллить
-         */
+         *//*
+
         public void setStickDown(boolean flag) {
             stickDown.set(flag);
         }
@@ -364,12 +377,14 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         }
 
 
-        /**
+        */
+/**
          * State Pattern:
          * - InitialState   → проверка первых 7+ символов на предмет наличия <think>
          * - ThinkingState  → передача потока в thinkingMessage + поиск </think> с помощью буферизации
          * - MainState      → прямая передача потока в mainMessage (без буферизации)
-         */
+         *//*
+
         //
         private static abstract class ProcessingState {
             public abstract ProcessingState process(String chunk, MarkdownMessageWithThinking context);
@@ -417,8 +432,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                     return new ThinkingState().process(buffer.toString(), context);
                 } else {
                     // Нет тега - переходим в обычный режим
-                    context.mainMessage.appendMarkdownAsync(buffer.toString());
-                    return new MainState();
+//                    context.mainMessage.appendMarkdownAsync(buffer.toString());
+                    return new MainState().process(buffer.toString(), context);
                 }
             }
 
@@ -496,3 +511,4 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
 }
+*/

@@ -30,7 +30,7 @@ repositories {
 dependencyManagement {
     imports {
         mavenBom "com.fasterxml.jackson:jackson-bom:2.17.2"
-        mavenBom "com.vaadin:vaadin-bom:24.9.3"
+//        mavenBom "com.vaadin:vaadin-bom:24.9.3"
     }
 }
 
@@ -52,6 +52,9 @@ dependencies {
     implementation 'org.springframework.ai:spring-ai-starter-model-openai:1.1.0'
     implementation 'org.springframework.ai:spring-ai-client-chat:1.1.0'
 
+    // MCP Server Starter для Streamable HTTP
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc:1.1.0'
+
     // Spring Doc (Swagger UI) для документации и тестирования API в браузере
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
@@ -69,12 +72,12 @@ dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
     // Vaadin
-    implementation "com.vaadin:vaadin-spring-boot-starter"
-    implementation 'io.projectreactor:reactor-core'
-    implementation 'javax.annotation:javax.annotation-api:1.3.2'
+//    implementation "com.vaadin:vaadin-spring-boot-starter"
+//    implementation 'io.projectreactor:reactor-core'
+//    implementation 'javax.annotation:javax.annotation-api:1.3.2'
 
     // Vaadin Firitin для MarkdownMessage (правильные координаты)
-    implementation 'in.virit:viritin:2.21.1'
+//    implementation 'in.virit:viritin:2.21.1'
 
     // Markdown processing
     implementation 'org.commonmark:commonmark:0.21.0'
@@ -84,6 +87,11 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+//    implementation 'org.springframework.ai:spring-ai-agent:1.1.0'
+    implementation 'org.springframework.ai:spring-ai-mcp-annotations:1.1.0'
+    implementation 'org.springframework.ai:spring-ai-mcp:1.1.0'
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc:1.1.0'
 }
 
 tasks.named('test') {
@@ -98,12 +106,11 @@ tasks.named('compileJava') {
     inputs.files(tasks.processResources)
 }
 
-// Настройки JAR
 tasks.named('jar') {
     enabled = false
 }
 
 tasks.named('bootJar') {
     archiveClassifier = ''
-    mainClass = 'com.testsystem.TestSystemApplication'
+    mainClass = 'at.nice.tc.mcp.McpServerApplication'
 }

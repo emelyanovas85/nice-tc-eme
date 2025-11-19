@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "mcpServers": {
+    "jira-tools": {
+      "type": "streamable_http",
+      "url": "http://jira-mcp-server:8443/mcp",
+      "name": "jira-tools-server",
+      "description": "Jira test management and analysis tools",
+      "timeout": 30000,
+      "retryAttempts": 3,
+      "retryDelayMs": 1000
+    }
+  },
+
+  "server": {
+    "port": 8000,
+    "host": "0.0.0.0",
+    "apiKey": ""
+  },
+
+  "logging": {
+    "level": "debug",
+    "format": "json"
+  },
+
+  "openapi": {
+    "enabled": true,
+    "path": "/openapi.json",
+    "uiPath": "/docs"
+  }
+}

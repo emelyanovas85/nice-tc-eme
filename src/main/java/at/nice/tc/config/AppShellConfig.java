@@ -1,3 +1,4 @@
+/*
 package at.nice.tc.config;
 
 
@@ -12,3 +13,4 @@ import com.vaadin.flow.theme.lumo.Lumo;
 public class AppShellConfig implements AppShellConfigurator {
     // Можно оставить пустым, это маркер для Vaadin
 }
+*/

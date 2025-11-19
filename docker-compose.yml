@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  jira-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jira-mcp-server
+    ports:
+      - "8090:8443"
+    extra_hosts:
+          - "qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru:10.1.6.100"
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8443/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    environment:
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_AI_MCP=TRACE
+
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:main
+    container_name: mcpo-proxy
+    command: serve --config /app/mcpo-config.json
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./mcpo_config.json:/app/mcpo-config.json:ro
+    depends_on:
+      jira-mcp-server:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "3000:8080"
+    extra_hosts:
+      - "qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru:10.1.6.100"
+    volumes:
+      - open-webui:/app/backend/data
+      - ~/certCBR/combined-ca-cert.pem:/tmp/combined-ca-cert.pem:ro
+    environment:
+      - SSL_CERT_FILE=/tmp/combined-ca-cert.pem
+    depends_on:
+      - mcpo
+    networks:
+      - mcp-network
+    restart: always
+
+networks:
+  mcp-network:
+    driver: bridge
+
+volumes:
+  open-webui:

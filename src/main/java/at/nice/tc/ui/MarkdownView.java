@@ -1,3 +1,4 @@
+/*
 package at.nice.tc.ui;
 
 import at.nice.tc.service.JiraService;
@@ -109,3 +110,4 @@ public class MarkdownView extends VerticalLayout {
                 .join();
     }
 }
+*/
