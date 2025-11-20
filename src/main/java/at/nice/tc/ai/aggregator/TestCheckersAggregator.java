@@ -56,14 +56,14 @@ public class TestCheckersAggregator {
      * Рекурсивно проходит по тестам и строит дерево тестов
      */
     private CompletableFuture<TestTree.Test> collectNestedTests(String testId, ChatEventPublisher publisher) {
-        publisher.publish(cId -> new ToolEvent("Получение тестов, вложенных в тест " + testId, cId));
+        publisher.publish(cId -> new ToolEvent("Получение тестов, вложенных в тест " + testId));
         return jiraService.getTest(testId, jiraFields)
                 .thenCompose(json -> {
                     DTOTestWithNested dto = parseJsonToDTOTestsList(json);
                     TestTree.Test test = new TestTree.Test(dto.id(), dto.key(), dto.majorVersion());
 
                     publisher.publish(cId ->
-                            new ToolEvent("Получение тестов, вложенных в тест " + test + ", завершено", cId,
+                            new ToolEvent("Получение тестов, вложенных в тест " + test + ", завершено",
                                     new Attachment.Text(test + ".json", json)
                             )
                     );

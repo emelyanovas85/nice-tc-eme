@@ -8,7 +8,7 @@ import lombok.Getter;
  * Проверка теста агентами
  */
 @Getter
-public abstract class CheckEvent extends ChatEvent {
+public abstract class CheckEvent extends ToolEvent {
     private final TestTree test;
 
     public CheckEvent(String conversationId, TestTree test) {
