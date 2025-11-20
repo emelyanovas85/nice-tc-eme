@@ -2,6 +2,7 @@ package at.nice.tc.ui;
 
 import at.nice.tc.events.*;
 import at.nice.tc.service.AiService;
+import at.nice.tc.service.AiToolCallService;
 import at.nice.tc.service.EventService;
 import at.nice.tc.service.MemoryService;
 import org.springframework.context.ApplicationEventPublisher;
@@ -41,6 +42,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private final EventService eventService;
     private final MemoryService memoryService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AiToolCallService aiToolCallService;
 //    private final JiraService jiraService;
 
     private SmartScroller scroll; // обертка для панели сообщений
@@ -175,7 +177,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     class Restorer {
 
         public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
-            MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp);
+            MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
             botMessage.setMarkdown(text);
             botMessage.getMainMessage().setUserColorIndex(5);
             messageList.addComponentAtIndex(0, botMessage);
@@ -215,7 +217,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         addedMessageTimestamps.add(timestamp);
         eventPublisher.publishEvent(new UserMessageEvent(config.getChatId(), userText, config.getUserFio(), timestamp));
 
-        actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
+        actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
         actualBotMessage.getMainMessage().setUserColorIndex(5);
         messageList.add(actualBotMessage);
 
@@ -279,7 +281,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         subscription = memoryService.subscribe(config.getChatId())
                 .subscribe(token -> ui.access(() -> {
                             if (actualBotMessage == null) {
-                                actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
+                                actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
                                 actualBotMessage.getMainMessage().setUserColorIndex(5);
                                 messageList.add(actualBotMessage);
                             }
@@ -307,7 +309,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                 // Проверяем actualBotMessage внутри UI потока
                 if (actualBotMessage == null) {
                     // Если сообщение еще не создано, создаем его
-                    actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now());
+                    actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
                     actualBotMessage.getMainMessage().setUserColorIndex(5);
                     messageList.add(actualBotMessage);
                 }

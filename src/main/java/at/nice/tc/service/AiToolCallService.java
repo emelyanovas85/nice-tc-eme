@@ -41,7 +41,7 @@ public class AiToolCallService {
         memoryService.pushToken(chatId, MessageDelimiters.TOOL_CLOSE);
     }
 
-    private Optional<ToolEvent> getUpdate(long timestamp) {
+    public Optional<ToolEvent> getUpdate(long timestamp) {
         return Optional.ofNullable(updates.get(timestamp));
     }
 

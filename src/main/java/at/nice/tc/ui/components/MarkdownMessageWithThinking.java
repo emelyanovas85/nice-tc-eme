@@ -2,6 +2,7 @@ package at.nice.tc.ui.components;
 
 import at.nice.tc.events.*;
 import at.nice.tc.model.TestTree;
+import at.nice.tc.service.AiToolCallService;
 import at.nice.tc.ui.ChatView;
 import at.nice.tc.ui.MessageDelimiters;
 import at.nice.tc.utils.JiraUtils;
@@ -35,9 +36,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private static final String THINK_OPEN = MessageDelimiters.THINK_OPEN;
     private static final String THINK_CLOSE = MessageDelimiters.THINK_CLOSE;
     private static final String TOOL_OPEN = MessageDelimiters.TOOL_OPEN;
+    private static final String TOOL_UPDATE = MessageDelimiters.TOOL_UPDATE;
     private static final String TOOL_CLOSE = MessageDelimiters.TOOL_CLOSE;
 
-    public MarkdownMessageWithThinking(String name, LocalDateTime timestamp) {
+    private final AiToolCallService aiToolCallService;
+
+    public MarkdownMessageWithThinking(String name, LocalDateTime timestamp, AiToolCallService aiToolCallService) {
+        this.aiToolCallService = aiToolCallService;
         mainMessage = new MarkdownMessage(name, timestamp);
         add(mainMessage);
         state = new InitialState();
@@ -512,15 +517,22 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             
             // Ищем все возможные теги и обрабатываем тот, который встречается первым
             int thinkOpenIdx = text.indexOf(THINK_OPEN);
+            int updateIdx = findToolUpdateIndex(text);
             int closeIdx = text.indexOf(TOOL_CLOSE);
 
             // Определяем индекс первого тега
             int firstTagIdx = Integer.MAX_VALUE;
             String firstTag = null;
+            Long updateTimestamp = null;
 
             if (thinkOpenIdx >= 0 && thinkOpenIdx < firstTagIdx) {
                 firstTagIdx = thinkOpenIdx;
                 firstTag = THINK_OPEN;
+            }
+            if (updateIdx >= 0 && updateIdx < firstTagIdx) {
+                firstTagIdx = updateIdx;
+                firstTag = TOOL_UPDATE;
+                updateTimestamp = extractTimestamp(text, updateIdx);
             }
             if (closeIdx >= 0 && closeIdx < firstTagIdx) {
                 firstTagIdx = closeIdx;
@@ -530,6 +542,8 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             if (firstTag != null) {
                 if (firstTag.equals(THINK_OPEN)) {
                     return handleThinkOpen(firstTagIdx, text, context);
+                } else if (firstTag.equals(TOOL_UPDATE)) {
+                    return handleToolUpdate(firstTagIdx, text, context, updateTimestamp);
                 } else {
                     // TOOL_CLOSE
                     return handleCloseTag(firstTagIdx, text, context);
@@ -539,6 +553,94 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 flushSafePart(context);
                 return this;
             }
+        }
+
+        /**
+         * Находит индекс начала TOOL_UPDATE delimiter'а в тексте
+         */
+        private int findToolUpdateIndex(String text) {
+            int idx = text.indexOf(TOOL_UPDATE);
+            if (idx < 0) {
+                return -1;
+            }
+            // Проверяем, что после TOOL_UPDATE идет timestamp (цифры)
+            int afterDelimiter = idx + TOOL_UPDATE.length();
+            if (afterDelimiter < text.length() && Character.isDigit(text.charAt(afterDelimiter))) {
+                return idx;
+            }
+            return -1;
+        }
+
+        /**
+         * Извлекает timestamp из текста, начиная с позиции TOOL_UPDATE delimiter'а
+         */
+        private Long extractTimestamp(String text, int updateIdx) {
+            int start = updateIdx + TOOL_UPDATE.length();
+            int end = start;
+            while (end < text.length() && Character.isDigit(text.charAt(end))) {
+                end++;
+            }
+            if (end > start) {
+                try {
+                    return Long.parseLong(text.substring(start, end));
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Обрабатывает TOOL_UPDATE delimiter: извлекает timestamp, получает ToolEvent и обрабатывает его
+         */
+        private ProcessingState handleToolUpdate(int updateIdx, String text, MarkdownMessageWithThinking context, Long timestamp) {
+            // Отправляем содержимое до TOOL_UPDATE в mainMessage
+            if (updateIdx > 0) {
+                String beforeUpdate = text.substring(0, updateIdx);
+                checkUiAccessed(context, isAccessed -> {
+                    final MarkdownMessage mainMessage = context.mainMessage;
+                    if (isAccessed)
+                        mainMessage.appendMarkdownAsync(beforeUpdate);
+                    else
+                        mainMessage.appendMarkdown(beforeUpdate);
+                });
+            }
+
+            // Получаем ToolEvent по timestamp и обрабатываем его
+            if (timestamp != null && context.aiToolCallService != null) {
+                context.aiToolCallService.getUpdate(timestamp).ifPresent(toolEvent -> {
+                    // Обрабатываем ToolEvent напрямую, так как мы уже в контексте обработки tool блока
+                    // Убеждаемся, что thinkingDetails создан
+                    context.ensureThinkingDetailsCreated();
+                    if (context.thinkingMessage != null) {
+                        context.thinkingMessage.appendContent(context.handlers.timestamp() + "\t" + toolEvent.getText() + "\n");
+                        toolEvent.getAttachments().forEach(a -> context.thinkingMessage.appendContent(
+                                """
+                                        <details>
+                                          <summary>%s</summary>
+                                          
+                                          %s
+                                        </details>
+                                        """.formatted(a.getName(), a.getContent())
+                        ));
+                    }
+                });
+            }
+
+            // Вычисляем длину delimiter'а с timestamp
+            int delimiterLength = TOOL_UPDATE.length();
+            if (timestamp != null) {
+                delimiterLength += String.valueOf(timestamp).length();
+            }
+
+            // Очищаем буфер и обрабатываем оставшуюся часть после TOOL_UPDATE + timestamp
+            buffer.setLength(0);
+            String remaining = text.substring(updateIdx + delimiterLength);
+            if (!remaining.isEmpty()) {
+                return process(remaining, context);
+            }
+
+            return this;
         }
 
         private ProcessingState handleThinkOpen(int openIdx, String text, MarkdownMessageWithThinking context) {
@@ -592,7 +694,8 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         private void flushSafePart(MarkdownMessageWithThinking context) {
             // Безопасная длина: оставляем место для самого длинного тега
-            int maxTagLength = Math.max(THINK_OPEN.length(), TOOL_CLOSE.length());
+            // TOOL_UPDATE может быть длинным из-за timestamp, поэтому учитываем максимальную длину timestamp (13 цифр для миллисекунд)
+            int maxTagLength = Math.max(Math.max(THINK_OPEN.length(), TOOL_CLOSE.length()), TOOL_UPDATE.length() + 13);
             int safeLength = Math.max(0, buffer.length() - maxTagLength);
             if (safeLength > 0) {
                 String safePart = buffer.substring(0, safeLength);
