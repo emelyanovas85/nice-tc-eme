@@ -13,8 +13,12 @@ public class InitialState extends ProcessingState {
     private final StringBuilder buffer = new StringBuilder();
     private boolean bufferSent = false; // Флаг для отслеживания, был ли буфер уже отправлен
 
+    public InitialState(MarkdownMessageWithThinking context) {
+        super(context);
+    }
+
     @Override
-    public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
+    public ProcessingState process(String chunk) {
         buffer.append(chunk);
 
         if (buffer.toString().trim().length() < THINK_OPEN.length()) {
@@ -26,7 +30,7 @@ public class InitialState extends ProcessingState {
             // Есть тег - переходим в thinking режим
             context.ensureThinkingDetailsCreated();
             buffer.delete(tagPos, tagPos + THINK_OPEN.length());
-            return new ThinkingState().process(buffer.toString(), context);
+            return new ThinkingState(context).process(buffer.toString());
         }
 
         // Нет тега - переходим в обычный режим
@@ -38,7 +42,7 @@ public class InitialState extends ProcessingState {
         if (bufferSent) {
             // Буфер уже был отправлен, но из-за асинхронности мы все еще в InitialState
             // Отправляем только новый chunk, чтобы избежать дублирования
-            checkUiAccessed(context, isAccessed -> {
+            checkUiAccessed(isAccessed -> {
                 final MarkdownMessage mainMessage = context.getMainMessage();
                 if (isAccessed)
                     mainMessage.appendMarkdownAsync(chunk);
@@ -52,7 +56,7 @@ public class InitialState extends ProcessingState {
             final String markdownSnippet = buffer.toString();
             bufferSent = true;
 
-            checkUiAccessed(context, isAccessed -> {
+            checkUiAccessed(isAccessed -> {
                 final MarkdownMessage mainMessage = context.getMainMessage();
                 if (isAccessed)
                     mainMessage.appendMarkdownAsync(markdownSnippet);
@@ -65,13 +69,13 @@ public class InitialState extends ProcessingState {
         }
 
         // Переходим в MainState - следующие чанки будут обрабатываться там
-        return new MainState();
+        return new MainState(context);
     }
 
     @Override
-    public void flush(MarkdownMessageWithThinking context) {
+    public void flush() {
         if (!buffer.isEmpty()) {
-            checkUiAccessed(context, isAccessed -> {
+            checkUiAccessed(isAccessed -> {
                 final String markdownSnippet = buffer.toString();
                 final MarkdownMessage mainMessage = context.getMainMessage();
                 if (isAccessed)

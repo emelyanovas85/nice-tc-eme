@@ -38,7 +38,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         this.aiToolCallService = aiToolCallService;
         mainMessage = new MarkdownMessage(name, timestamp);
         add(mainMessage);
-        state = new InitialState();
+        state = new InitialState(this);
     }
 
     public void setMarkdown(String fullText) {
@@ -48,8 +48,8 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         // Сбрасываем состояние в InitialState при установке полного текста
         // чтобы избежать накопления данных в буферах предыдущих состояний
-        state = new InitialState();
-        state = state.process(fullText, this);
+        state = new InitialState(this);
+        state = state.process(fullText);
     }
 
     public void appendMarkdownAsync(String chunk) {
@@ -58,15 +58,16 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         }
         getUI().ifPresent(ui -> { // без этого чанки путаются местами
             if (ui.isAttached())
-                ui.access(() -> state = state.process(chunk, this));
+                ui.access(() -> state = state.process(chunk));
         });
     }
 
     public void ensureThinkingDetailsCreated() {
         if (thinkingDetails == null) {
-            thinkingContent = new VerticalLayout();
-            thinkingContent.setPadding(false);
-            thinkingContent.setSpacing(false);
+            thinkingContent = new VerticalLayout() {{
+                setPadding(false);
+                setSpacing(false);
+            }};
             thinkingMessage = new Markdown();
             thinkingContent.add(thinkingMessage);
             thinkingDetails = new Details("Размышления модели", thinkingContent);
@@ -102,7 +103,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     }
 
     public void finish() {
-        state.flush(this);
+        state.flush();
     }
 
 

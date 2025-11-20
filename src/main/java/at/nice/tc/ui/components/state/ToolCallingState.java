@@ -20,7 +20,8 @@ public class ToolCallingState extends ProcessingState {
     /**
      * Создает ToolCallingState с новым Markdown компонентом для tool блока
      */
-    public ToolCallingState(Markdown toolMarkdown) {
+    public ToolCallingState(MarkdownMessageWithThinking context, Markdown toolMarkdown) {
+        super(context);
         this.toolMarkdown = toolMarkdown;
     }
 
@@ -31,7 +32,7 @@ public class ToolCallingState extends ProcessingState {
     );
 
     @Override
-    public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
+    public ProcessingState process(String chunk) {
         buffer.append(chunk);
 
         String text = buffer.toString();
@@ -46,15 +47,16 @@ public class ToolCallingState extends ProcessingState {
 
         int minPos = firstTag.get().pos();
         return switch (firstTag.get().tag()) {
-            case THINK_OPEN -> handleThinkOpen(minPos, text, context);
+            case THINK_OPEN -> handleThinkOpen(minPos, text);
             case TOOL_UPDATE -> {
                 long updateTimestamp = extractTimestamp(text, minPos);
-                yield handleToolUpdate(minPos, text, context, updateTimestamp);
+                yield handleToolUpdate(minPos, text, updateTimestamp);
             }
-            case TOOL_CLOSE -> handleCloseTag(minPos, text, context);
+            case TOOL_CLOSE -> handleCloseTag(minPos, text);
             default -> this; // продолжаем накапливать токены
         };
     }
+
 
     private static final int timestampLen = String.valueOf(System.currentTimeMillis()).length();
 
@@ -74,13 +76,13 @@ public class ToolCallingState extends ProcessingState {
     /**
      * @see MessageDelimiters#TOOL_UPDATE -> this
      */
-    private ProcessingState handleToolUpdate(int pos, String text, MarkdownMessageWithThinking context, long timestamp) {
+    private ProcessingState handleToolUpdate(int pos, String text, long timestamp) {
         if (pos < 0)
             return this;
 
         // Отправляем содержимое до TOOL_UPDATE в текущий ThinkingMessage
         String beforeUpdate = text.substring(0, pos);
-//        checkUiAccessed(context, isAccessed -> context.getThinkingMessage().appendContent(beforeUpdate));
+//        checkUiAccessed(isAccessed -> context.getThinkingMessage().appendContent(beforeUpdate));
         context.getThinkingMessage().appendContent(beforeUpdate);
 
         if (timestamp == 0L || context.getAiToolCallService() == null)
@@ -97,19 +99,19 @@ public class ToolCallingState extends ProcessingState {
         String remaining = text.substring(pos + delimiterLength);
         if (remaining.isEmpty())
             return this;
-        return process(remaining, context);
+        return process(remaining);
     }
 
     /**
      * @see MessageDelimiters#THINK_OPEN -> ThinkingState
      */
-    private ProcessingState handleThinkOpen(int pos, String text, MarkdownMessageWithThinking context) {
+    private ProcessingState handleThinkOpen(int pos, String text) {
         if (pos < 0)
             return this;
 
         // Отправляем содержимое до THINK_OPEN в thinkMessage
         String beforeThink = text.substring(0, pos);
-        checkUiAccessed(context, isAccessed -> {
+        checkUiAccessed(isAccessed -> {
             context.ensureThinkingDetailsCreated();
             context.getThinkingMessage().appendContent(beforeThink);
         });
@@ -121,31 +123,31 @@ public class ToolCallingState extends ProcessingState {
         buffer.setLength(0);
         String remaining = text.substring(pos + THINK_OPEN.length());
 
-        ThinkingState thinkingState = new ThinkingState(newMarkdown);
+        ThinkingState thinkingState = new ThinkingState(context, newMarkdown);
         if (remaining.isEmpty())
             return thinkingState;
-        return thinkingState.process(remaining, context);
+        return thinkingState.process(remaining);
     }
 
     /**
      * @see MessageDelimiters#TOOL_CLOSE -> InitialState
      */
-    private ProcessingState handleCloseTag(int pos, String text, MarkdownMessageWithThinking context) {
+    private ProcessingState handleCloseTag(int pos, String text) {
         if (pos < 0)
             return this;
 
         // Отправляем содержимое до TOOL_CLOSE в thinkMessage
         String beforeClose = text.substring(0, pos);
-        checkUiAccessed(context, isAccessed -> toolMarkdown.appendContent(beforeClose));
+        checkUiAccessed(isAccessed -> toolMarkdown.appendContent(beforeClose));
 
         // Очищаем буфер и обрабатываем оставшуюся часть после TOOL_CLOSE
         buffer.setLength(0);
         String remaining = text.substring(pos + TOOL_CLOSE.length());
 
-        InitialState initialState = new InitialState();
-        if (!remaining.isEmpty())
+        InitialState initialState = new InitialState(context);
+        if (remaining.isEmpty())
             return initialState;
-        return initialState.process(remaining, context);
+        return initialState.process(remaining);
     }
 
     private static final int maxTagLength = tags.stream().mapToInt(MessageDelimiters::length).max().orElse(0);
@@ -166,10 +168,10 @@ public class ToolCallingState extends ProcessingState {
     }
 
     @Override
-    public void flush(MarkdownMessageWithThinking context) {
+    public void flush() {
         if (buffer.isEmpty())
             return;
-//        checkUiAccessed(context, isAccessed -> toolMarkdown.appendContent(safePart));
+//        checkUiAccessed(isAccessed -> toolMarkdown.appendContent(safePart));
         toolMarkdown.appendContent(buffer.toString());
     }
 }

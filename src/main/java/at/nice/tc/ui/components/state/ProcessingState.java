@@ -10,13 +10,19 @@ import java.util.function.Consumer;
  * Базовый класс для состояний обработки markdown сообщений
  */
 public abstract class ProcessingState {
-    public abstract ProcessingState process(String chunk, MarkdownMessageWithThinking context);
+    protected final MarkdownMessageWithThinking context;
 
-    public abstract void flush(MarkdownMessageWithThinking context);
+    protected ProcessingState(MarkdownMessageWithThinking context) {
+        this.context = context;
+    }
+
+    public abstract ProcessingState process(String chunk);
+
+    public abstract void flush();
 
     // Используем getUI() из контекста вместо UI.getCurrent(),
     // так как при восстановлении из истории UI.getCurrent() может быть null
-    protected void checkUiAccessed(MarkdownMessageWithThinking context, Consumer<Boolean> act) {
+    protected void checkUiAccessed(Consumer<Boolean> act) {
         context.getUI().ifPresentOrElse(
             ui -> act.accept(ui.isAttached()),
             () -> act.accept(false)

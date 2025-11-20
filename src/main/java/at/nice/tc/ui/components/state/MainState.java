@@ -6,9 +6,13 @@ import at.nice.tc.ui.components.MarkdownMessageWithThinking;
  * Обычный режим: прямая передача без буфера
  */
 public class MainState extends ProcessingState {
+    public MainState(MarkdownMessageWithThinking context) {
+        super(context);
+    }
+
     @Override
-    public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
-        checkUiAccessed(context, isAccessed -> {
+    public ProcessingState process(String chunk) {
+        checkUiAccessed(isAccessed -> {
             if (isAccessed)
                 context.getMainMessage().appendMarkdownAsync(chunk);
             else
@@ -18,7 +22,7 @@ public class MainState extends ProcessingState {
     }
 
     @Override
-    public void flush(MarkdownMessageWithThinking context) {
+    public void flush() {
         // Нечего сбрасывать - буфера нет
     }
 }

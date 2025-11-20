@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Просто некий текст
+ * Просто некий текст и [опционально] список вложений для отображения
  */
 @Getter
 public class ToolEvent implements ChatEvent {
