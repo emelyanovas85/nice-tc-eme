@@ -302,6 +302,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     private void handleBroadcastEvent(ChatEvent event) {
         // События приходят не в UI потоке, поэтому нужно использовать ui.access()
+        // Обработка событий из EventService теперь происходит через ToolCallingState.handleBroadcastEvent
+        // при обработке TOOL_UPDATE delimiter'а. Здесь оставляем только создание сообщения, если его нет.
         getUI().ifPresent(ui -> {
             if (!ui.isAttached()) {
                 return; // UI отсоединен, не обрабатываем событие
@@ -314,23 +316,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                     actualBotMessage.getMainMessage().setUserColorIndex(5);
                     messageList.add(actualBotMessage);
                 }
-                
-                if (event instanceof CheckEvent.AgentBuiltTestTreeEvent built) {
-                    actualBotMessage.getHandlers().check.doOnBuiltTestTree(built);
-                    // TODO: тут можно добавить отрисовку в истории (pending = неактивые кнопки)
-
-                } else if (event instanceof CheckEvent.CheckStartedEvent started) {
-                    actualBotMessage.getHandlers().check.doOnCheckStarted(started);
-                    // TODO: тут можно добавить отрисовку в истории (inProgress = появление спиннера + делать кнопку активной)
-
-                } else if (event instanceof CheckEvent.CheckFinishedEvent finished) {
-                    actualBotMessage.getHandlers().check.doOnCheckFinished(finished);
-                    // TODO: тут можно добавить отрисовку в истории (finished = убрать спиннер)
-
-                } else if (event instanceof ToolEvent toolEvent) {
-                    actualBotMessage.getHandlers().log.doOnLog(toolEvent);
-
-                }
+                // Обработка событий теперь происходит в ToolCallingState при обработке TOOL_UPDATE
             });
         });
     }
