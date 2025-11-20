@@ -11,12 +11,11 @@ import java.util.List;
  * Просто некий текст
  */
 @Getter
-public class LogEvent extends ChatEvent {
+public class ToolEvent {
     private final String text;
     private final List<Attachment> attachments;
 
-    public LogEvent(String text, String conversationId, Attachment... attachments) {
-        super(conversationId);
+    public ToolEvent(String text, Attachment... attachments) {
         this.text = text;
         this.attachments = Arrays.asList(attachments);
     }

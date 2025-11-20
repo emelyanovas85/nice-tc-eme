@@ -5,7 +5,6 @@ import at.nice.tc.model.TestTree;
 import at.nice.tc.ui.ChatView;
 import at.nice.tc.ui.MessageDelimiters;
 import at.nice.tc.utils.JiraUtils;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -118,7 +117,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         public class LogEvents {
 
-            public void doOnLog(LogEvent log) {
+            public void doOnLog(ToolEvent log) {
                 if (isExpectedState(log.getConversationId())) {
                     // Убеждаемся, что thinkingDetails создан
                     MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();

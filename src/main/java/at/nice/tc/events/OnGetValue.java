@@ -16,25 +16,25 @@ import java.util.function.Function;
  */
 public record OnGetValue<T>(String description, String conversationId) {
 
-    public class Before extends LogEvent {
+    public class Before extends ToolEvent {
 
         /**
          * Лог, что получение значения {@link #description} начато
          */
         public Before() {
-            super(description, conversationId);
+            super(description);
         }
     }
 
     @Getter
-    public class After extends LogEvent {
+    public class After extends ToolEvent {
         private final T result;
 
         /**
          * Лог, что получение значения {@link #description} завершено
          */
         public After(T result) {
-            super(description, conversationId);
+            super(description);
             this.result = result;
         }
 
@@ -42,17 +42,17 @@ public record OnGetValue<T>(String description, String conversationId) {
          * Добавляет в лог текста результата
          */
         public After(T result, Function<T, String> stringifier) {
-            super(description, conversationId, new Attachment.Text("результат", stringifier.apply(result)));
+            super(description, new Attachment.Text("результат", stringifier.apply(result)));
             this.result = result;
         }
     }
 
     @Getter
-    public class Error extends LogEvent {
+    public class Error extends ToolEvent {
         private final Throwable throwable;
 
         public Error(Throwable t) {
-            super(description, conversationId, new Attachment.Text("ошибка", ThrowableUtils.asString(t)));
+            super(description, new Attachment.Text("ошибка", ThrowableUtils.asString(t)));
             throwable = t;
         }
     }

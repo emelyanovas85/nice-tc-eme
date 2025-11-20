@@ -126,64 +126,6 @@ public class MemoryService {
     }
 
     /**
-     * Отправляет ChatResponse во все активные подписки для указанного conversationId.
-     * <p>
-     * Используется {@link AiService} для публикации ответов от AI модели.
-     * Конвертирует ChatResponse в String токены для UI и пушит в оба sinks.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     * @param chatResponse ответ от AI модели
-     */
-    public void pushToken2(String conversationId, ChatResponse chatResponse) {
-        // Пушим ChatResponse в sink для ChatResponse (если нужен)
-        Sinks.Many<ChatResponse> sink2 = replaySinks2.get(conversationId);
-        if (sink2 != null) {
-            sink2.tryEmitNext(chatResponse);
-        }
-        
-        // Конвертируем ChatResponse в String токены для UI
-        if (chatResponse != null && !chatResponse.getResults().isEmpty()) {
-            var generation = chatResponse.getResult();
-            if (generation != null && generation.getOutput() != null) {
-                String text = generation.getOutput().getText();
-                if (text != null && !text.isEmpty()) {
-                    // Извлекаем только новый текст (delta) для streaming
-                    // В streaming режиме каждый ChatResponse содержит инкрементальный текст
-                    pushToken(conversationId, text);
-                }
-                
-                // Если есть tool calls, отправляем маркер
-                if (generation.getOutput().hasToolCalls()) {
-                    var toolCalls = generation.getOutput().getToolCalls();
-                    if (!toolCalls.isEmpty()) {
-                        String toolName = toolCalls.get(0).name();
-                        pushEventMarker(conversationId, "__TOOL_CALL__:" + toolName);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Отправляет событие через sink для сохранения порядка с токенами.
-     * <p>
-     * События публикуются в том же потоке, что и токены, чтобы сохранить
-     * правильный порядок: сначала токены размышлений, потом события вызова инструментов.
-     * 
-     * @param conversationId уникальный идентификатор разговора
-     * @param eventMarker маркер события в формате "__EVENT__:ClassName"
-     */
-    public void pushEventMarker(String conversationId, String eventMarker) {
-        Sinks.Many<String> sink = replaySinks.get(conversationId);
-        if (sink != null) {
-            sink.tryEmitNext(eventMarker);
-            log.trace("Маркер события отправлен для conversationId: {}", conversationId);
-        } else {
-            log.warn("Sink не найден для conversationId: {}", conversationId);
-        }
-    }
-
-    /**
      * Завершает поток для указанного conversationId.
      * <p>
      * После завершения новые подписчики получат всю историю,

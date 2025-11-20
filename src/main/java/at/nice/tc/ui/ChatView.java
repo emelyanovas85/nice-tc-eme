@@ -24,7 +24,6 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -325,8 +324,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                     actualBotMessage.getHandlers().check.doOnCheckFinished(finished);
                     // TODO: тут можно добавить отрисовку в истории (finished = убрать спиннер)
 
-                } else if (event instanceof LogEvent logEvent) {
-                    actualBotMessage.getHandlers().log.doOnLog(logEvent);
+                } else if (event instanceof ToolEvent toolEvent) {
+                    actualBotMessage.getHandlers().log.doOnLog(toolEvent);
 
                 } else if (event instanceof UserMessageEvent userMessageEvent) {
                     // Синхронизация сообщений пользователя между вкладками

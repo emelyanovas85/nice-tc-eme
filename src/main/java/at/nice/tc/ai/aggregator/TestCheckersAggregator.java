@@ -4,7 +4,7 @@ import at.nice.tc.ai.client.ChatClientTestChecker;
 import at.nice.tc.ai.dto.jira.DTOTestWithNested;
 import at.nice.tc.events.ChatEventPublisher;
 import at.nice.tc.events.CheckEvent;
-import at.nice.tc.events.LogEvent;
+import at.nice.tc.events.ToolEvent;
 import at.nice.tc.model.Attachment;
 import at.nice.tc.model.TestTree;
 import at.nice.tc.service.JiraService;
@@ -56,14 +56,14 @@ public class TestCheckersAggregator {
      * Рекурсивно проходит по тестам и строит дерево тестов
      */
     private CompletableFuture<TestTree.Test> collectNestedTests(String testId, ChatEventPublisher publisher) {
-        publisher.publish(cId -> new LogEvent("Получение тестов, вложенных в тест " + testId, cId));
+        publisher.publish(cId -> new ToolEvent("Получение тестов, вложенных в тест " + testId, cId));
         return jiraService.getTest(testId, jiraFields)
                 .thenCompose(json -> {
                     DTOTestWithNested dto = parseJsonToDTOTestsList(json);
                     TestTree.Test test = new TestTree.Test(dto.id(), dto.key(), dto.majorVersion());
 
                     publisher.publish(cId ->
-                            new LogEvent("Получение тестов, вложенных в тест " + test + ", завершено", cId,
+                            new ToolEvent("Получение тестов, вложенных в тест " + test + ", завершено", cId,
                                     new Attachment.Text(test + ".json", json)
                             )
                     );

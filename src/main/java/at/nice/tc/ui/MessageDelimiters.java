@@ -4,5 +4,6 @@ public interface MessageDelimiters {
     String THINK_OPEN = "<think>";
     String THINK_CLOSE = "</think>";
     String TOOL_OPEN = "<tool>";
+    String TOOL_UPDATE = "<upd>";
     String TOOL_CLOSE = "</tool>";
 }
