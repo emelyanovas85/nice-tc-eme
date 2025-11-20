@@ -4,7 +4,6 @@ import at.nice.tc.events.*;
 import at.nice.tc.model.TestTree;
 import at.nice.tc.ui.ChatView;
 import at.nice.tc.utils.JiraUtils;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -21,6 +20,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static at.nice.tc.ui.MessageDelimiters.THINK_CLOSE;
+import static at.nice.tc.ui.MessageDelimiters.THINK_OPEN;
+
 @Getter
 public class MarkdownMessageWithThinking extends VerticalLayout {
 
@@ -30,9 +32,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
     private ProcessingState state;
     private final EventHandlers handlers = new EventHandlers();
-
-    private static final String THINK_OPEN = "<think>";
-    private static final String THINK_CLOSE = "</think>";
 
     public MarkdownMessageWithThinking(String name, LocalDateTime timestamp) {
         mainMessage = new MarkdownMessage(name, timestamp);
