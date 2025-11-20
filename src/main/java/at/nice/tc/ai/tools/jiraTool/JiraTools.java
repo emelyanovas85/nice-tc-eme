@@ -4,6 +4,7 @@ import at.nice.tc.events.ChatEventPublisher;
 import at.nice.tc.events.OnGetValue;
 import at.nice.tc.service.JiraService;
 import at.nice.tc.service.MemoryService;
+import at.nice.tc.ui.MessageDelimiters;
 import at.nice.tc.utils.EventUtils;
 import at.nice.tc.utils.ThrowableSupplier;
 import at.nice.tc.utils.ThrowableUtils;
@@ -17,6 +18,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+import static at.nice.tc.ui.MessageDelimiters.TOOL_CLOSE;
+import static at.nice.tc.ui.MessageDelimiters.TOOL_OPEN;
+
 @Component
 @RequiredArgsConstructor
 public class JiraTools {
@@ -29,6 +33,7 @@ public class JiraTools {
     @Tool(name = "getAvailableTestProperties", description = "Перечень доступных свойств тест-кейса")
     public List<String> getAvailableTestProperties(@ToolParam(description = "передай букву 'a'") String ignore,
                                                    ToolContext toolContext) {
+//        toolContext.getToolCallHistory()
         return sendEvents("Получение списка доступных json-свойств теста",
                 jiraService::getAvailableTestProperties,
                 toolContext);
@@ -39,9 +44,9 @@ public class JiraTools {
     public String isAvailable(@ToolParam(description = "передай букву 'a'") String ignore, ToolContext context) {//todo ignore избавиться от заплатки в виде параметра в методе
         String chatId = ToolUtils.conversationId(context);
 
-        memoryService.getOrCreateSink(chatId).tryEmitNext("\n\nbefore\n\n");
+        memoryService.getOrCreateSink(chatId).tryEmitNext(TOOL_OPEN);
         final String s = jiraService.isAvailable().join().toString();
-        memoryService.getOrCreateSink(chatId).tryEmitNext("\n\nafter\n\n");
+        memoryService.getOrCreateSink(chatId).tryEmitNext(TOOL_CLOSE);
         return s;
 //        return sendEvents("Проверка доступности Jira",
 //                () -> s,

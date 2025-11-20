@@ -3,7 +3,9 @@ package at.nice.tc.ui.components;
 import at.nice.tc.events.*;
 import at.nice.tc.model.TestTree;
 import at.nice.tc.ui.ChatView;
+import at.nice.tc.ui.MessageDelimiters;
 import at.nice.tc.utils.JiraUtils;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -20,18 +22,21 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static at.nice.tc.ui.MessageDelimiters.THINK_CLOSE;
-import static at.nice.tc.ui.MessageDelimiters.THINK_OPEN;
-
 @Getter
 public class MarkdownMessageWithThinking extends VerticalLayout {
 
     private Details thinkingDetails;
+    private VerticalLayout thinkingContent;
     private Markdown thinkingMessage;
     private final MarkdownMessage mainMessage;
 
     private ProcessingState state;
     private final EventHandlers handlers = new EventHandlers();
+
+    private static final String THINK_OPEN = MessageDelimiters.THINK_OPEN;
+    private static final String THINK_CLOSE = MessageDelimiters.THINK_CLOSE;
+    private static final String TOOL_OPEN = MessageDelimiters.TOOL_OPEN;
+    private static final String TOOL_CLOSE = MessageDelimiters.TOOL_CLOSE;
 
     public MarkdownMessageWithThinking(String name, LocalDateTime timestamp) {
         mainMessage = new MarkdownMessage(name, timestamp);
@@ -62,8 +67,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
     public void ensureThinkingDetailsCreated() {
         if (thinkingDetails == null) {
+            thinkingContent = new VerticalLayout();
+            thinkingContent.setPadding(false);
+            thinkingContent.setSpacing(false);
             thinkingMessage = new Markdown();
-            thinkingDetails = new Details("Размышления модели", thinkingMessage);
+            thinkingContent.add(thinkingMessage);
+            thinkingDetails = new Details("Размышления модели", thinkingContent);
             thinkingDetails.setOpened(true);
 
             state.addChangeStateListener((oldState, newState) -> {
@@ -77,6 +86,22 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
             addComponentAsFirst(thinkingDetails);
         }
+    }
+
+    public Markdown addNewThinkingMarkdown() {
+        ensureThinkingDetailsCreated();
+        Markdown newMarkdown = new Markdown();
+        getUI().ifPresentOrElse(
+            ui -> {
+                if (ui.isAttached()) {
+                    ui.access(() -> thinkingContent.add(newMarkdown));
+                } else {
+                    thinkingContent.add(newMarkdown);
+                }
+            },
+            () -> thinkingContent.add(newMarkdown)
+        );
+        return newMarkdown;
     }
 
     public void finish() {
@@ -332,20 +357,56 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         }
     }
 
-    // Thinking режим: буферизация и поиск </think>
+    // Thinking режим: буферизация и поиск </think>, THINK_OPEN, TOOL_OPEN
     private static class ThinkingState extends ProcessingState {
         private final StringBuilder buffer = new StringBuilder();
+        private final Markdown currentMarkdown;
+
+        ThinkingState() {
+            this.currentMarkdown = null;
+        }
+
+        ThinkingState(Markdown markdown) {
+            this.currentMarkdown = markdown;
+        }
 
         @Override
         public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
             buffer.append(chunk);
 
             String text = buffer.toString();
+            
+            // Ищем все возможные теги и обрабатываем тот, который встречается первым
+            int thinkOpenIdx = text.indexOf(THINK_OPEN);
+            int toolOpenIdx = text.indexOf(TOOL_OPEN);
             int closeIdx = text.indexOf(THINK_CLOSE);
 
-            if (closeIdx >= 0) {
-                // Нашли закрывающий тег
-                return handleCloseTag(closeIdx, text, context);
+            // Определяем индекс первого тега
+            int firstTagIdx = Integer.MAX_VALUE;
+            String firstTag = null;
+
+            if (thinkOpenIdx >= 0 && thinkOpenIdx < firstTagIdx) {
+                firstTagIdx = thinkOpenIdx;
+                firstTag = THINK_OPEN;
+            }
+            if (toolOpenIdx >= 0 && toolOpenIdx < firstTagIdx) {
+                firstTagIdx = toolOpenIdx;
+                firstTag = TOOL_OPEN;
+            }
+            if (closeIdx >= 0 && closeIdx < firstTagIdx) {
+                firstTagIdx = closeIdx;
+                firstTag = THINK_CLOSE;
+            }
+
+            if (firstTag != null) {
+                if (firstTag.equals(THINK_OPEN)) {
+                    return handleThinkOpen(firstTagIdx, text, context);
+                } else if (firstTag.equals(TOOL_OPEN)) {
+                    return handleToolOpen(firstTagIdx, text, context);
+                } else {
+                    // THINK_CLOSE
+                    return handleCloseTag(firstTagIdx, text, context);
+                }
             } else {
                 // Закрывающего тега нет - отдаём безопасную часть
                 flushSafePart(context);
@@ -353,11 +414,51 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             }
         }
 
-        private ProcessingState handleCloseTag(int closeIdx, String text, MarkdownMessageWithThinking context) {
-            if (closeIdx > 0) {
-                context.thinkingMessage.appendContent(text.substring(0, closeIdx));
+        private ProcessingState handleThinkOpen(int openIdx, String text, MarkdownMessageWithThinking context) {
+            // Отправляем содержимое до THINK_OPEN в текущий markdown
+            if (openIdx > 0) {
+                Markdown markdown = getCurrentMarkdown(context);
+                markdown.appendContent(text.substring(0, openIdx));
             }
 
+            // Создаём новый Markdown компонент для нового блока размышлений
+            Markdown newMarkdown = context.addNewThinkingMarkdown();
+
+            // Очищаем буфер и обрабатываем оставшуюся часть после THINK_OPEN
+            buffer.setLength(0);
+            String remaining = text.substring(openIdx + THINK_OPEN.length());
+            if (!remaining.isEmpty()) {
+                return new ThinkingState(newMarkdown).process(remaining, context);
+            }
+
+            return new ThinkingState(newMarkdown);
+        }
+
+        private ProcessingState handleToolOpen(int openIdx, String text, MarkdownMessageWithThinking context) {
+            // Отправляем содержимое до TOOL_OPEN в текущий markdown
+            if (openIdx > 0) {
+                Markdown markdown = getCurrentMarkdown(context);
+                markdown.appendContent(text.substring(0, openIdx));
+            }
+
+            // Очищаем буфер и обрабатываем оставшуюся часть после TOOL_OPEN
+            buffer.setLength(0);
+            String remaining = text.substring(openIdx + TOOL_OPEN.length());
+            if (!remaining.isEmpty()) {
+                return new ToolCallingState().process(remaining, context);
+            }
+
+            return new ToolCallingState();
+        }
+
+        private ProcessingState handleCloseTag(int closeIdx, String text, MarkdownMessageWithThinking context) {
+            Markdown markdown = getCurrentMarkdown(context);
+            if (closeIdx > 0) {
+                markdown.appendContent(text.substring(0, closeIdx));
+            }
+
+            // Очищаем буфер и обрабатываем оставшуюся часть после THINK_CLOSE
+            buffer.setLength(0);
             String remaining = text.substring(closeIdx + THINK_CLOSE.length());
             if (!remaining.isEmpty()) {
                 checkUiAccessed(context, isAccessed -> {
@@ -372,10 +473,21 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             return new InitialState();
         }
 
+        private Markdown getCurrentMarkdown(MarkdownMessageWithThinking context) {
+            if (currentMarkdown != null) {
+                return currentMarkdown;
+            }
+            context.ensureThinkingDetailsCreated();
+            return context.thinkingMessage;
+        }
+
         private void flushSafePart(MarkdownMessageWithThinking context) {
-            int safeLength = Math.max(0, buffer.length() - THINK_CLOSE.length());
+            // Безопасная длина: оставляем место для самого длинного тега
+            int maxTagLength = Math.max(Math.max(THINK_CLOSE.length(), THINK_OPEN.length()), TOOL_OPEN.length());
+            int safeLength = Math.max(0, buffer.length() - maxTagLength);
             if (safeLength > 0) {
-                context.thinkingMessage.appendContent(buffer.substring(0, safeLength));
+                Markdown markdown = getCurrentMarkdown(context);
+                markdown.appendContent(buffer.substring(0, safeLength));
                 buffer.delete(0, safeLength);
             }
         }
@@ -383,7 +495,129 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         @Override
         public void flush(MarkdownMessageWithThinking context) {
             if (!buffer.isEmpty()) {
-                context.thinkingMessage.appendContent(buffer.toString());
+                Markdown markdown = getCurrentMarkdown(context);
+                markdown.appendContent(buffer.toString());
+            }
+        }
+    }
+
+    // Tool calling режим: буферизация и поиск </tool>
+    private static class ToolCallingState extends ProcessingState {
+        private final StringBuilder buffer = new StringBuilder();
+
+        @Override
+        public ProcessingState process(String chunk, MarkdownMessageWithThinking context) {
+            buffer.append(chunk);
+
+            String text = buffer.toString();
+            
+            // Ищем все возможные теги и обрабатываем тот, который встречается первым
+            int thinkOpenIdx = text.indexOf(THINK_OPEN);
+            int closeIdx = text.indexOf(TOOL_CLOSE);
+
+            // Определяем индекс первого тега
+            int firstTagIdx = Integer.MAX_VALUE;
+            String firstTag = null;
+
+            if (thinkOpenIdx >= 0 && thinkOpenIdx < firstTagIdx) {
+                firstTagIdx = thinkOpenIdx;
+                firstTag = THINK_OPEN;
+            }
+            if (closeIdx >= 0 && closeIdx < firstTagIdx) {
+                firstTagIdx = closeIdx;
+                firstTag = TOOL_CLOSE;
+            }
+
+            if (firstTag != null) {
+                if (firstTag.equals(THINK_OPEN)) {
+                    return handleThinkOpen(firstTagIdx, text, context);
+                } else {
+                    // TOOL_CLOSE
+                    return handleCloseTag(firstTagIdx, text, context);
+                }
+            } else {
+                // Закрывающего тега нет - отдаём безопасную часть
+                flushSafePart(context);
+                return this;
+            }
+        }
+
+        private ProcessingState handleThinkOpen(int openIdx, String text, MarkdownMessageWithThinking context) {
+            // Отправляем содержимое до THINK_OPEN в mainMessage
+            if (openIdx > 0) {
+                String beforeThink = text.substring(0, openIdx);
+                checkUiAccessed(context, isAccessed -> {
+                    final MarkdownMessage mainMessage = context.mainMessage;
+                    if (isAccessed)
+                        mainMessage.appendMarkdownAsync(beforeThink);
+                    else
+                        mainMessage.appendMarkdown(beforeThink);
+                });
+            }
+
+            // Создаём новый Markdown компонент для нового блока размышлений
+            Markdown newMarkdown = context.addNewThinkingMarkdown();
+
+            // Очищаем буфер и обрабатываем оставшуюся часть после THINK_OPEN
+            buffer.setLength(0);
+            String remaining = text.substring(openIdx + THINK_OPEN.length());
+            if (!remaining.isEmpty()) {
+                return new ThinkingState(newMarkdown).process(remaining, context);
+            }
+
+            return new ThinkingState(newMarkdown);
+        }
+
+        private ProcessingState handleCloseTag(int closeIdx, String text, MarkdownMessageWithThinking context) {
+            // Отправляем содержимое до TOOL_CLOSE в mainMessage
+            if (closeIdx > 0) {
+                String beforeClose = text.substring(0, closeIdx);
+                checkUiAccessed(context, isAccessed -> {
+                    final MarkdownMessage mainMessage = context.mainMessage;
+                    if (isAccessed)
+                        mainMessage.appendMarkdownAsync(beforeClose);
+                    else
+                        mainMessage.appendMarkdown(beforeClose);
+                });
+            }
+
+            // Очищаем буфер и обрабатываем оставшуюся часть после TOOL_CLOSE
+            buffer.setLength(0);
+            String remaining = text.substring(closeIdx + TOOL_CLOSE.length());
+            if (!remaining.isEmpty()) {
+                return new InitialState().process(remaining, context);
+            }
+
+            return new InitialState();
+        }
+
+        private void flushSafePart(MarkdownMessageWithThinking context) {
+            // Безопасная длина: оставляем место для самого длинного тега
+            int maxTagLength = Math.max(THINK_OPEN.length(), TOOL_CLOSE.length());
+            int safeLength = Math.max(0, buffer.length() - maxTagLength);
+            if (safeLength > 0) {
+                String safePart = buffer.substring(0, safeLength);
+                checkUiAccessed(context, isAccessed -> {
+                    final MarkdownMessage mainMessage = context.mainMessage;
+                    if (isAccessed)
+                        mainMessage.appendMarkdownAsync(safePart);
+                    else
+                        mainMessage.appendMarkdown(safePart);
+                });
+                buffer.delete(0, safeLength);
+            }
+        }
+
+        @Override
+        public void flush(MarkdownMessageWithThinking context) {
+            if (!buffer.isEmpty()) {
+                checkUiAccessed(context, isAccessed -> {
+                    final MarkdownMessage mainMessage = context.mainMessage;
+                    if (isAccessed)
+                        mainMessage.appendMarkdownAsync(buffer.toString());
+                    else
+                        mainMessage.appendMarkdown(buffer.toString());
+                });
             }
         }
     }
