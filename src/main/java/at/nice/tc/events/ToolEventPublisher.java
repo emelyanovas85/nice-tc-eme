@@ -9,10 +9,10 @@ import java.util.function.Function;
 /**
  * Позволяет отправлять события для определенной беседы.
  * Нельзя сделать компонентом, потому что нужно передавать id чата, поэтому для
- * создания экземпляра должен использоваться {@link ChatEventPublisher.Factory}
+ * создания экземпляра должен использоваться {@link ToolEventPublisher.Factory}
  */
 @Slf4j
-public record ChatEventPublisher(AiToolCallService eventPublisher,
+public record ToolEventPublisher(AiToolCallService eventPublisher,
                                  String conversationId) {
 
     /**
@@ -43,8 +43,8 @@ public record ChatEventPublisher(AiToolCallService eventPublisher,
     @Component
     public record Factory(AiToolCallService eventPublisher) {
 
-        public ChatEventPublisher forConversation(String conversationId) {
-            return new ChatEventPublisher(eventPublisher, conversationId);
+        public ToolEventPublisher forConversation(String conversationId) {
+            return new ToolEventPublisher(eventPublisher, conversationId);
         }
     }
 

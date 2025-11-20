@@ -1,6 +1,7 @@
 package at.nice.tc.ui.components;
 
 import at.nice.tc.events.*;
+import at.nice.tc.events.impl.CheckEvent;
 import at.nice.tc.model.TestTree;
 import at.nice.tc.service.AiToolCallService;
 import at.nice.tc.ui.ChatView;
@@ -112,6 +113,10 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         state.flush(this);
     }
 
+    // TODO:
+    //    - handleBroadcastEvent перенести из ChatView в ToolCallingState и использовать EventHandlers, когда по таймстампу получили Event. Каждое событие должно иметь доступ к созданному для него Markdown через поле или через параметр
+    //    - В конструкторе ThinkingState и ToolCallingState создавать Markdown в Details
+    //    - Реализации ProcessingState вынести в отдельные классы
 
     @RequiredArgsConstructor
     public class EventHandlers {
@@ -123,21 +128,19 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         public class LogEvents {
 
             public void doOnLog(ToolEvent log) {
-                if (isExpectedState(log.getConversationId())) {
-                    // Убеждаемся, что thinkingDetails создан
-                    MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();
-                    if (thinkingMessage != null) {
-                        thinkingMessage.appendContent(timestamp() + "\t" + log.getText() + "\n");
-                        log.getAttachments().forEach(a -> thinkingMessage.appendContent(//"\n" +
-                                """
-                                        <details>
-                                          <summary>%s</summary>
-                                          
-                                          %s
-                                        </details>
-                                        """.formatted(a.getName(), a.getContent())
-                        ));
-                    }
+                // Убеждаемся, что thinkingDetails создан
+                MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();
+                if (thinkingMessage != null) {
+                    thinkingMessage.appendContent(timestamp() + "\t" + log.getText() + "\n");
+                    log.getAttachments().forEach(a -> thinkingMessage.appendContent(//"\n" +
+                            """
+                                    <details>
+                                      <summary>%s</summary>
+                                      
+                                      %s
+                                    </details>
+                                    """.formatted(a.getName(), a.getContent())
+                    ));
                 }
             }
         }
@@ -153,30 +156,28 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
              * У каждого теста статус "⏸️" (pending)
              */
             public void doOnBuiltTestTree(CheckEvent.AgentBuiltTestTreeEvent event) {
-                if (isExpectedState(event.getConversationId())) {
-                    // Убеждаемся, что thinkingDetails создан
-                    MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();
-                    if (thinkingMessage == null) {
-                        return;
-                    }
-                    
-                    TestTree test = event.getTest();
-                    thinkingMessage.appendContent(timestamp() + "Построено дерево тестов для проверки:\n");
-
-                    testId$text.clear();
-                    test.getDescendants().forEach(t -> testId$text.put(t.getId(), "⏸️ " + t + " ожидает проверки"));
-
-                    String tree = JiraUtils.toMarkdownTree(test, t -> testId$text.get(t.getId()));
-                    getUI().ifPresent(ui -> {
-                        if (ui.isAttached()) {
-                            ui.access(() -> {
-                                if (thinkingMessage != null) {
-                                    thinkingMessage.appendContent(tree);
-                                }
-                            });
-                        }
-                    });
+                // Убеждаемся, что thinkingDetails создан
+                MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();
+                if (thinkingMessage == null) {
+                    return;
                 }
+
+                TestTree test = event.getTest();
+                thinkingMessage.appendContent(timestamp() + "Построено дерево тестов для проверки:\n");
+
+                testId$text.clear();
+                test.getDescendants().forEach(t -> testId$text.put(t.getId(), "⏸️ " + t + " ожидает проверки"));
+
+                String tree = JiraUtils.toMarkdownTree(test, t -> testId$text.get(t.getId()));
+                getUI().ifPresent(ui -> {
+                    if (ui.isAttached()) {
+                        ui.access(() -> {
+                            if (thinkingMessage != null) {
+                                thinkingMessage.appendContent(tree);
+                            }
+                        });
+                    }
+                });
             }
 
             /**
@@ -194,47 +195,30 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             }
 
             void changeText(CheckEvent event, Function<TestTree.Test, String> stringifier) {
-                String conversationId = event.getConversationId();
-                if (isExpectedState(conversationId)) {
-                    // Убеждаемся, что thinkingDetails создан
-                    MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();
-                    if (thinkingMessage == null) {
-                        return;
-                    }
-                    
-                    TestTree.Test test = (TestTree.Test) event.getTest();
-
-                    String oldText = testId$text.get(test.getId());
-                    String newText = stringifier.apply(test);
-                    testId$text.put(test.getId(), newText);
-
-                    String content = thinkingMessage.getContent().replace(oldText, newText);
-                    getUI().ifPresent(ui -> {
-                        if (ui.isAttached()) {
-                            ui.access(() -> {
-                                if (thinkingMessage != null) {
-                                    thinkingMessage.setContent(content);
-                                }
-                            });
-                        }
-                    });
+                // Убеждаемся, что thinkingDetails создан
+                MarkdownMessageWithThinking.this.ensureThinkingDetailsCreated();
+                if (thinkingMessage == null) {
+                    return;
                 }
+
+                TestTree.Test test = (TestTree.Test) event.getTest();
+
+                String oldText = testId$text.get(test.getId());
+                String newText = stringifier.apply(test);
+                testId$text.put(test.getId(), newText);
+
+                String content = thinkingMessage.getContent().replace(oldText, newText);
+                getUI().ifPresent(ui -> {
+                    if (ui.isAttached()) {
+                        ui.access(() -> {
+                            if (thinkingMessage != null) {
+                                thinkingMessage.setContent(content);
+                            }
+                        });
+                    }
+                });
             }
 
-        }
-
-        boolean isExpectedState(String conversationId) {
-            return state instanceof ThinkingState && conversationId.startsWith(pageConversationId());
-        }
-
-        String pageConversationId() {
-            // Используем getUI() вместо UI.getCurrent(), так как события могут обрабатываться не в UI потоке
-            return MarkdownMessageWithThinking.this.getUI()
-                    .map(ui -> ui.getActiveViewLocation()
-                            .getQueryParameters()
-                            .getSingleParameter(ChatView.Constants.CHAT_ID)
-                            .orElse(""))
-                    .orElse("");
         }
 
         String timestamp() {
@@ -389,7 +373,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             int firstTagIdx = Integer.MAX_VALUE;
             String firstTag = null;
 
-            if (thinkOpenIdx >= 0 && thinkOpenIdx < firstTagIdx) {
+            if (thinkOpenIdx >= 0 && thinkOpenIdx < firstTagIdx) { // TODO: warning: always true when reached
                 firstTagIdx = thinkOpenIdx;
                 firstTag = THINK_OPEN;
             }
@@ -448,11 +432,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             // Очищаем буфер и обрабатываем оставшуюся часть после TOOL_OPEN
             buffer.setLength(0);
             String remaining = text.substring(openIdx + TOOL_OPEN.length());
+
+            ToolCallingState toolCallingState = new ToolCallingState();
             if (!remaining.isEmpty()) {
-                return new ToolCallingState().process(remaining, context);
+                return toolCallingState.process(remaining, context);
             }
 
-            return new ToolCallingState();
+            return toolCallingState;
         }
 
         private ProcessingState handleCloseTag(int closeIdx, String text, MarkdownMessageWithThinking context) {

@@ -1,7 +1,7 @@
 package at.nice.tc.ai.client;
 
-import at.nice.tc.events.CheckEvent;
-import at.nice.tc.events.ChatEventPublisher;
+import at.nice.tc.events.impl.CheckEvent;
+import at.nice.tc.events.ToolEventPublisher;
 import at.nice.tc.model.TestTree;
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.JiraService;
@@ -20,7 +20,7 @@ public record ChatClientTestChecker(AiService aiService,
                                     JiraService jiraService,
                                     MemoryService memoryService) {
 
-    public String checkTestCase(TestTree.Test test, ChatEventPublisher publisher) {
+    public String checkTestCase(TestTree.Test test, ToolEventPublisher publisher) {
         final String conversationId = publisher.conversationId() + "_" + test.getId();
 
         publisher.publish(new CheckEvent.CheckStartedEvent(conversationId, test));

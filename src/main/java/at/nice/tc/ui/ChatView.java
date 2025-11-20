@@ -1,6 +1,7 @@
 package at.nice.tc.ui;
 
 import at.nice.tc.events.*;
+import at.nice.tc.events.impl.CheckEvent;
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.AiToolCallService;
 import at.nice.tc.service.EventService;
@@ -215,7 +216,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         long timestamp = System.currentTimeMillis();
         // Добавляем timestamp в Set, чтобы не добавить это сообщение снова при получении события
         addedMessageTimestamps.add(timestamp);
-        eventPublisher.publishEvent(new UserMessageEvent(config.getChatId(), userText, config.getUserFio(), timestamp));
+//        eventPublisher.publishEvent(new UserMessageEvent(config.getChatId(), userText, config.getUserFio(), timestamp));
 
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
         actualBotMessage.getMainMessage().setUserColorIndex(5);
@@ -329,32 +330,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                 } else if (event instanceof ToolEvent toolEvent) {
                     actualBotMessage.getHandlers().log.doOnLog(toolEvent);
 
-                } else if (event instanceof UserMessageEvent userMessageEvent) {
-                    // Синхронизация сообщений пользователя между вкладками
-                    // Проверяем, что это сообщение еще не было добавлено (чтобы не дублировать)
-                    long timestamp = userMessageEvent.getTimestamp();
-                    if (!addedMessageTimestamps.contains(timestamp)) {
-                        addedMessageTimestamps.add(timestamp);
-                        // Очищаем старые timestamp (оставляем только последние 100)
-                        if (addedMessageTimestamps.size() > 100) {
-                            addedMessageTimestamps.clear();
-                            addedMessageTimestamps.add(timestamp);
-                        }
-                        
-                        // Используем timestamp из события для правильного времени
-                        LocalDateTime messageTime = LocalDateTime.ofInstant(
-                                java.time.Instant.ofEpochMilli(userMessageEvent.getTimestamp()),
-                                java.time.ZoneId.systemDefault()
-                        );
-                        MarkdownMessage userMessage = new MarkdownMessage(
-                                userMessageEvent.getUserText(),
-                                userMessageEvent.getUserFio(),
-                                messageTime
-                        );
-                        userMessage.setUserColorIndex(3);
-                        messageList.addComponentAtIndex(0, userMessage);
-                        scroll.scrollToBottom();
-                    }
                 }
             });
         });

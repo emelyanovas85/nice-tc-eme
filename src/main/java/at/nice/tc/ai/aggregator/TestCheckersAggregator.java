@@ -2,8 +2,8 @@ package at.nice.tc.ai.aggregator;
 
 import at.nice.tc.ai.client.ChatClientTestChecker;
 import at.nice.tc.ai.dto.jira.DTOTestWithNested;
-import at.nice.tc.events.ChatEventPublisher;
-import at.nice.tc.events.CheckEvent;
+import at.nice.tc.events.ToolEventPublisher;
+import at.nice.tc.events.impl.CheckEvent;
 import at.nice.tc.events.ToolEvent;
 import at.nice.tc.model.Attachment;
 import at.nice.tc.model.TestTree;
@@ -40,7 +40,7 @@ public class TestCheckersAggregator {
     /**
      * Запускает проверку теста с учетом вложенных по ключу
      */
-    public CompletableFuture<List<CompletableFuture<String>>> checkTestCase(String keyTestCase, ChatEventPublisher publisher) {
+    public CompletableFuture<List<CompletableFuture<String>>> checkTestCase(String keyTestCase, ToolEventPublisher publisher) {
         return collectNestedTests(keyTestCase, publisher)
                 .thenApply(testTree -> {
                     publisher.publish(conversationId -> new CheckEvent.AgentBuiltTestTreeEvent(conversationId, testTree));
@@ -55,7 +55,7 @@ public class TestCheckersAggregator {
     /**
      * Рекурсивно проходит по тестам и строит дерево тестов
      */
-    private CompletableFuture<TestTree.Test> collectNestedTests(String testId, ChatEventPublisher publisher) {
+    private CompletableFuture<TestTree.Test> collectNestedTests(String testId, ToolEventPublisher publisher) {
         publisher.publish(cId -> new ToolEvent("Получение тестов, вложенных в тест " + testId));
         return jiraService.getTest(testId, jiraFields)
                 .thenCompose(json -> {

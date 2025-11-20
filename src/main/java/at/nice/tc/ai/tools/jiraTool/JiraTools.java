@@ -1,7 +1,7 @@
 package at.nice.tc.ai.tools.jiraTool;
 
-import at.nice.tc.events.ChatEventPublisher;
-import at.nice.tc.events.OnGetValue;
+import at.nice.tc.events.ToolEventPublisher;
+import at.nice.tc.events.impl.OnGetValue;
 import at.nice.tc.service.JiraService;
 import at.nice.tc.utils.EventUtils;
 import at.nice.tc.utils.ThrowableSupplier;
@@ -21,7 +21,7 @@ import java.util.List;
 public class JiraTools {
 
     private final JiraService jiraService;
-    private final ChatEventPublisher.Factory publisherFactory;
+    private final ToolEventPublisher.Factory publisherFactory;
 
     //    @Cacheable("availableTestProperties")
     @Tool(name = "getAvailableTestProperties", description = "Перечень доступных свойств тест-кейса")
@@ -115,7 +115,7 @@ public class JiraTools {
 
     private <T> T sendEvents(String description, ThrowableSupplier<T> valueSupplier, ToolContext context) {
         String chatId = ToolUtils.conversationId(context);
-        ChatEventPublisher publisher = publisherFactory.forConversation(chatId);
+        ToolEventPublisher publisher = publisherFactory.forConversation(chatId);
         var eventBase = new OnGetValue<T>(description, chatId);
         return EventUtils.getValueSendingEvents(valueSupplier, eventBase, publisher);
     }

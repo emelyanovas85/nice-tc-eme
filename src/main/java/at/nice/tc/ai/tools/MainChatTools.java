@@ -1,16 +1,12 @@
 package at.nice.tc.ai.tools;
 
 import at.nice.tc.ai.aggregator.TestCheckersAggregator;
-import at.nice.tc.ai.tools.googleTool.GoogleTools;
-import at.nice.tc.events.ChatEventPublisher;
+import at.nice.tc.events.ToolEventPublisher;
 import at.nice.tc.utils.ToolUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.CompletableFuture;
@@ -22,7 +18,7 @@ import static java.util.stream.Collectors.toList;
 public class MainChatTools {
 
     private final TestCheckersAggregator aggregatorChecker;
-    private final ChatEventPublisher.Factory publisherFactory;
+    private final ToolEventPublisher.Factory publisherFactory;
 
     @Tool(name = "checkTestCaseByRequirements",
             description = "Проверяет тест-кейс по требованиям. " +
@@ -34,7 +30,7 @@ public class MainChatTools {
             ToolContext toolContext) {
         String chatId = ToolUtils.conversationId(toolContext);
 
-        ChatEventPublisher publisher = publisherFactory.forConversation(chatId);
+        ToolEventPublisher publisher = publisherFactory.forConversation(chatId);
 
 //        String requirements = googleTools.getTestCaseRequirements("a");
         return String.join("",

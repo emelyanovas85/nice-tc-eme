@@ -11,7 +11,7 @@ import java.util.List;
  * Просто некий текст
  */
 @Getter
-public class ToolEvent {
+public class ToolEvent implements ChatEvent {
     private final String text;
     private final List<Attachment> attachments;
 

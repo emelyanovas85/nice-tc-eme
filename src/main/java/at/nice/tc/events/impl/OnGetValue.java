@@ -1,5 +1,6 @@
-package at.nice.tc.events;
+package at.nice.tc.events.impl;
 
+import at.nice.tc.events.ToolEvent;
 import at.nice.tc.model.Attachment;
 import at.nice.tc.utils.ThrowableUtils;
 import lombok.Getter;

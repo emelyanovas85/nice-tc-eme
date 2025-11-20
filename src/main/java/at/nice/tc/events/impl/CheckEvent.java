@@ -1,6 +1,7 @@
-package at.nice.tc.events;
+package at.nice.tc.events.impl;
 
 
+import at.nice.tc.events.ToolEvent;
 import at.nice.tc.model.TestTree;
 import lombok.Getter;
 

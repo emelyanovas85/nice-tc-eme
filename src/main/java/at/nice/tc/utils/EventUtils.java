@@ -1,7 +1,7 @@
 package at.nice.tc.utils;
 
-import at.nice.tc.events.ChatEventPublisher;
-import at.nice.tc.events.OnGetValue;
+import at.nice.tc.events.ToolEventPublisher;
+import at.nice.tc.events.impl.OnGetValue;
 
 public abstract class EventUtils {
 
@@ -13,7 +13,7 @@ public abstract class EventUtils {
      */
     public static <T> T getValueSendingEvents(ThrowableSupplier<T> valueSupplier,
                                               OnGetValue<T> eventBase,
-                                              ChatEventPublisher publisher) {
+                                              ToolEventPublisher publisher) {
         var toolService = publisher.eventPublisher();
         var chatId = eventBase.conversationId();
 
