@@ -136,38 +136,40 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                     return;
 
                 markdown.appendContent(timestamp() + "\t" + logEvent.getText() + "  \n");
-                logEvent.getAttachments().forEach(a -> markdown.appendContent(
-                        """
-## Основное содержимое
-
-<details>
-<summary>Нажмите, чтобы развернуть</summary>
-
-Это скрытое содержимое, которое появится при клике на заголовок.
-
-</details>
-"""
-//                        """
-//                                <details>
-//                                  <summary>%s</summary>
-//
-//                                  %s
-//                                </details>
-//                                """.formatted(a.getName(), a.getContent())
-                ));
-//                logEvent.getAttachments().forEach(a -> {
-//                    Markdown value = new Markdown();
-//                    VerticalLayout content = new VerticalLayout(value) {{
-//                        setPadding(false);
-//                        setSpacing(false);
-//                    }};
-//                    Details details = new Details(a.getName(), content);
-////                    details.setOpened(true);
-//                    UiUtils.doInUI(MarkdownMessageWithThinking.this, () -> {
-//                        thinkingContent.add(details);
-//                        value.appendContent(a.getContent());
-//                    });
-//                });
+                
+                // Для аттачментов используем компоненты Vaadin вместо HTML в markdown
+                // потому что Vaadin Markdown может не рендерить HTML теги <details>
+                if (!logEvent.getAttachments().isEmpty()) {
+                    ensureThinkingDetailsCreated();
+                    if (thinkingContent == null) {
+                        return; // На всякий случай проверяем
+                    }
+                    
+                    UiUtils.doInUI(MarkdownMessageWithThinking.this, () -> {
+                        // Убеждаемся, что thinkingDetails открыт, чтобы аттачменты были видны
+                        if (thinkingDetails != null && !thinkingDetails.isOpened()) {
+                            thinkingDetails.setOpened(true);
+                        }
+                        
+                        // Находим индекс markdown компонента, чтобы добавить Details сразу после него
+                        // Всё внутри UI потока, так как работа с компонентами Vaadin должна быть в UI потоке
+                        int markdownIndex = thinkingContent.indexOf(markdown);
+                        int insertIndex = markdownIndex >= 0 ? markdownIndex + 1 : thinkingContent.getComponentCount();
+                        
+                        // Добавляем Details сразу после соответствующего markdown
+                        for (var a : logEvent.getAttachments()) {
+                            Markdown value = new Markdown();
+                            VerticalLayout content = new VerticalLayout(value) {{
+                                setPadding(false);
+                                setSpacing(false);
+                            }};
+                            Details details = new Details(a.getName(), content);
+                            thinkingContent.addComponentAtIndex(insertIndex, details);
+                            insertIndex++; // Сдвигаем индекс для следующего аттачмента
+                            value.appendContent(a.getContent());
+                        }
+                    });
+                }
             }
         }
 
