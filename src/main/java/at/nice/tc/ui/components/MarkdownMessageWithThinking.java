@@ -9,6 +9,7 @@ import at.nice.tc.ui.components.state.InitialState;
 import at.nice.tc.ui.components.state.MainState;
 import at.nice.tc.ui.components.state.ProcessingState;
 import at.nice.tc.utils.JiraUtils;
+import at.nice.tc.utils.UiUtils;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -68,8 +69,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 setPadding(false);
                 setSpacing(false);
             }};
-            thinkingMessage = new Markdown();
-            thinkingContent.add(thinkingMessage);
             thinkingDetails = new Details("Размышления модели", thinkingContent);
             thinkingDetails.setOpened(true);
 
@@ -89,16 +88,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     public Markdown addNewThinkingMarkdown() {
         ensureThinkingDetailsCreated();
         thinkingMessage = new Markdown();
-        getUI().ifPresentOrElse(
-            ui -> {
-                if (ui.isAttached()) {
-                    ui.access(() -> thinkingContent.add(thinkingMessage));
-                } else {
-                    thinkingContent.add(thinkingMessage);
-                }
-            },
-            () -> thinkingContent.add(thinkingMessage)
-        );
+        UiUtils.doInUI(this, () -> thinkingContent.add(thinkingMessage));
         return thinkingMessage;
     }
 
@@ -142,18 +132,42 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
              * Обрабатывает ToolEvent, добавляя его в указанный Markdown компонент
              */
             public void doOnLog(ToolEvent logEvent, Markdown markdown) {
-                if (markdown != null) {
-                    markdown.appendContent(timestamp() + "\t" + logEvent.getText() + "\n");
-                    logEvent.getAttachments().forEach(a -> markdown.appendContent(
-                            """
-                                    <details>
-                                      <summary>%s</summary>
-                                      
-                                      %s
-                                    </details>
-                                    """.formatted(a.getName(), a.getContent())
-                    ));
-                }
+                if (markdown == null)
+                    return;
+
+                markdown.appendContent(timestamp() + "\t" + logEvent.getText() + "  \n");
+                logEvent.getAttachments().forEach(a -> markdown.appendContent(
+                        """
+## Основное содержимое
+
+<details>
+<summary>Нажмите, чтобы развернуть</summary>
+
+Это скрытое содержимое, которое появится при клике на заголовок.
+
+</details>
+"""
+//                        """
+//                                <details>
+//                                  <summary>%s</summary>
+//
+//                                  %s
+//                                </details>
+//                                """.formatted(a.getName(), a.getContent())
+                ));
+//                logEvent.getAttachments().forEach(a -> {
+//                    Markdown value = new Markdown();
+//                    VerticalLayout content = new VerticalLayout(value) {{
+//                        setPadding(false);
+//                        setSpacing(false);
+//                    }};
+//                    Details details = new Details(a.getName(), content);
+////                    details.setOpened(true);
+//                    UiUtils.doInUI(MarkdownMessageWithThinking.this, () -> {
+//                        thinkingContent.add(details);
+//                        value.appendContent(a.getContent());
+//                    });
+//                });
             }
         }
 
@@ -222,7 +236,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         }
 
         String timestamp() {
-            return LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM HH.mm.ss\t"));
+            return LocalDateTime.now().format(DateTimeFormatter.ofPattern("`dd.MM HH:mm:ss`\t"));
         }
     }
 

@@ -1,13 +1,14 @@
 package at.nice.tc.service;
 
 import at.nice.tc.events.ToolEvent;
-import at.nice.tc.ui.MessageDelimiters;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static at.nice.tc.ui.MessageDelimiters.*;
 
 /**
  *
@@ -22,7 +23,7 @@ public class AiToolCallService {
      *
      */
     public void beginTool(String chatId) {
-        memoryService.pushToken(chatId, MessageDelimiters.TOOL_OPEN);
+        memoryService.pushToken(chatId, TOOL_OPEN.getPlaceholder());
     }
 
     /**
@@ -31,14 +32,14 @@ public class AiToolCallService {
     public void updateTool(String chatId, ToolEvent messageUpdate) {
         final long id = System.currentTimeMillis();
         updates.put(id, messageUpdate);
-        memoryService.pushToken(chatId, MessageDelimiters.TOOL_UPDATE + id);
+        memoryService.pushToken(chatId, TOOL_UPDATE.getPlaceholder() + id);
     }
 
     /**
      *
      */
     public void endTool(String chatId) {
-        memoryService.pushToken(chatId, MessageDelimiters.TOOL_CLOSE);
+        memoryService.pushToken(chatId, TOOL_CLOSE.getPlaceholder());
     }
 
     public Optional<ToolEvent> getUpdate(long timestamp) {

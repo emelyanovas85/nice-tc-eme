@@ -26,7 +26,7 @@ public class ChatClientConfig {
         return ChatClient.builder(chatModel)
                 .defaultTools(mainChatTools, googleTools, jiraTools)
                 .defaultOptions(ChatOptions.builder()
-                        .temperature(0.8)
+                        .temperature(0.4)
                         .topP(0.8)
                         .build())
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())

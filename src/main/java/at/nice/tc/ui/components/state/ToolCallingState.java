@@ -20,9 +20,11 @@ public class ToolCallingState extends ProcessingState {
     /**
      * Создает ToolCallingState с новым Markdown компонентом для tool блока
      */
-    public ToolCallingState(MarkdownMessageWithThinking context, Markdown toolMarkdown) {
+    public ToolCallingState(MarkdownMessageWithThinking context) {
         super(context);
-        this.toolMarkdown = toolMarkdown;
+        context.ensureThinkingDetailsCreated();
+        this.toolMarkdown = context.addNewThinkingMarkdown();
+
     }
 
     private static final Set<MessageDelimiters> tags = Set.of(
@@ -91,12 +93,9 @@ public class ToolCallingState extends ProcessingState {
         // Получаем ToolEvent по timestamp и обрабатываем его через EventHandlers
         context.getAiToolCallService().getUpdate(timestamp).ifPresent(context::handleEvent);
 
-        // Вычисляем длину delimiter'а с timestamp
-        int delimiterLength = TOOL_UPDATE.getPlaceholder().length() + timestampLen;
-
         // Очищаем буфер и обрабатываем оставшуюся часть после TOOL_UPDATE + timestamp
         buffer.setLength(0);
-        String remaining = text.substring(pos + delimiterLength);
+        String remaining = text.substring(pos + TOOL_UPDATE.length());
         if (remaining.isEmpty())
             return this;
         return process(remaining);

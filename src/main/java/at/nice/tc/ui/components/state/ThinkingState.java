@@ -20,7 +20,7 @@ public class ThinkingState extends ProcessingState {
     public ThinkingState(MarkdownMessageWithThinking context) {
         super(context);
         context.ensureThinkingDetailsCreated();
-        currentMarkdown = context.getThinkingMessage();
+        this.currentMarkdown = context.addNewThinkingMarkdown();
     }
 
     public ThinkingState(MarkdownMessageWithThinking context, Markdown markdown) {
@@ -85,14 +85,11 @@ public class ThinkingState extends ProcessingState {
         // Отправляем содержимое до TOOL_OPEN в текущий markdown
         currentMarkdown.appendContent(text.substring(0, pos));
 
-        // Создаём новый Markdown для tool блока
-        Markdown toolMarkdown = context.addNewThinkingMarkdown();
-
         // Очищаем буфер и обрабатываем оставшуюся часть после TOOL_OPEN
         buffer.setLength(0);
         String remaining = text.substring(pos + TOOL_OPEN.length());
 
-        ToolCallingState toolCallingState = new ToolCallingState(context, toolMarkdown);
+        ToolCallingState toolCallingState = new ToolCallingState(context);
         if (remaining.isEmpty())
             return toolCallingState;
         return toolCallingState.process(remaining);

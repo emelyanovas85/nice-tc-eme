@@ -1,12 +1,9 @@
 package at.nice.tc.ui;
 
-import at.nice.tc.events.*;
-import at.nice.tc.events.impl.CheckEvent;
+import at.nice.tc.events.ChatEvent;
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.AiToolCallService;
-import at.nice.tc.service.EventService;
 import at.nice.tc.service.MemoryService;
-import org.springframework.context.ApplicationEventPublisher;
 import at.nice.tc.ui.components.ChatInputComponent;
 import at.nice.tc.ui.components.MarkdownMessageWithThinking;
 import at.nice.tc.ui.components.SmartScroller;
@@ -24,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
 
@@ -40,11 +38,8 @@ import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CE
 public class ChatView extends Composite<VerticalLayout> implements BeforeEnterObserver {
 
     private final AiService aiService;
-    private final EventService eventService;
     private final MemoryService memoryService;
-    private final ApplicationEventPublisher eventPublisher;
     private final AiToolCallService aiToolCallService;
-//    private final JiraService jiraService;
 
     private SmartScroller scroll; // обертка для панели сообщений
     private VerticalLayout messageList; // панель сообщений
@@ -247,7 +242,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
 
 
-    private EventService.Registration eventServiceRegistration;
+//    private EventService.Registration eventServiceRegistration;
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
@@ -255,7 +250,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         // Подписка на ответ ассистента
         subscribeToChatStream();
         // Подписка на события для текущего chatId
-        eventServiceRegistration = eventService.subscribe(config.getChatId(), this::handleBroadcastEvent);
+//        eventServiceRegistration = eventService.subscribe(config.getChatId(), this::handleBroadcastEvent);
     }
 
     @Override
@@ -263,10 +258,10 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
         }
-        if (eventServiceRegistration != null) {
-            eventServiceRegistration.unsubscribe();
-            eventServiceRegistration = null;
-        }
+//        if (eventServiceRegistration != null) {
+//            eventServiceRegistration.unsubscribe();
+//            eventServiceRegistration = null;
+//        }
         super.onDetach(detachEvent);
     }
 
@@ -299,27 +294,5 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                         })
                 );
     }
-
-    private void handleBroadcastEvent(ChatEvent event) {
-        // События приходят не в UI потоке, поэтому нужно использовать ui.access()
-        // Обработка событий из EventService теперь происходит через ToolCallingState.handleBroadcastEvent
-        // при обработке TOOL_UPDATE delimiter'а. Здесь оставляем только создание сообщения, если его нет.
-        getUI().ifPresent(ui -> {
-            if (!ui.isAttached()) {
-                return; // UI отсоединен, не обрабатываем событие
-            }
-            ui.access(() -> {
-                // Проверяем actualBotMessage внутри UI потока
-                if (actualBotMessage == null) {
-                    // Если сообщение еще не создано, создаем его
-                    actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
-                    actualBotMessage.getMainMessage().setUserColorIndex(5);
-                    messageList.add(actualBotMessage);
-                }
-                // Обработка событий теперь происходит в ToolCallingState при обработке TOOL_UPDATE
-            });
-        });
-    }
-
 
 }

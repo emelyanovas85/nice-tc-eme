@@ -15,7 +15,7 @@ public enum MessageDelimiters {
     TOOL_CLOSE("</tool>"),
     TOOL_UPDATE("<upd>") {
         final int timeoutLen = String.valueOf(System.currentTimeMillis()).length();
-        final Pattern event = Pattern.compile(name() + "\\d{" + timeoutLen + "}");
+        final Pattern event = Pattern.compile(getPlaceholder() + "\\d{" + timeoutLen + "}");
 
         @Override
         public int length() {

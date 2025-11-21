@@ -35,7 +35,7 @@ public record OnGetValue<T>(String description, String conversationId) {
          * Лог, что получение значения {@link #description} завершено
          */
         public After(T result) {
-            super(description);
+            super(description + ": завершено");
             this.result = result;
         }
 
