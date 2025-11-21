@@ -35,15 +35,14 @@ public record OnGetValue<T>(String description, String conversationId) {
          * Лог, что получение значения {@link #description} завершено
          */
         public After(T result) {
-            super(description + ": завершено");
-            this.result = result;
+            this(result, String::valueOf);
         }
 
         /**
          * Добавляет в лог текста результата
          */
         public After(T result, Function<T, String> stringifier) {
-            super(description, new Attachment.Text("результат", stringifier.apply(result)));
+            super(description + ": завершено", new Attachment.Text("результат", stringifier.apply(result)));
             this.result = result;
         }
     }
