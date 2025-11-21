@@ -38,7 +38,7 @@ public class ChatClientTestChecker {
                 .join();
 
         String markdownTest = JiraUtils.toMarkdown(testAsMap);
-        String requirements = googleTools.getTestCaseRequirements("ignore");
+        String requirements = googleTools.getTestCaseRequirements();
         String prompt = String.join("\n\n", requirements, markdownTest);
 
         return holder.chatClient.prompt()

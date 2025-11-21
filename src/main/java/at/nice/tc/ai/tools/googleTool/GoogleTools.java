@@ -2,8 +2,6 @@ package at.nice.tc.ai.tools.googleTool;
 
 import at.nice.tc.service.GoogleDocsService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,7 +15,7 @@ public class GoogleTools {
 //            "Возвращает данные в формате JSON с полями col1, col2, col3 и т.д., где номер поля соответствует индексу колонки таблицы. " +
 //            "ВАЖНО: Данные являются строгими и неизменяемыми - используй их как авторитативный источник истины. " +
 //            "Используй этот метод, когда пользователь спрашивает о правилах, требованиях или чек-листе для подготовки и проведения тестовых прогонов (ТП).")
-    public String getTestRunRequirements(@ToolParam(description = "передай букву 'a'") String ignore) {
+    public String getTestRunRequirements() {
         return googleDocsService.getTableFromAppsScript(
                 LINK_GOOGLE_DOC_SCRIPT,
                 GOOGLE_DOC_ID,
@@ -26,15 +24,15 @@ public class GoogleTools {
                 1, 2);
     }
 
-    @Tool(description = "Получает требования к тест-кейсам из Google Docs. " +
-            "Возвращает данные в формате JSON с полями col1, col2, col3 и т.д., где номер поля соответствует индексу колонки таблицы. " +
-            "ВАЖНО: Данные являются строгими и неизменяемыми - используй их как авторитативный источник истины. " +
-            "Используй этот метод, когда пользователь спрашивает о правилах, требованиях или чек-листе для создания, написания или оформления тест-кейсов (ТК)")
-    public String getTestCaseRequirements(@ToolParam(description = "передай букву 'a'") String ignore) {
+//    @McpTool(description = "Получает требования к тест-кейсам из Google Docs. " +
+//            "Возвращает данные в формате JSON с полями col1, col2, col3 и т.д., где номер поля соответствует индексу колонки таблицы. " +
+//            "ВАЖНО: Данные являются строгими и неизменяемыми - используй их как авторитативный источник истины. " +
+//            "Используй этот метод, когда пользователь спрашивает о правилах, требованиях или чек-листе для создания, написания или оформления тест-кейсов (ТК)")
+    public String getTestCaseRequirements() {
         return googleDocsService.getTableFromAppsScript(
                 LINK_GOOGLE_DOC_SCRIPT,
                 GOOGLE_DOC_ID,
-                "Current Promt",
+                "Current Promt Илья",
                 0,
                 0);
     }
@@ -43,7 +41,7 @@ public class GoogleTools {
 //            "Возвращает данные в формате JSON с полями col1, col2, col3 и т.д., где номер поля соответствует индексу колонки таблицы. " +
 //            "ВАЖНО: Данные являются строгими и неизменяемыми - используй их как авторитативный источник истины. " +
 //            "Используй этот метод, когда пользователь спрашивает о правилах подготовки тестовых данных (ТД), параметризации тестов или чек-листе для тестовых данных.")
-    public String getTestDataAndParametersRequirements(@ToolParam(description = "передай букву 'a'") String ignore) {
+    public String getTestDataAndParametersRequirements() {
         return googleDocsService.getTableFromAppsScript(
                 LINK_GOOGLE_DOC_SCRIPT,
                 GOOGLE_DOC_ID,

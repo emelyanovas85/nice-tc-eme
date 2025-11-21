@@ -1,165 +1,109 @@
-# Система управления тестами (БЕЗ Thymeleaf)
+docker run -d -p 3000:8080 \
+--add-host=qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru:10.1.6.100 \
+-v open-webui:/app/backend/data \
+-v ~/certCBR/combined-ca-cert.pem:/tmp/combined-ca-cert.pem \
+-e SSL_CERT_FILE=/tmp/combined-ca-cert.pem \
+-e PYTHONHTTPSVERIFY=1 \
+--name open-webui --restart always \
+ghcr.io/open-webui/open-webui:main
 
-Веб-приложение для управления тестами с AI интеграцией на **чистом Spring Boot REST API + статическом HTML**.
 
-## Архитектура без Thymeleaf
 
-### Frontend
-- **Статический HTML** в `/static/`
-- **Vanilla JavaScript** (ES6+) без фреймворков
-- **REST API** взаимодействие через fetch()
-- **Server-Sent Events** для real-time обновлений
+docker run -d -p 3000:8080 \
+--add-host=qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru:10.1.6.100 \
+-v open-webui:/app/backend/data \
+-v ~/certCBR/combined-ca-cert.pem:/tmp/combined-ca-cert.pem \
+-e SSL_CERT_FILE=/tmp/combined-ca-cert.pem \
+-e PYTHONHTTPSVERIFY=1 \
+--name open-webui --restart always \
+ghcr.io/open-webui/open-webui:main
 
-### Backend
-- **Spring Boot 3.2** только с `spring-boot-starter-web`
-- **@RestController** для всех API endpoints
-- **Статические ресурсы** из `/static/`
-- **Без template engines** (Thymeleaf отключен)
 
-## Преимущества подхода
+docker run -d -p 3000:8080 \
+--add-host=qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru:10.1.6.100 \
+-v open-webui:/app/backend/data \
+-v ~/certCBR/combined-ca-cert.pem:/tmp/combined-ca-cert.pem \
+-e SSL_CERT_FILE=/tmp/combined-ca-cert.pem \
+--name open-webui --restart always \
+ghcr.io/open-webui/open-webui:main
 
-✅ **Простота**: Нет сложности серверных шаблонов  
-✅ **Производительность**: Статические ресурсы отдаются быстрее  
-✅ **Разделение**: Четкое разделение frontend/backend  
-✅ **API-first**: Готово для мобильных приложений  
-✅ **Кеширование**: Лучшие возможности кеширования  
 
-## Структура проекта
 
-```
-test-system/
-├── src/main/java/com/testsystem/
-│   ├── controller/          # REST API контроллеры
-│   │   ├── JiraController   # /api/jira/**
-│   │   ├── AiController     # /api/ai/**
-│   │   └── SseController    # /api/sse
-│   ├── service/            # Бизнес логика
-│   ├── model/              # DTO модели
-│   └── config/             # Конфигурация (без Thymeleaf)
-├── src/main/resources/
-│   ├── static/             # Статические ресурсы
-│   │   ├── index.html     # Главная страница
-│   │   ├── css/styles.css # Стили
-│   │   └── js/            # JavaScript модули
-│   └── application.properties  # Конфиг без Thymeleaf
-└── build.gradle           # БЕЗ thymeleaf dependency
-```
+docker exec -it open-webui /bin/sh
+echo $SSL_CERT_FILE
+ls -l $SSL_CERT_FILE
 
-## REST API Endpoints
+curl --cacert $SSL_CERT_FILE https://qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru/v1/models
 
-### Jira Integration
-```
-GET  /api/jira/tests/{testKey}     # Получить версии теста
-GET  /api/jira/runs/{runId}        # Получить тесты из прогона  
-GET  /api/jira/tests/{id}          # Получить данные версии
-GET  /api/jira/status              # Статус подключения к Jira
-```
 
-### AI Integration  
-```
-POST /api/ai/batch/{testKey}       # Пакетная обработка промптов
-POST /api/ai/chat                  # Отправить сообщение в чат
-POST /api/ai/stop                  # Остановить обработку
-GET  /api/ai/status                # Статус AI сервиса
-```
+docker logs open-webui --tail 100
 
-### Real-time Events
-```
-GET  /api/sse                      # Server-Sent Events подключение
-POST /api/sse/test                 # Тестовое событие
-```
 
-## Быстрый старт
+echo | openssl s_client -showcerts -servername qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru -connect qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru:443 > certs_QWEN.p
 
-### Установка и запуск
-```bash
-# Клонировать и запустить
-./gradlew bootRun
+docker stop open-webui
+docker rm open-webui
 
-# Приложение доступно на
-http://localhost:8080
-```
+curl --cacert $SSL_CERT_FILE https://qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru/v1/models
+curl https://qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru/v1/models
+curl https://10.1.6.100/v1/models
 
-### Структура запросов
+curl --cacert $SSL_CERT_FILE
+https://qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru/v1/chat/completions \
+-d '{"prompt":"Hello, world!", "max_tokens":5}' -H "Content-Type: application/json"
 
-**Отправка сообщения в чат:**
-```javascript
-fetch('/api/ai/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        testKey: 'T123',
-        checkId: '1.0', 
-        message: 'Проверить требование',
-        placeholders: { requirement: 'Функция X' }
-    })
-});
-```
 
-**Получение обновлений через SSE:**
-```javascript
-const eventSource = new EventSource('/api/sse');
-eventSource.addEventListener('chat_message', (event) => {
-    const data = JSON.parse(event.data);
-    console.log('Новое сообщение:', data);
-});
-```
 
-## Конфигурация
+curl --cacert $SSL_CERT_FILE https://qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru/v1/chat/completions -H "Content-Type: application/json" -d '{"model": "qwen3-32b-awq", "messages": [{"role": "user", "content": "2+2"}], "temperature": 0.0}'
 
-### Spring Boot без Thymeleaf
-```properties
-# application.properties
-spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration
-spring.web.resources.static-locations=classpath:/static/
-```
 
-### Gradle dependencies
-```gradle
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    // БЕЗ spring-boot-starter-thymeleaf
-}
-```
+cp /tmp/combined-ca-cert.pem /usr/local/share/ca-certificates/combined-ca-cert.crt
+update-ca-certificates
 
-## Отличия от Thymeleaf версии
 
-| Thymeleaf версия | Статическая версия |
-|------------------|--------------------|
-| Серверные шаблоны | Статический HTML |
-| @Controller | @RestController |
-| Model + View | JSON API |
-| templates/ | static/ |
-| Серверный рендеринг | Клиентский рендеринг |
 
-## Развертывание
+docker run -it --network=host -v /home/emelyanov_as@mail.spb.cbr.ru/IdeaProjects/nice-tc/mcpo-config.json:/app/mcpo-config.json ghcr.io/open-webui/mcpo:main serve --config /app/mcpo-config.json
 
-### Production готовность
-- Статические ресурсы можно отдавать через CDN
-- REST API легко масштабируется
-- Возможность добавления фронтенд фреймворка позже
-- API готово для мобильных приложений
+docker run -it --network=host -v /home/emelyanov_as@mail.spb.cbr.ru/IdeaProjects/nice-tc/mcpo-config.json:/app/mcpo-config.json ghcr.io/open-webui/mcpo:main serve --config /app/mcpo-config.json
+Unable to find image 'ghcr.io/open-webui/mcpo:main' locally
 
-### Docker
-```dockerfile
-FROM openjdk:17-jdk-slim
-COPY build/libs/test-system-1.0.0.jar app.jar
-EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
-```
+docker run -it --network=host ghcr.io/open-webui/mcpo:main --server-type "streamable_http" -- http://localhost:8090/mcp
+Starting MCP OpenAPI Proxy on 0.0.0.0:8000 with command: http://localhost:8090/mcp
 
-## Использование
 
-1. **Откройте** http://localhost:8080
-2. **Введите** ID теста (T777) или прогона (C777) 
-3. **Используйте** REST API для интеграций
-4. **Наблюдайте** real-time обновления через SSE
+# Пересобрать и запустить одной командой
+docker-compose up -d --build
 
----
 
-**Примечание**: Эта версия идеально подходит для:
-- API-first архитектуры
-- Микросервисных приложений  
-- Интеграции с фронтенд фреймворками
-- Мобильных приложений
-- Высоконагруженных систем
+# Жесткая пересборка без использования кэша
+docker-compose build --no-cache && docker-compose up -d
+
+# Пересобрать только сервис nice-tc
+docker-compose build --no-cache nice-tc
+docker-compose up -d nice-tc
+
+
+# 1. Остановить и удалить контейнеры
+docker-compose down
+
+# 2. Удалить образы (опционально)
+docker-compose down --rmi all
+
+# 3. Очистить кэш сборки
+docker builder prune -f
+
+# 4. Пересобрать все заново
+docker-compose build --no-cache --pull
+docker-compose up -d
+
+
+#логи mcpo
+docker logs -f jira-mcp-server
+
+# Удалить только "висящие" образы (без тегов)
+docker image prune -f
+
+# Удалить все неиспользуемые образы
+docker image prune -a -f
+
+

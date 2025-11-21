@@ -1,3 +1,4 @@
+/*
 package at.nice.tc.service;
 
 import lombok.RequiredArgsConstructor;
@@ -17,3 +18,4 @@ public class AiService {
                 .content();
     }
 }
+*/

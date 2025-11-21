@@ -2,7 +2,9 @@ package at.nice.tc.service;
 
 import at.nice.tc.ai.tools.jiraTool.Jira;
 import at.nice.tc.utils.JiraUtils;
+import at.nice.tc.utils.SpringUtils;
 import at.nice.tc.utils.ThrowableUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ClassPathResource;
@@ -14,12 +16,16 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+
+@Slf4j
 @Service
 public class JiraService {
     private final Jira jira;
+    private final SpringUtils springUtils;
 
-    public JiraService(@Lazy Jira jira) {
+    public JiraService(@Lazy Jira jira, SpringUtils springUtils) {
         this.jira = jira;
+        this.springUtils = springUtils;
     }
 
     public CompletableFuture<String> getTest(String id) {
@@ -88,47 +94,20 @@ public class JiraService {
         return CompletableFuture.supplyAsync(() -> jira.getAllVersions(testKey));
     }
 
-    @Cacheable
     public List<String> getRequiredTestProperties() {
-        ClassPathResource resource = new ClassPathResource("testcase_required_fields.txt");
-        try {
-            return Files.readAllLines(resource.getFile().toPath())
-                    .stream()
-                    .filter(line -> !line.trim().isEmpty() && !line.startsWith("//"))
-                    .toList();
-        } catch (IOException e) {
-            return ThrowableUtils.reThrow(e);
-        }
+        return springUtils.readResourceLines("testcase_required_fields.txt");
     }
 
-    @Cacheable
     public List<String> getRequiredExecutionsProperties() {
-        // Читаем файл (построчный текст)
-        ClassPathResource resource = new ClassPathResource("executions_required_fields.txt");
-        try {
-            return Files.readAllLines(resource.getFile().toPath())
-                    .stream()
-                    .filter(line -> !line.trim().isEmpty() && !line.startsWith("//"))
-                    .toList();
-        } catch (IOException e) {
-            return ThrowableUtils.reThrow(e);
-        }
+        return springUtils.readResourceLines("executions_required_fields.txt");
     }
 
-    public List<String> getAvailableTestProperties() throws IOException {
-        ClassPathResource resource = new ClassPathResource("testcase_fields_description.json");
-        return Files.readAllLines(resource.getFile().toPath())
-                .stream()
-                .filter(line -> !line.trim().isEmpty())
-                .toList();
+    public List<String> getAvailableTestProperties() {
+        return springUtils.readResourceLines("testcase_fields_description.json");
     }
 
-    public List<String> getAvailableTestExecutionProperties() throws IOException {
-        ClassPathResource resource = new ClassPathResource("availableTestExecutionProperties.txt");
-        return Files.readAllLines(resource.getFile().toPath())
-                .stream()
-                .filter(line -> !line.trim().isEmpty())
-                .toList();
+    public List<String> getAvailableTestExecutionProperties() {
+        return springUtils.readResourceLines("availableTestExecutionProperties.txt");
     }
 
     public CompletableFuture<String> getTestExecutions(int versionId, List<String> fields) {
