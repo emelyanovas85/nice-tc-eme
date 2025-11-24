@@ -3,15 +3,10 @@ package at.nice.tc.service;
 import at.nice.tc.ai.tools.jiraTool.Jira;
 import at.nice.tc.utils.JiraUtils;
 import at.nice.tc.utils.SpringUtils;
-import at.nice.tc.utils.ThrowableUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;

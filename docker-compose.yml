@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   jira-mcp-server:
     build:
@@ -22,54 +20,25 @@ services:
     environment:
       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_AI_MCP=TRACE
 
-  mcpo:
-    image: ghcr.io/open-webui/mcpo:main
-    container_name: mcpo-proxy
-    command: serve --config /app/mcpo-config.json
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./mcpo_config.json:/app/mcpo-config.json:ro
-    depends_on:
-      jira-mcp-server:
-        condition: service_healthy
-    networks:
-      - mcp-network
-    restart: unless-stopped
-
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
     ports:
       - "3000:8080"
-    #    extra_hosts:
-    #      - "qwen3-32b-awq.apps.k8s.ehd-zr.cbr.ru:10.1.6.100"
     volumes:
       - open-webui:/app/backend/data
-      #      - ~/certCBR/combined-ca-cert.pem:/tmp/combined-ca-cert.pem:ro
-      #    environment:
-      #      - SSL_CERT_FILE=/tmp/combined-ca-cert.pem
     environment:
-      # Подключение внешних моделей
-      - ENABLE_OPENAI_API=true
-      - OPENAI_API_BASE_URLS=http://sputnik.apps.k8s.ehd-zr.cbr.ru/api/v1
-      - OPENAI_API_KEYS=sk-09fd660cdc8640ac861fe85a16d2d2f1
-
-      # Подключение к MCP серверу через mcpo
-      - ENABLE_TOOLS=true
-
-      # Разрешает пользователям (не-админам) напрямую использовать внешние инструменты
-      - ENABLE_DIRECT_CONNECTIONS=true
-
-      # Автоматическое подключение MCP инструментов через MCPO
-      - TOOL_SERVER_CONNECTIONS=[{"url":"http://mcpo-proxy:8000/jira-tools","path":"openapi.json","auth_type":"none","key":"","config":{"enable":true},"info":{"name":"Jira test checker","description":"Проверяет тесты из Jira"}}]
-
-      # Важно: отключить persistent config для применения env переменных
-      - ENABLE_PERSISTENT_CONFIG=false
-
-
+      ENABLE_OPENAI_API: "true"
+      OPENAI_API_BASE_URLS: "http://sputnik.apps.k8s.ehd-zr.cbr.ru/api/v1"
+      OPENAI_API_KEYS: "sk-09fd660cdc8640ac861fe85a16d2d2f1"
+      ENABLE_TOOLS: "true"
+      ENABLE_DIRECT_CONNECTIONS: "true"
+      TOOL_SERVER_CONNECTIONS: '[{"url":"http://jira-mcp-server:8443/mcp","type":"mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"jira-tools-server","name":"Jira","description":"Jira tools"}}]'
+      ENABLE_PERSISTENT_CONFIG: "false"
+      ENABLE_OLLAMA: "false"
     depends_on:
-      - mcpo
+      jira-mcp-server:
+        condition: service_healthy
     networks:
       - mcp-network
     restart: always

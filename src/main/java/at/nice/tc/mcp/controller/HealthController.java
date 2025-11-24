@@ -13,10 +13,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
 /**
  * Health check endpoints для MCP сервера.
- * 
- * Используется для проверки статуса сервера и интеграции с mcpo.
+ *
  */
 @Slf4j
 @RestController
@@ -31,14 +32,10 @@ public class HealthController {
      */
     @GetMapping("/health")
     public Map<String, Object> health() {
-        log.debug("Health check endpoint called");
-        
         Map<String, Object> response = new HashMap<>();
         response.put("status", "UP");
         response.put("server", "jira-mcp-server");
-        response.put("version", "1.0.0");
-        response.put("timestamp", LocalDateTime.now()
-            .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        response.put("timestamp", LocalDateTime.now().format(ISO_LOCAL_DATE_TIME));
         
         return response;
     }

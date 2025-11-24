@@ -19,9 +19,9 @@ public class OpenAiConfig {
                 "jiraAllSteps",
                 "jiraATestFromJira",
                 "jiraAllVersions",
-                "readTestFromJira",
-                "availableTestProperties",
-                "availableTestExecutionProperties"
+                "readTestFromJira"
+//                "availableTestProperties",
+//                "availableTestExecutionProperties"
         );
     }
 
