@@ -10,10 +10,12 @@ import lombok.Getter;
  */
 @Getter
 public abstract class CheckEvent extends ToolEvent {
+    private final String conversationId;
     private final TestTree test;
 
     public CheckEvent(String conversationId, TestTree test) {
         super(conversationId);
+        this.conversationId = conversationId;
         this.test = test;
     }
 

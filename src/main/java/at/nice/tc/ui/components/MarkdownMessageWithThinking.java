@@ -206,14 +206,14 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
              * Меняет статус теста на "▶️️️" (in progress)
              */
             public void doOnCheckStarted(CheckEvent.CheckStartedEvent event, Markdown markdown) {
-                changeText(event, markdown, test -> "▶️️ " + test + " проверяется (<a href=\"/?chatId=%s\" target=\"_blank\">%1$s</a>)");
+                changeText(event, markdown, test -> "▶️️ " + test + " проверяется (<a href=\"/?chatId=%s\" target=\"_blank\">%1$s</a>)".formatted(event.getConversationId()));
             }
 
             /**
              * Меняет статус теста на "✅️" (completed)
              */
             public void doOnCheckFinished(CheckEvent.CheckFinishedEvent event, Markdown markdown) {
-                changeText(event, markdown, test -> "✅ " + test + " проверен (<a href=\"/?chatId=%s\" target=\"_blank\">%1$s</a>)");
+                changeText(event, markdown, test -> "✅ " + test + " проверен (<a href=\"/?chatId=%s\" target=\"_blank\">%1$s</a>)".formatted(event.getConversationId()));
             }
 
             void changeText(CheckEvent event, Markdown markdown, Function<TestTree.Test, String> stringifier) {

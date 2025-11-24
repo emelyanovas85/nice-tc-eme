@@ -39,7 +39,7 @@ public record OnGetValue<T>(String description, String conversationId) {
         }
 
         /**
-         * Добавляет в лог текста результата
+         * Добавляет в лог текст результата
          */
         public After(T result, Function<T, String> stringifier) {
             super(description + ": завершено", new Attachment.Text("результат", stringifier.apply(result)));

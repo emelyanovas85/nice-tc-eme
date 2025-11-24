@@ -31,19 +31,23 @@ public class MainChatTools {
         String chatId = ToolUtils.conversationId(toolContext);
 
         ToolEventPublisher publisher = publisherFactory.forConversation(chatId);
-
+        publisher.eventPublisher().beginTool(chatId);
+        try {
 //        String requirements = googleTools.getTestCaseRequirements("a");
-        return String.join("",
-                aggregatorChecker.checkTestCase(keyTestCase, publisher)
-                        .thenCompose(futures -> CompletableFuture
-                                .allOf(futures.toArray(new CompletableFuture[0]))
-                                .thenApply(v -> futures
-                                        .stream()
-                                        .map(future -> future.exceptionally(ex ->
-                                                "Не удалось проверить тест" + keyTestCase + "Ошибка: " + ex.getMessage()))
-                                        .map(CompletableFuture::join)
-                                        .collect(toList())))
-                        .join());
+            return String.join("",
+                    aggregatorChecker.checkTestCase(keyTestCase, publisher)
+                            .thenCompose(futures -> CompletableFuture
+                                    .allOf(futures.toArray(new CompletableFuture[0]))
+                                    .thenApply(v -> futures
+                                            .stream()
+                                            .map(future -> future.exceptionally(ex ->
+                                                    "Не удалось проверить тест" + keyTestCase + "Ошибка: " + ex.getMessage()))
+                                            .map(CompletableFuture::join)
+                                            .collect(toList())))
+                            .join());
+        } finally {
+            publisher.eventPublisher().endTool(chatId);
+        }
     }
 
 
