@@ -14,8 +14,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.stream.Collectors.toList;
@@ -41,7 +43,8 @@ public class TestCheckersAggregator {
      * Запускает проверку теста с учетом вложенных по ключу
      */
     public CompletableFuture<List<CompletableFuture<String>>> checkTestCase(String keyTestCase, ToolEventPublisher publisher) {
-        return collectNestedTests(keyTestCase, publisher)
+        Map<String, CompletableFuture<TestTree.Test>> cache = new ConcurrentHashMap<>();
+        return collectNestedTests(keyTestCase, publisher, cache)
                 .thenApply(testTree -> {
                     publisher.publish(conversationId -> new CheckEvent.AgentBuiltTestTreeEvent(conversationId, testTree));
                     return testTree.getDescendants();
@@ -54,8 +57,24 @@ public class TestCheckersAggregator {
 
     /**
      * Рекурсивно проходит по тестам и строит дерево тестов
+     * Использует кеш для предотвращения повторной загрузки одного и того же теста
      */
-    private CompletableFuture<TestTree.Test> collectNestedTests(String testId, ToolEventPublisher publisher) {
+    private CompletableFuture<TestTree.Test> collectNestedTests(String testId, ToolEventPublisher publisher, Map<String, CompletableFuture<TestTree.Test>> cache) {
+        // Проверяем кеш перед загрузкой
+        CompletableFuture<TestTree.Test> cachedFuture = cache.get(testId);
+        if (cachedFuture != null) {
+            return cachedFuture;
+        }
+
+        // Создаем новую задачу для загрузки теста и сразу добавляем в кеш,
+        // чтобы предотвратить повторные запросы, если тот же тест запрашивается параллельно
+        CompletableFuture<TestTree.Test> future = createFutureForTest(testId, publisher, cache);
+        cache.put(testId, future);
+        
+        return future;
+    }
+
+    private CompletableFuture<TestTree.Test> createFutureForTest(String testId, ToolEventPublisher publisher, Map<String, CompletableFuture<TestTree.Test>> cache) {
         publisher.publish(cId -> new ToolEvent("Получение тестов, вложенных в тест " + testId));
         return jiraService.getTest(testId, jiraFields)
                 .thenCompose(json -> {
@@ -75,7 +94,7 @@ public class TestCheckersAggregator {
                             .filter(Objects::nonNull)
                             .map(DTOTestWithNested.TestCaseDTO::id)
                             .map(String::valueOf)
-                            .map(id -> collectNestedTests(id, publisher).thenAccept(test::addTest))
+                            .map(id -> collectNestedTests(id, publisher, cache).thenAccept(test::addTest))
                             .toList();
 
                     return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
