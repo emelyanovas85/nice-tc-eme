@@ -228,8 +228,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 changeText(event, markdown, test -> "✅ " + test + " проверен (<a href=\"/?chatId=%s\" target=\"_blank\">%1$s</a>)".formatted(event.getConversationId()));
             }
 
-            private final Object mutex = new Object();
-
             void changeText(CheckEvent event, Markdown markdown, Function<TestTree.Test, String> stringifier) {
                 if (markdown == null) {
                     return;
@@ -245,13 +243,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                     Pattern.quote(oldText),
                     Matcher.quoteReplacement(newText)
                 );
-                synchronized (mutex) {
-                    getUI().ifPresent(ui -> {
-                        if (ui.isAttached()) {
-                            ui.access(() -> markdown.setContent(content));
-                        }
-                    });
-                }
+
+                // Обновляем UI синхронно, так как handleEvent уже вызывается в UI потоке
+                // через appendMarkdownAsync -> ui.access()
+                markdown.setContent(content);
+
+                // Обновляем testId$text для следующего обновления
+                testId$text.put(test.getId(), newText);
             }
 
         }
