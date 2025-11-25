@@ -49,17 +49,5 @@ public class MainChatTools {
             publisher.eventPublisher().endTool(chatId);
         }
     }
-
-
-    //    @Tool(name = "askAboutTestCase",
-//            description = "Задает дополнительный вопрос о тест-кейсе, который был проверен ранее. " +
-//                    "Вопрос передается в соответствующий чат-клиент, который имеет контекст проверки.")
-//    public String askAboutTestCase(
-//            @ToolParam(description = "Ключ или ID тест-кейса")
-//            String keyTestCase,
-//            @ToolParam(description = "Дополнительный вопрос о тест-кейсе")
-//            String question) {
-//
-//        return aggregatorChecker.askQuestionByKey(keyTestCase, question).join();
-//    }
+    
 }

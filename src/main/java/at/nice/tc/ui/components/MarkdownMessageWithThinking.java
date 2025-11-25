@@ -190,6 +190,8 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 setSpacing(false);
             }};
             Details details = new Details(a.getName(), content);
+            details.getStyle().set("margin-left", "2em");
+
             thinkingContent.add(details);
             value.appendContent(a.getContent());
         }
