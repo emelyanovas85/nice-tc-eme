@@ -32,7 +32,7 @@ public record ChatClientTestChecker(AiService aiService,
             } else if (memoryService.hasActiveStream(conversationId)) {
                 return FluxUtils.blockHotFlux( // дожидается ответа целиком
                         memoryService.subscribe(conversationId),
-                        Duration.ofMinutes(5)
+                        Duration.ofMinutes(25)
                 );
             }
         }

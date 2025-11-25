@@ -94,6 +94,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         return thinkingMessage;
     }
 
+    public boolean isThinkingMessageLatestElement() {
+        if (thinkingMessage == null)
+            return false; // нужно создавать
+        return thinkingContent.indexOf(thinkingMessage) == thinkingContent.getComponentCount() - 1;
+    }
+
     public void finish() {
         state.flush();
     }
@@ -104,7 +110,11 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
      * Выполняются в UI потоке (синхронно)
      */
     public void handleEvent(ChatEvent event) {
+        if (!isThinkingMessageLatestElement())
+            addNewThinkingMarkdown();
+
         if (event instanceof CheckEvent.AgentBuiltTestTreeEvent e) {
+            addNewThinkingMarkdown();
             getHandlers().check.doOnBuiltTestTree(e, thinkingMessage);
 
         } else if (event instanceof CheckEvent.CheckStartedEvent e) {
@@ -218,6 +228,8 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 changeText(event, markdown, test -> "✅ " + test + " проверен (<a href=\"/?chatId=%s\" target=\"_blank\">%1$s</a>)".formatted(event.getConversationId()));
             }
 
+            private final Object mutex = new Object();
+
             void changeText(CheckEvent event, Markdown markdown, Function<TestTree.Test, String> stringifier) {
                 if (markdown == null) {
                     return;
@@ -233,11 +245,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                     Pattern.quote(oldText),
                     Matcher.quoteReplacement(newText)
                 );
-                getUI().ifPresent(ui -> {
-                    if (ui.isAttached()) {
-                        ui.access(() -> markdown.setContent(content));
-                    }
-                });
+                synchronized (mutex) {
+                    getUI().ifPresent(ui -> {
+                        if (ui.isAttached()) {
+                            ui.access(() -> markdown.setContent(content));
+                        }
+                    });
+                }
             }
 
         }

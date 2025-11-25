@@ -3,13 +3,11 @@ package at.nice.tc.model;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.*;
 
 @Getter
 public class TestTree {
-    private final List<Test> children = new CopyOnWriteArrayList<>();
+    private final Set<Test> children = Collections.synchronizedSet(new LinkedHashSet<>());
 
     public void addTest(Test test) {
         children.add(test);
