@@ -17,10 +17,9 @@ public class TestTree {
 
     public List<Test> getDescendants() {
         return new ArrayList<>() {{
-            children.forEach(test -> {
+            if (TestTree.this instanceof Test test)
                 add(test);
-                addAll(test.getDescendants());
-            });
+            children.forEach(test -> addAll(test.getDescendants()));
         }};
     }
 

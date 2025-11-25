@@ -22,6 +22,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Getter
 public class MarkdownMessageWithThinking extends VerticalLayout {
@@ -227,7 +229,10 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 String newText = stringifier.apply(test);
                 testId$text.put(test.getId(), newText);
 
-                String content = markdown.getContent().replace(oldText, newText);
+                String content = markdown.getContent().replaceAll(
+                    Pattern.quote(oldText),
+                    Matcher.quoteReplacement(newText)
+                );
                 getUI().ifPresent(ui -> {
                     if (ui.isAttached()) {
                         ui.access(() -> markdown.setContent(content));
