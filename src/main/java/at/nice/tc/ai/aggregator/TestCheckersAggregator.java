@@ -10,7 +10,7 @@ import at.nice.tc.model.TestTree;
 import at.nice.tc.service.JiraService;
 import at.nice.tc.utils.ThrowableUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,17 +18,29 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.stream.Collectors.toList;
 
 @Component
-@RequiredArgsConstructor
 public class TestCheckersAggregator {
 
     private final ChatClientTestChecker chatClientTestChecker;
     private final JiraService jiraService;
     private final ObjectMapper objectMapper;
+    private final Executor testCheckExecutor;
+
+    public TestCheckersAggregator(ChatClientTestChecker chatClientTestChecker,
+                                  JiraService jiraService,
+                                  ObjectMapper objectMapper,
+                                  @Qualifier("testCheckExecutor") Executor testCheckExecutor) {
+        this.chatClientTestChecker = chatClientTestChecker;
+        this.jiraService = jiraService;
+        this.objectMapper = objectMapper;
+        this.testCheckExecutor = testCheckExecutor;
+    }
+
     private final List<String> jiraFields = List.of(
             "id",
             "key",
@@ -50,7 +62,7 @@ public class TestCheckersAggregator {
                     return testTree.getDescendants();
                 })
                 .thenApply(testsList -> testsList.stream()
-                        .map(test -> supplyAsync(() -> chatClientTestChecker.checkTestCase(test, publisher)))
+                        .map(test -> supplyAsync(() -> chatClientTestChecker.checkTestCase(test, publisher), testCheckExecutor))
                         .collect(toList())
                 );
     }
