@@ -2,6 +2,7 @@ package at.nice.tc.events.impl;
 
 
 import at.nice.tc.events.ToolEvent;
+import at.nice.tc.model.Attachment;
 import at.nice.tc.model.TestTree;
 import lombok.Getter;
 
@@ -13,8 +14,8 @@ public abstract class CheckEvent extends ToolEvent {
     private final String conversationId;
     private final TestTree test;
 
-    public CheckEvent(String conversationId, TestTree test) {
-        super(conversationId);
+    public CheckEvent(String conversationId, TestTree test, Attachment... attachments) {
+        super(conversationId, attachments);
         this.conversationId = conversationId;
         this.test = test;
     }

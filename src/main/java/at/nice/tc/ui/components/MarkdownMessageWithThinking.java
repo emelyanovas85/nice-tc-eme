@@ -3,18 +3,22 @@ package at.nice.tc.ui.components;
 import at.nice.tc.events.ChatEvent;
 import at.nice.tc.events.ToolEvent;
 import at.nice.tc.events.impl.CheckEvent;
+import at.nice.tc.model.Attachment;
 import at.nice.tc.model.TestTree;
 import at.nice.tc.service.AiToolCallService;
 import at.nice.tc.ui.components.state.InitialState;
 import at.nice.tc.ui.components.state.MainState;
 import at.nice.tc.ui.components.state.ProcessingState;
 import at.nice.tc.utils.JiraUtils;
+import at.nice.tc.utils.ThrowableUtils;
 import at.nice.tc.utils.UiUtils;
+import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 
 import java.time.LocalDateTime;
@@ -25,6 +29,7 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Slf4j
 @Getter
 public class MarkdownMessageWithThinking extends VerticalLayout {
 
@@ -42,6 +47,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         mainMessage = new MarkdownMessage(name, timestamp);
         add(mainMessage);
         state = new InitialState(this);
+    }
+
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+        if (thinkingDetails != null)
+            thinkingDetails.setOpened(!(state instanceof MainState));
     }
 
     public void setMarkdown(String fullText) {
@@ -162,27 +174,26 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                         if (thinkingDetails != null && !thinkingDetails.isOpened()) {
                             thinkingDetails.setOpened(true);
                         }
-                        
-                        // Находим индекс markdown компонента, чтобы добавить Details сразу после него
-                        // Всё внутри UI потока, так как работа с компонентами Vaadin должна быть в UI потоке
-                        int markdownIndex = thinkingContent.indexOf(markdown);
-                        int insertIndex = markdownIndex >= 0 ? markdownIndex + 1 : thinkingContent.getComponentCount();
-                        
-                        // Добавляем Details сразу после соответствующего markdown
+
                         for (var a : logEvent.getAttachments()) {
-                            Markdown value = new Markdown();
-                            VerticalLayout content = new VerticalLayout(value) {{
-                                setPadding(false);
-                                setSpacing(false);
-                            }};
-                            Details details = new Details(a.getName(), content);
-                            thinkingContent.addComponentAtIndex(insertIndex, details);
-                            insertIndex++; // Сдвигаем индекс для следующего аттачмента
-                            value.appendContent(a.getContent());
+                            appendAttachment(a);
                         }
                     });
                 }
             }
+        }
+
+
+        private void appendAttachment(Attachment a) {
+            // Добавляем Details сразу после соответствующего markdown
+            Markdown value = new Markdown();
+            VerticalLayout content = new VerticalLayout(value) {{
+                setPadding(false);
+                setSpacing(false);
+            }};
+            Details details = new Details(a.getName(), content);
+            thinkingContent.add(details);
+            value.appendContent(a.getContent());
         }
 
 
@@ -207,11 +218,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 test.getDescendants().forEach(t -> testId$text.put(t.getId(), "⏸️ " + t + " ожидает проверки"));
 
                 String tree = JiraUtils.toMarkdownTree(test, t -> testId$text.get(t.getId()));
-                getUI().ifPresent(ui -> {
-                    if (ui.isAttached()) {
-                        ui.access(() -> markdown.appendContent(tree));
-                    }
-                });
+                markdown.appendContent(tree);
             }
 
             /**
@@ -225,7 +232,11 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
              * Меняет статус теста на "✅️" (completed)
              */
             public void doOnCheckFinished(CheckEvent.CheckFinishedEvent event, Markdown markdown) {
-                changeText(event, markdown, test -> "✅ " + test + " проверен (<a href=\"/?chatId=%s\" target=\"_blank\">%1$s</a>)".formatted(event.getConversationId()));
+                Throwable t = event.getThrowable();
+                boolean isFailed = t != null;
+                changeText(event, markdown, test -> (isFailed ? "💀 " : "✅ ") + test + " проверен (<a href=\"/?chatId=%s\" target=\"_blank\">%1$s</a>)".formatted(event.getConversationId()));
+                if (isFailed)
+                    appendAttachment(new Attachment.Text("ошибка", ThrowableUtils.asString(t)));
             }
 
             void changeText(CheckEvent event, Markdown markdown, Function<TestTree.Test, String> stringifier) {
@@ -237,12 +248,8 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
                 String oldText = testId$text.get(test.getId());
                 String newText = stringifier.apply(test);
-                testId$text.put(test.getId(), newText);
 
-                String content = markdown.getContent().replaceAll(
-                    Pattern.quote(oldText),
-                    Matcher.quoteReplacement(newText)
-                );
+                String content = markdown.getContent().replace(oldText, newText);
 
                 // Обновляем UI синхронно, так как handleEvent уже вызывается в UI потоке
                 // через appendMarkdownAsync -> ui.access()
@@ -250,6 +257,8 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
                 // Обновляем testId$text для следующего обновления
                 testId$text.put(test.getId(), newText);
+
+//                MarkdownMessageWithThinking.log.warn("{}", testId$text);
             }
 
         }

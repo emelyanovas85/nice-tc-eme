@@ -82,7 +82,7 @@ public class TestCheckersAggregator {
                     TestTree.Test test = new TestTree.Test(dto.id(), dto.key(), dto.majorVersion());
 
                     publisher.publish(cId ->
-                            new ToolEvent("Получение тестов, вложенных в тест " + test + ", завершено",
+                            new ToolEvent("Получение тестов, вложенных в тест " + test.getId() + ", завершено",
                                     new Attachment.Text(test + ".json", json)
                             )
                     );

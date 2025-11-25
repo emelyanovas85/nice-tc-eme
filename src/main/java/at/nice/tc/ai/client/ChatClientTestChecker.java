@@ -23,8 +23,6 @@ public record ChatClientTestChecker(AiService aiService,
     public String checkTestCase(TestTree.Test test, ToolEventPublisher publisher) {
         final String conversationId = publisher.conversationId() + "_" + test.getId();
 
-        publisher.publish(new CheckEvent.CheckStartedEvent(conversationId, test));
-
         if (memoryService.hasInMemory(conversationId)) {
             List<Message> completedMessages = memoryService.getCompletedMessages(conversationId);
             if (completedMessages.size() > 1) {
@@ -46,6 +44,8 @@ public record ChatClientTestChecker(AiService aiService,
                 .thenApplyAsync(JiraUtils::parseTreeMapJson)
                 .thenApplyAsync(JiraUtils::sortSteps)
                 .join();
+
+        publisher.publish(new CheckEvent.CheckStartedEvent(conversationId, test));
 
         String markdownTest = JiraUtils.toMarkdown(testAsMap);
         String prompt = String.join("\n\n", Prompt.get(), markdownTest);

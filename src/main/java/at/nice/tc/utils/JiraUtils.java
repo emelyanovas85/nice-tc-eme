@@ -271,6 +271,7 @@ public abstract class JiraUtils {
                                             stepParameters.sort(Comparator.comparingInt(stepParamMap -> (int) stepParamMap.getOrDefault("index", -1)));
                                             var paramsJson = new LinkedHashMap<>();
                                             stepParameters.forEach(stepParamMap -> paramsJson.put(stepParamMap.get("name"), stepParamMap.get("value")));
+                                            paramsJson.remove(null); // параметры "значение по умолчанию" падают в null
                                             try {
                                                 return simplifyHtmlVariables(MAPPER.writeValueAsString(paramsJson));
                                             } catch (JsonProcessingException e) {
