@@ -2,6 +2,7 @@ package at.nice.tc.ai.tools;
 
 import at.nice.tc.ai.aggregator.TestCheckersAggregator;
 import at.nice.tc.events.ToolEventPublisher;
+import at.nice.tc.utils.ThrowableUtils;
 import at.nice.tc.utils.ToolUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.model.ToolContext;
@@ -9,9 +10,9 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
-import static java.util.stream.Collectors.toList;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Component
 @RequiredArgsConstructor
@@ -34,17 +35,20 @@ public class MainChatTools {
         publisher.eventPublisher().beginTool(chatId);
         try {
 //        String requirements = googleTools.getTestCaseRequirements("a");
-            return String.join("",
-                    aggregatorChecker.checkTestCase(keyTestCase, publisher)
-                            .thenCompose(futures -> CompletableFuture
-                                    .allOf(futures.toArray(new CompletableFuture[0]))
-                                    .thenApply(v -> futures
-                                            .stream()
-                                            .map(future -> future.exceptionally(ex ->
-                                                    "Не удалось проверить тест" + keyTestCase + "Ошибка: " + ex.getMessage()))
-                                            .map(CompletableFuture::join)
-                                            .collect(toList())))
-                            .join());
+            List<String> results = new CopyOnWriteArrayList<>();
+            aggregatorChecker.checkTestCase(keyTestCase, publisher)
+                    .thenApply(futures -> futures
+                            .stream()
+                            .map(future -> future
+                                    .exceptionally(ex -> "Не удалось проверить тест " + keyTestCase +
+                                            ". Ошибка: " + ThrowableUtils.asString(ex))
+                                    .thenAccept(results::add)
+                            )
+                            .toList()
+                    )
+                    .thenCompose(futures -> CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])))
+                    .join();
+            return String.join("", results);
         } finally {
             publisher.eventPublisher().endTool(chatId);
         }

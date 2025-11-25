@@ -127,6 +127,9 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             addNewThinkingMarkdown();
             getHandlers().check.doOnBuiltTestTree(e, thinkingMessage);
 
+        } else if (event instanceof CheckEvent.CheckPreparingEvent e) {
+            getHandlers().check.doOnCheckPreparing(e, thinkingMessage);
+
         } else if (event instanceof CheckEvent.CheckStartedEvent e) {
             getHandlers().check.doOnCheckStarted(e, thinkingMessage);
 
@@ -222,6 +225,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             }
 
             /**
+             * Меняет статус теста на "🔄" (preparing)
+             */
+            public void doOnCheckPreparing(CheckEvent.CheckPreparingEvent event, Markdown markdown) {
+                changeText(event, markdown, test -> "▶️️ " + test + " подготавливается к проверке: " + event.getDescription());
+            }
+
+            /**
              * Меняет статус теста на "▶️️️" (in progress)
              */
             public void doOnCheckStarted(CheckEvent.CheckStartedEvent event, Markdown markdown) {
@@ -229,7 +239,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             }
 
             /**
-             * Меняет статус теста на "✅️" (completed)
+             * Меняет статус теста на "✅️" (completed) или "💀" (failed)
              */
             public void doOnCheckFinished(CheckEvent.CheckFinishedEvent event, Markdown markdown) {
                 Throwable t = event.getThrowable();

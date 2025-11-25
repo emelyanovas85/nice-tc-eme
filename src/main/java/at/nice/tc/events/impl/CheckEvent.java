@@ -34,6 +34,21 @@ public abstract class CheckEvent extends ToolEvent {
 
 
     /**
+     * Идет подготовка к проверке теста (чтение из jira, парсинг)
+     */
+    @Getter
+    public static class CheckPreparingEvent extends CheckEvent {
+        private final String description;
+
+        public CheckPreparingEvent(String description, String conversationId, TestTree.Test test) {
+            super(conversationId, test);
+            this.description = description;
+        }
+
+    }
+
+
+    /**
      * Начата проверка теста агентами
      */
     @Getter
