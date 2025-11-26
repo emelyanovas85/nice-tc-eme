@@ -2,15 +2,15 @@ package at.nice.tc.ai.aggregator;
 
 import at.nice.tc.ai.client.ChatClientTestChecker;
 import at.nice.tc.ai.dto.jira.DTOTestWithNested;
+import at.nice.tc.events.ToolEvent;
 import at.nice.tc.events.ToolEventPublisher;
 import at.nice.tc.events.impl.CheckEvent;
-import at.nice.tc.events.ToolEvent;
 import at.nice.tc.model.Attachment;
 import at.nice.tc.model.TestTree;
 import at.nice.tc.service.JiraService;
 import at.nice.tc.utils.ThrowableUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Qualifier;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,28 +18,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 
-import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.stream.Collectors.toList;
 
 @Component
+@RequiredArgsConstructor
 public class TestCheckersAggregator {
 
     private final ChatClientTestChecker chatClientTestChecker;
     private final JiraService jiraService;
     private final ObjectMapper objectMapper;
-    private final Executor testCheckExecutor;
-
-    public TestCheckersAggregator(ChatClientTestChecker chatClientTestChecker,
-                                  JiraService jiraService,
-                                  ObjectMapper objectMapper,
-                                  @Qualifier("testCheckExecutor") Executor testCheckExecutor) {
-        this.chatClientTestChecker = chatClientTestChecker;
-        this.jiraService = jiraService;
-        this.objectMapper = objectMapper;
-        this.testCheckExecutor = testCheckExecutor;
-    }
 
     private final List<String> jiraFields = List.of(
             "id",
@@ -62,7 +50,7 @@ public class TestCheckersAggregator {
                     return testTree.getDescendants();
                 })
                 .thenApply(testsList -> testsList.stream()
-                        .map(test -> supplyAsync(() -> chatClientTestChecker.checkTestCase(test, publisher), testCheckExecutor))
+                        .map(test -> chatClientTestChecker.checkTestCase(test, publisher))
                         .collect(toList())
                 );
     }

@@ -9,11 +9,13 @@ import at.nice.tc.service.MemoryService;
 import at.nice.tc.utils.JiraUtils;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 @Component
 public record ChatClientTestChecker(AiService aiService,
@@ -27,13 +29,9 @@ public record ChatClientTestChecker(AiService aiService,
             List<Message> completedMessages = memoryService.getCompletedMessages(conversationId);
             if (completedMessages.size() > 1) {
                 return CompletableFuture.completedFuture(completedMessages.get(1).getText());
-            } else if (memoryService.hasActiveStream(conversationId)) {
-                // Преобразуем Flux в CompletableFuture
-                return memoryService.subscribe(conversationId)
-                        .reduce(new StringBuilder(), StringBuilder::append)
-                        .map(StringBuilder::toString)
-                        .toFuture()
-                        .orTimeout(10, TimeUnit.MINUTES);
+
+            } else if (memoryService.hasActiveStream(conversationId)) { // сообщение уже отправлено, просто подписываемся на ответ
+                return sendMessage(() -> memoryService.subscribe(conversationId), test, publisher);
             }
         }
 
@@ -42,27 +40,39 @@ public record ChatClientTestChecker(AiService aiService,
 
         CompletableFuture<Map<String, Object>> testAsMapFuture = jiraService
                 .getTest(String.valueOf(test.getId()))
-                .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
+                .handle(
+                        JiraUtils::simplifyHtmlVariables,
+                        t -> publisher.publish(new CheckEvent.CheckFinishedEvent(conversationId, test, t))
+                )
                 .thenApplyAsync(JiraUtils::parseTreeMapJson)
                 .thenApplyAsync(JiraUtils::sortSteps);
 
-        publisher.publish(new CheckEvent.CheckPreparingEvent("чтение теста...", conversationId, test));
+        publisher.publish(new CheckEvent.CheckPreparingEvent("чтение теста (1/2)...", conversationId, test));
 
         return testAsMapFuture.thenCompose(testAsMap -> {
-            publisher.publish(new CheckEvent.CheckPreparingEvent("парсинг теста...", conversationId, test));
+            publisher.publish(new CheckEvent.CheckPreparingEvent("парсинг теста (2/2)...", conversationId, test));
 
             String markdownTest = JiraUtils.toMarkdown(testAsMap);
             String prompt = String.join("\n\n", Prompt.get(), markdownTest);
 
-            publisher.publish(new CheckEvent.CheckStartedEvent(conversationId, test));
-
-            return aiService.sendAgentMessageStream(prompt, conversationId)
-                    .doOnError(e -> publisher.publish(new CheckEvent.CheckFinishedEvent(conversationId, test, e)))
-                    .doOnComplete(() -> publisher.publish(new CheckEvent.CheckFinishedEvent(conversationId, test, null)))
-                    .reduce(new StringBuilder(), StringBuilder::append)
-                    .map(StringBuilder::toString)
-                    .toFuture()
-                    .orTimeout(10, TimeUnit.MINUTES);
+            return sendMessage(() -> aiService.sendAgentMessageStream(prompt, conversationId), test, publisher);
         });
+    }
+
+
+    private CompletableFuture<String> sendMessage(Supplier<Flux<String>> messageStream, TestTree.Test test, ToolEventPublisher publisher) {
+        if (messageStream == null)
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Не передан поток сообщений при отправке теста " + test));
+
+        final String conversationId = publisher.conversationId() + "_" + test.getId();
+        publisher.publish(new CheckEvent.CheckStartedEvent(conversationId, test));
+
+        return messageStream.get()
+                .doOnError(e -> publisher.publish(new CheckEvent.CheckFinishedEvent(conversationId, test, e)))
+                .doOnComplete(() -> publisher.publish(new CheckEvent.CheckFinishedEvent(conversationId, test, null)))
+                .reduce(new StringBuilder(), StringBuilder::append)
+                .map(StringBuilder::toString)
+                .toFuture()
+                .orTimeout(10, TimeUnit.MINUTES);
     }
 }

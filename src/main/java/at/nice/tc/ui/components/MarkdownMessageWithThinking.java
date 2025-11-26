@@ -228,7 +228,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
              * Меняет статус теста на "🔄" (preparing)
              */
             public void doOnCheckPreparing(CheckEvent.CheckPreparingEvent event, Markdown markdown) {
-                changeText(event, markdown, test -> "▶️️ " + test + " подготавливается к проверке: " + event.getDescription());
+                changeText(event, markdown, test -> "🔄️️ " + test + " подготавливается к проверке: " + event.getDescription());
             }
 
             /**
@@ -259,14 +259,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 String oldText = testId$text.get(test.getId());
                 String newText = stringifier.apply(test);
 
+                testId$text.put(test.getId(), newText);
+
                 String content = markdown.getContent().replace(oldText, newText);
 
                 // Обновляем UI синхронно, так как handleEvent уже вызывается в UI потоке
                 // через appendMarkdownAsync -> ui.access()
                 markdown.setContent(content);
-
-                // Обновляем testId$text для следующего обновления
-                testId$text.put(test.getId(), newText);
 
 //                MarkdownMessageWithThinking.log.warn("{}", testId$text);
             }
