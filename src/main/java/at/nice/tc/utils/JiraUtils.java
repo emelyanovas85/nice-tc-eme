@@ -19,19 +19,23 @@ public abstract class JiraUtils {
     public static final ObjectMapper MAPPER = new ObjectMapper();
 
 
+    /**
+     * Бегло проверяет, что передан не HTML
+     */
+    public static Optional<CompletableFuture<String>> optionalNotHTML(String response) {
+        if (response == null || response.startsWith("<!DOCTYPE html>") || response.startsWith("<html ")) { // вернулся HTML вместо json
+            return Optional.empty();
+        }
+        return Optional.of(CompletableFuture.completedFuture(response));
+    }
+
+
     private static final Pattern SPANS_PATTERN = Pattern.compile("</?span[^>]*>");
     private static final Pattern SPACE_AFTER_PATTERN = Pattern.compile("[\\s\u00A0\u2060]+(\"[,}])");
     private static final Pattern FORMATTING_TAGS_PATTERN = Pattern.compile("</?(em|strong)>");
     private static final Pattern MULTIPLE_SPACES_PATTERN = Pattern.compile("[\\s\u00A0]{2,}");
     private static final Pattern UNPRINTABLE_CHARS_PATTERN = Pattern.compile("\u2060");
 
-
-    public static Optional<CompletableFuture<String>> optionalJson(String response) {
-        if (response.startsWith("<!DOCTYPE html>") || response.startsWith("<html ")) { // вернулся
-            return Optional.empty();
-        }
-        return Optional.of(CompletableFuture.completedFuture(response));
-    }
 
 
     /**

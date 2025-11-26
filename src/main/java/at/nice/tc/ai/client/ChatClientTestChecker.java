@@ -42,9 +42,9 @@ public record ChatClientTestChecker(AiService aiService,
         publisher.publish(new CheckEvent.CheckPreparingEvent("чтение теста (1/2)...", conversationId, test));
 
         final String testId = String.valueOf(test.getId());
-        CompletableFuture<Map<String, Object>> testAsMapFuture = jiraService.getTest(testId)
-                .thenCompose(resp1 -> JiraUtils.optionalJson(resp1).orElseGet(() -> jiraService.getTest(testId)
-                        .thenCompose(resp2 -> JiraUtils.optionalJson(resp2).orElseThrow(() ->
+        CompletableFuture<Map<String, Object>> testAsMapFuture = jiraService.getTest(testId) // попытка 1
+                .thenCompose(resp1 -> JiraUtils.optionalNotHTML(resp1).orElseGet(() -> jiraService.getTest(testId) // попытка 2
+                        .thenCompose(resp2 -> JiraUtils.optionalNotHTML(resp2).orElseThrow(() ->
                                 new RuntimeException("С двух попыток не удалось получить из jira данные теста %s = %s. Вместо json возвращается HTML".formatted(test, testId))))
                 ))
                 .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
