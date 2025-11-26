@@ -7,6 +7,7 @@ import at.nice.tc.service.AiService;
 import at.nice.tc.service.JiraService;
 import at.nice.tc.service.MemoryService;
 import at.nice.tc.utils.JiraUtils;
+import at.nice.tc.utils.ThrowableUtils;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -38,16 +39,21 @@ public record ChatClientTestChecker(AiService aiService,
         // Если нет результатов и нет генерации — сбрасываем память и запускаем проверку теста заново
         memoryService.clearMessages(conversationId);
 
-        CompletableFuture<Map<String, Object>> testAsMapFuture = jiraService
-                .getTest(String.valueOf(test.getId()))
-                .handle(
-                        JiraUtils::simplifyHtmlVariables,
-                        t -> publisher.publish(new CheckEvent.CheckFinishedEvent(conversationId, test, t))
-                )
-                .thenApplyAsync(JiraUtils::parseTreeMapJson)
-                .thenApplyAsync(JiraUtils::sortSteps);
-
         publisher.publish(new CheckEvent.CheckPreparingEvent("чтение теста (1/2)...", conversationId, test));
+
+        final String testId = String.valueOf(test.getId());
+        CompletableFuture<Map<String, Object>> testAsMapFuture = jiraService.getTest(testId)
+                .thenCompose(resp1 -> JiraUtils.optionalJson(resp1).orElseGet(() -> jiraService.getTest(testId)
+                        .thenCompose(resp2 -> JiraUtils.optionalJson(resp2).orElseThrow(() ->
+                                new RuntimeException("С двух попыток не удалось получить из jira данные теста %s = %s. Вместо json возвращается HTML".formatted(test, testId))))
+                ))
+                .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
+                .thenApplyAsync(JiraUtils::parseTreeMapJson)
+                .thenApplyAsync(JiraUtils::sortSteps)
+                .exceptionally(t -> {
+                    publisher.publish(new CheckEvent.CheckFinishedEvent(conversationId, test, t));
+                    return ThrowableUtils.reThrow(t);
+                });
 
         return testAsMapFuture.thenCompose(testAsMap -> {
             publisher.publish(new CheckEvent.CheckPreparingEvent("парсинг теста (2/2)...", conversationId, test));

@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -23,6 +24,14 @@ public abstract class JiraUtils {
     private static final Pattern FORMATTING_TAGS_PATTERN = Pattern.compile("</?(em|strong)>");
     private static final Pattern MULTIPLE_SPACES_PATTERN = Pattern.compile("[\\s\u00A0]{2,}");
     private static final Pattern UNPRINTABLE_CHARS_PATTERN = Pattern.compile("\u2060");
+
+
+    public static Optional<CompletableFuture<String>> optionalJson(String response) {
+        if (response.startsWith("<!DOCTYPE html>") || response.startsWith("<html ")) { // вернулся
+            return Optional.empty();
+        }
+        return Optional.of(CompletableFuture.completedFuture(response));
+    }
 
 
     /**
