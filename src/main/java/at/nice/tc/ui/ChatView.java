@@ -10,6 +10,7 @@ import at.nice.tc.ui.components.SmartScroller;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
@@ -106,13 +107,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         getContent().add(toggleButton);
 
-//        String test = jiraService.getTestWithNestedMarkdown("VPEPVV-T2706").join();
-////        test = jiraService.getTestWithNested("VPEPVV-T2706").join();
-//        test = jiraService.getTestWithNestedMarkdown("VPEPVV-T800").join();
-//        test = jiraService.getTestWithNestedMarkdown("CK7DITR007-T55").join();
-//        test = jiraService.getTestWithNestedMarkdown("CK3DITP442-T1547").join();
-//        test = testjiraService.getTestWithNested("VPEPVV-T2706").join();
-
         messageList = new VerticalLayout();
 
         scroll = new SmartScroller(messageList);
@@ -194,9 +188,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
         String userText = inputLayout.getArea().getValue().trim();
-        if (userText.isEmpty()) {
-            return;
-        }
+        if (userText.isEmpty()) return;
 
         scroll.setStickDown(true);
         inputLayout.showStopButton();
@@ -224,6 +216,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
         aiService.sendMainMessageStream(prompt.toString(), config.getChatId()); // Токены будут push-иться в MemoryService
+
         // Подписка на ответ ассистента
         subscribeToChatStream();
     }
@@ -241,27 +234,16 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
 
-
-//    private EventService.Registration eventServiceRegistration;
-
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        // Подписка на ответ ассистента
         subscribeToChatStream();
-        // Подписка на события для текущего chatId
-//        eventServiceRegistration = eventService.subscribe(config.getChatId(), this::handleBroadcastEvent);
     }
+
 
     @Override
     protected void onDetach(DetachEvent detachEvent) {
-        if (subscription != null && !subscription.isDisposed()) {
-            subscription.dispose();
-        }
-//        if (eventServiceRegistration != null) {
-//            eventServiceRegistration.unsubscribe();
-//            eventServiceRegistration = null;
-//        }
+        if (subscription != null && !subscription.isDisposed()) subscription.dispose();
         super.onDetach(detachEvent);
     }
 
@@ -294,5 +276,4 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                         })
                 );
     }
-
 }

@@ -393,9 +393,9 @@ public abstract class JiraUtils {
     }
 
 
-    public static String toMarkdownTree(TestTree tree, Function<TestTree.Test, String> stringifier) {
-        return tree.getDescendants().stream()
-                .map(test -> " ".repeat(test.getDepth() * 2) + "- " + stringifier.apply(test))
-                .collect(Collectors.joining("\n"));
-    }
+//    public static String toMarkdownTree(TestTree tree, Function<TestTree.Test, String> stringifier) {
+//        return tree.getDescendants().stream()
+//                .map(test -> " ".repeat(test.getDepth() * 2) + "- " + stringifier.apply(test))
+//                .collect(Collectors.joining("\n"));
+//    }
 }

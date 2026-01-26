@@ -36,7 +36,7 @@ public class MainChatTools {
         try {
 //        String requirements = googleTools.getTestCaseRequirements("a");
             List<String> results = new CopyOnWriteArrayList<>();
-            aggregatorChecker.checkTestCase(keyTestCase, publisher)
+            aggregatorChecker.startChecks(keyTestCase, publisher)
                     .thenApply(futures -> futures
                             .stream()
                             .map(future -> future
@@ -53,5 +53,4 @@ public class MainChatTools {
             publisher.eventPublisher().endTool(chatId);
         }
     }
-    
 }
