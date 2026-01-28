@@ -1,6 +1,7 @@
 package at.nice.tc.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.util.Map;
  * множественных подписок и сохранения истории разговоров.
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AiService {
     private final ChatClient mainChatClient;
@@ -59,6 +61,7 @@ public class AiService {
      */
     public Flux<String> sendMessageStream(ChatClient chatClient, String message, String conversationId) {
         // Получаем или создаем Sink для данного conversationId
+        log.debug("String conversationId '{}'", conversationId);
         memoryService.getOrCreateSink(conversationId);
 
         // Запускаем генерацию ответа AI и пушим все токены в Sink

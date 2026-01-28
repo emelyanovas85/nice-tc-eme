@@ -3,10 +3,11 @@ package at.nice.tc.ui.components;
 import at.nice.tc.ai.client.Prompt;
 import at.nice.tc.model.TestTree;
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.HtmlContainer;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.ListItem;
+import com.vaadin.flow.component.html.OrderedList;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.html.UnorderedList;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import lombok.extern.slf4j.Slf4j;
@@ -30,19 +31,19 @@ public class TestTreeView extends VerticalLayout {
     }
 
     private Component buildTestTree(TestTree root) {
-        UnorderedList ul = new UnorderedList();
+        HtmlContainer ul = new OrderedList();
         ul.addClassNames("test-tree");
         buildTreeRecursive(root, ul);
 //        root.getDescendants().stream().map(this::buildLeafNode).forEach(ul::add);
         return ul;
     }
 
-    private void buildTreeRecursive(TestTree node, UnorderedList parentUl) {
+    private void buildTreeRecursive(TestTree node, HtmlContainer parentUl) {
         ListItem item = (ListItem) buildLeafNode((TestTree.Test) node);
         parentUl.add(item);
 
         if (node.hasChildren()) {
-            UnorderedList childrenUl = new UnorderedList();
+            HtmlContainer childrenUl = new OrderedList();
             childrenUl.addClassNames("children-list");
             item.add(childrenUl);
             node.getChildren().forEach(child ->
@@ -84,10 +85,10 @@ public class TestTreeView extends VerticalLayout {
         int promptCount = Prompt.all().size();
         if (promptCount == 0) return;
 
-        UnorderedList promptsUl = new UnorderedList();
+        HtmlContainer promptsUl = new OrderedList();
         promptsUl.addClassNames("prompts-list");
 
-        IntStream.rangeClosed(1, promptCount).forEach(promptIndex -> {
+        IntStream.range(0, promptCount).forEach(promptIndex -> {
             ListItem promptLi = new ListItem();
             promptLi.addClassNames("prompt-item");
 
@@ -96,10 +97,7 @@ public class TestTreeView extends VerticalLayout {
             Span promptStatus = new Span("⏸️ " + t + "_" + promptIndex);
             promptStatus.addClassNames("prompt-status", "status-pending");
 
-            log.info("TestTreeView: создали ключ '{}' для теста {}", promptKey, t);
-            log.debug("  t.getId()='{}', promptIndex={}", t.getId(), promptIndex);
-
-            // Храним ссылку для обновления статуса промпта ({id теста}_{индекс промпта})
+            log.info("TestTreeView: создали ключ '{}' для теста {}  t.getId()='{}', promptIndex={}", promptKey, t, t.getId(), promptIndex);
             promptStatusMap.put(promptKey, promptStatus);
 
             promptLi.add(promptStatus);

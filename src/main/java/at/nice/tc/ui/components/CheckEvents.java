@@ -11,8 +11,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Set;
-
 import static java.util.Objects.isNull;
 
 @Slf4j
@@ -41,30 +39,6 @@ public class CheckEvents {
         return section;
     }
 
-    /**
-     * Обновляет статус теста на "🔄" (preparing) в UI-дереве
-     */
-    public void doOnCheckPreparing(CheckEvent.CheckPreparingEvent event) {
-        if (isNull(currentTestTreeView)) {
-            log.error("doOnCheckPreparing: currentTestTreeView == null!");
-            throw new RuntimeException("нет построенного дерева тестов");
-        }
-
-        TestTree.Test test = event.getTest();
-        String key = test.getId() + "_" + (event.getPromptIndex() + 1);
-        log.debug("doOnCheckPreparing: test={}, promptIndex={}, key='{}'", test, event.getPromptIndex(), key);
-
-        UiUtils.doInUI(currentTestTreeView, () -> {
-            Span span = currentTestTreeView.promptStatusMap.get(key);
-            if (span == null) {
-                log.error("doOnCheckPreparing: span не найден для ключа '{}'. Доступные ключи: {}",
-                        key, currentTestTreeView.promptStatusMap.keySet());
-                throw new RuntimeException("span по ключу '%s' не найден".formatted(key));
-            }
-            log.debug("doOnCheckPreparing: обновляем span для ключа '{}'", key);
-            span.setText("🔄 %s подготавливается: %s".formatted(test, event.getDescription()));
-        });
-    }
 
     /**
      * Обновляет статус на "▶️" (in progress) с ссылкой на чат
@@ -138,18 +112,5 @@ public class CheckEvents {
         String result = firstUnderscore >= 0 ? fullKey.substring(firstUnderscore + 1) : fullKey;
         log.debug("getAfterFirstUnderscore('{}') → '{}'", fullKey, result);
         return result;
-    }
-
-
-    private String findMatchingKey(String key1, String key2, Set<String> availableKeys) {
-        if (availableKeys.contains(key1)) return key1;
-        if (availableKeys.contains(key2)) return key2;
-
-        // Fallback: ищем любой ключ, содержащий номер промпта
-        String promptNum = key1.substring(key1.lastIndexOf('_') + 1);
-        return availableKeys.stream()
-                .filter(k -> k.endsWith("_" + promptNum))
-                .findFirst()
-                .orElse(key1);
     }
 }
