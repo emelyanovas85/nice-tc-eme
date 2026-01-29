@@ -24,7 +24,7 @@
    КОРНЕВЫЕ ЭЛЕМЕНТЫ СПИСКА (ПЕРВЫЙ УРОВЕНЬ)
    ======================================== */
 .test-tree > li {
-    padding: 8px 12px;             /* Увеличенные отступы для Lumo стиля */
+    padding: 8px 0px;             /* Увеличенные отступы для Lumo стиля */
     border-bottom: 1px solid #2a2a2a; /* Темная разделительная линия */
     position: relative;
     background: #242424;           /* Lumo Dark карточка */
@@ -91,9 +91,10 @@
    НАЗВАНИЕ ТЕСТА
    ======================================== */
 .test-name {
+    font-size: 1.2em;
     font-weight: 500;
     color: #b0c6ff;                /* Lumo Dark primary blue */
-    margin-right: 12px;
+    margin-right: 6px;
     flex-grow: 1;
 }
 
@@ -118,10 +119,11 @@
     padding-left: 36px;
     margin-top: 6px;
     font-size: 0.85em;
+    width: 95%;
     overflow: hidden;
     transition: max-height 0.2s cubic-bezier(0.4, 0.2, 0.2, 1);
     background: rgba(51, 72, 90, 0.3); /* Lumo overlay */
-    border-radius: 4px;
+    border-radius: 15px;
 }
 
 .prompts-list.expanded {
@@ -131,17 +133,55 @@
 /* ========================================
    ЭЛЕМЕНТЫ ПРОМПТОВ
    ======================================== */
-.prompt-item {
-    padding: 4px 0;
-    list-style: none;
+   .prompt-item {
+    padding: 0px 0;                /* Увеличенные отступы */
+    position: relative;
+    border-radius: 15px;
+    transition: all 0.2s cubic-bezier(0.4, 0.2, 0.2, 1);
+    margin-bottom: 4px;
 }
 
 .prompt-item::before {
-    /*content: "• ";*/
-    color: #60a5fa;                /* Lumo blue bullet */
-    margin-right: 8px;
-    font-weight: 500;
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+    border-radius: 50%;
+    margin-right: 12px;
+    margin-left: -2px;
+    opacity: 0.7;
+    flex-shrink: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0.2, 0.2, 1);
 }
+
+.prompt-item:hover {
+    background: rgba(96, 165, 250, 0.1);  /* Синий glass hover */
+    padding-left: 8px;
+    transform: translateX(4px);
+    box-shadow: 0 4px 16px rgba(96, 165, 250, 0.2);
+    border-radius: 15px;
+}
+
+.prompt-item:hover::before {
+    opacity: 1;
+    transform: scale(1.2);
+    box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+}
+
+/* Активный/выбранный промпт */
+.prompt-item.active {
+    background: rgba(96, 165, 250, 0.15);
+    border-left: 3px solid #60a5fa;
+    border-radius: 20px;
+    box-shadow: 0 2px 12px rgba(96, 165, 250, 0.3);
+}
+
+.prompt-item.active::before {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    transform: scale(1.1);
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.8);
+}
+
 
 /* ========================================
    БЕЙДЖИ ПРОМПТОВ (.qwe)
@@ -183,21 +223,38 @@
     100% { transform: scale(1); opacity: 1; }
 }
 
+
 /* ========================================
-   ЛЕЙБЛЫ ВРЕМЕНИ (TIMESTAMP)
+   ЭЛЕМЕНТЫ ПРОМПТОВ - LUMO DARK с ::marker
    ======================================== */
-.timestamp-label {
+   li::marker {
+    font-weight: 500;
+    color: #b0c6ff;               /* Синий Lumo цвет */
+    font-weight: 600;             /* Полужирный */
+}
+
+
+/* ========================================
+   ЛЕЙБЛЫ ВРЕМЕНИ (TIMESTAMP) - ОДИНАКОВАЯ ВЫСОТА
+   ======================================== */
+   .timestamp-label {
     font-family: 'Roboto Mono', 'Cascadia Code', monospace;
     font-size: 0.8em;
-    color: #a0a0a0;                /* Lumo tertiary */
-    background: rgba(42, 42, 42, 0.8); /* Lumo dark glass */
+    color: #a0a0a0;
+    background: rgba(42, 42, 42, 0.8);
     backdrop-filter: blur(12px);
-    padding: 4px 10px;
-    border-radius: 4px;
-    border-left: 3px solid #60a5fa; /* Lumo blue accent */
+    padding: 8px 16px;             /* ← Одинаковые отступы как у h3 */
+    height: 42px;                  /* ← Фиксированная высота */
+    line-height: 26px;             /* ← Центрирование текста */
+    margin: 0 0 8px 0;             /* ← Единообразный отступ */
+    border-radius: 6px;
+    border-left: 4px solid #60a5fa;
     white-space: nowrap;
     box-shadow: 0 2px 12px rgba(0,0,0,0.4);
     transition: all 0.15s cubic-bezier(0.4, 0.2, 0.2, 1);
+    display: flex;
+    align-items: center;           /* ← Вертикальное центрирование */
+    box-sizing: border-box;
 }
 
 .timestamp-label:hover {
@@ -208,43 +265,45 @@
     border-left-color: #3b82f6;
 }
 
+
 /* ========================================
-   ЗАГОЛОВОК H3 ДЛЯ ДЕРЕВА ТЕСТОВ - LUMO DARK
+   VAADIN HORIZONTAL LAYOUT - ОТСТУП СВЕРХУ (ПРИМЕР)
    ======================================== */
-   h3.tree-title {
+   vaadin-horizontal-layout {
+    padding-top: 20px !important;  /* Отступ сверху 20px для всех vaadin-horizontal-layout */
+}
+
+/* ========================================
+   ЗАГОЛОВОК H3 ДЛЯ ДЕРЕВА ТЕСТОВ - НА ВСЮ ШИРИНУ
+   ======================================== */
+h3.tree-title {
     font-family: 'Roboto Mono', 'Cascadia Code', monospace;
     font-size: 1.1em;
     font-weight: 600;
-    color: #b0c6ff;                /* Lumo blue primary */
-    background: rgba(42, 42, 42, 0.8); /* Тот же glass как у timestamp */
+    color: #b0c6ff;
+    background: rgba(42, 42, 42, 0.8);
     backdrop-filter: blur(12px);
-    padding: 8px 16px;             /* Больше отступов чем у лейбла */
+    padding: 8px 16px;
+    height: 42px;                  /* ← Такая же высота */
+    line-height: 26px;             /* ← Центрирование текста */
     margin: 0 0 16px 0;
+    width: 100%;                   /* ← На всю ширину */
     border-radius: 6px;
-    border-left: 4px solid #60a5fa; /* Толще синяя полоска */
+    border-left: 4px solid #60a5fa;
     white-space: nowrap;
     box-shadow: 0 2px 12px rgba(0,0,0,0.4);
     transition: all 0.2s cubic-bezier(0.4, 0.2, 0.2, 1);
     position: relative;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
 }
 
-h3.tree-title::after {
-    content: '';
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 20px;
-    background: linear-gradient(135deg, #60a5fa, #3b82f6);
-    border-radius: 2px;
-    opacity: 0.7;
-}
 
 h3.tree-title:hover {
     color: #e0e0e0;
     background: rgba(51, 72, 90, 0.9);
-    transform: translateX(4px);    /* Больше сдвиг */
+    transform: translateX(4px);
     box-shadow: 0 4px 20px rgba(96, 165, 250, 0.3);
     border-left-color: #3b82f6;
 }
