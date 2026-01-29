@@ -1,0 +1,274 @@
+/* ========================================
+   ГЛОБАЛЬНЫЕ ПРАВИЛА ДЕРЕВА ТЕСТОВ - LUMO DARK
+   ======================================== */
+/* Основной контейнер дерева тестов - сбрасывает стандартные отступы и маркеры списка */
+.test-tree {
+    padding: 0;
+    margin: 0;
+    background: #1e1e1e;           /* Lumo Dark основной фон */
+    color: #e0e0e0;                /* Lumo Dark базовый текст */
+
+    /* Расширенные Lumo Dark стили */
+    width: 100%;                   /* Полная ширина контейнера */
+    max-width: 1200px;             /* Максимальная ширина для больших экранов */
+    min-width: 400px;              /* Минимальная ширина для читаемости */
+    margin: 0 auto;                /* Центрирование по горизонтали */
+    border-radius: 8px;            /* Lumo скругления контейнера */
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4); /* Глубокая Lumo тень */
+    border: 1px solid rgba(255,255,255,0.05); /* Lumo тонкая граница */
+    overflow: hidden;              /* Скрывает выступающие элементы */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; /* Lumo системные шрифты */
+}
+
+/* ========================================
+   КОРНЕВЫЕ ЭЛЕМЕНТЫ СПИСКА (ПЕРВЫЙ УРОВЕНЬ)
+   ======================================== */
+.test-tree > li {
+    padding: 8px 12px;             /* Увеличенные отступы для Lumo стиля */
+    border-bottom: 1px solid #2a2a2a; /* Темная разделительная линия */
+    position: relative;
+    background: #242424;           /* Lumo Dark карточка */
+}
+
+/* ========================================
+   ЭФФЕКТ НАВЕДЕНИЯ НА ЭЛЕМЕНТЫ ДЕРЕВА
+   ======================================== */
+   /*
+.test-tree li:hover {
+    /*background: #33485a;*/           /* Lumo Dark hover (синий акцент) */
+    /*border-radius: 4px;*/            /* Lumo минималистичные скругления */
+    /*margin: 0 -12px;*/
+    /*padding-left: 12px;*/
+    /*box-shadow: 0 2px 8px rgba(0,0,0,0.3);*/ /* Lumo тень */
+/*}*/
+
+/* ========================================
+   ВЛОЖЕННЫЕ СПИСКИ (ДЕТИ/ПОТОМКИ)
+   ======================================== */
+.test-tree .children {
+    padding-left: 28px;            /* Lumo увеличенный отступ */
+    border-left: 2px solid #1e1e1e; /* Lumo темная линия-связка */
+    margin-left: 8px;
+    background: #1f1f1f;           /* Чуть темнее для глубины */
+}
+
+/* Стилизация дочерних элементов li */
+.test-tree .children li {
+    border-bottom: none;
+    padding: 6px 0;
+    background: transparent;
+}
+
+/* ========================================
+   ИНТЕРАКТИВНАЯ СТРОКА ТЕСТА
+   ======================================== */
+.test-row {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s cubic-bezier(0.4, 0.2, 0.2, 1); /* Lumo easing */
+    border-radius: 4px;
+}
+
+
+/* ========================================
+   ИКОНКИ ДЕРЕВА (▶/▼)
+   ======================================== */
+.tree-icon {
+    margin-right: 12px;
+    font-size: 1.1em;
+    opacity: 0.7;                  /* Lumo приглушенность */
+    flex-shrink: 0;
+    color: #a0a0a0;                /* Lumo secondary */
+}
+
+.tree-icon:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    color: #60a5fa;                /* Lumo blue accent */
+}
+
+/* ========================================
+   НАЗВАНИЕ ТЕСТА
+   ======================================== */
+.test-name {
+    font-weight: 500;
+    color: #b0c6ff;                /* Lumo Dark primary blue */
+    margin-right: 12px;
+    flex-grow: 1;
+}
+
+/* ========================================
+   БЕЙДЖИ СО СТАТУСАМИ ТЕСТОВ
+   ======================================== */
+.test-status {
+    padding: 4px 12px;
+    border-radius: 12px;           /* Lumo pill shape */
+    font-size: 0.8em;
+    font-weight: 500;              /* Lumo font-weight */
+    min-width: 100px;              /* Lumo compact */
+    text-align: center;
+    transition: all 0.15s cubic-bezier(0.4, 0.2, 0.2, 1);
+    backdrop-filter: blur(10px);   /* Lumo glass effect */
+}
+
+/* ========================================
+   СПИСОК ПРОМПТОВ (СКРЫТЫЙ/РАСКРЫТЫЙ)
+   ======================================== */
+.prompts-list {
+    padding-left: 36px;
+    margin-top: 6px;
+    font-size: 0.85em;
+    overflow: hidden;
+    transition: max-height 0.2s cubic-bezier(0.4, 0.2, 0.2, 1);
+    background: rgba(51, 72, 90, 0.3); /* Lumo overlay */
+    border-radius: 4px;
+}
+
+.prompts-list.expanded {
+    max-height: 200px;
+}
+
+/* ========================================
+   ЭЛЕМЕНТЫ ПРОМПТОВ
+   ======================================== */
+.prompt-item {
+    padding: 4px 0;
+    list-style: none;
+}
+
+.prompt-item::before {
+    /*content: "• ";*/
+    color: #60a5fa;                /* Lumo blue bullet */
+    margin-right: 8px;
+    font-weight: 500;
+}
+
+/* ========================================
+   БЕЙДЖИ ПРОМПТОВ (.qwe)
+   ======================================== */
+.qwe {
+    background: rgba(96, 165, 250, 0.2); /* Lumo blue glass */
+    color: #60a5fa;
+    /*border: 1px solid rgba(96, 165, 250, 0.4);*/
+    animation: lumo-pulse 1.5s infinite;
+}
+
+@keyframes lumo-pulse {
+    0% { opacity: 1; box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.4); }
+    70% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(96, 165, 250, 0); }
+    100% { opacity: 1; box-shadow: 0 0 0 0 rgba(96, 165, 250, 0); }
+}
+
+/* ========================================
+   КОНКРЕТНЫЕ СТАТУСЫ ТЕСТОВ
+   ======================================== */
+.status-pending {
+    background: rgba(255, 193, 7, 0.15);  /* Lumo yellow glass */
+    color: #ffd43b;
+    /*border: 1px solid rgba(255, 193, 7, 0.3);*/
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+}
+
+.status-done {
+    background: rgba(40, 167, 69, 0.15);  /* Lumo green glass */
+    color: #4ade80;
+    /*border: 1px solid rgba(40, 167, 69, 0.4);*/
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+    animation: lumo-success 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+@keyframes lumo-success {
+    0% { transform: scale(0.95); opacity: 0; }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ========================================
+   ЛЕЙБЛЫ ВРЕМЕНИ (TIMESTAMP)
+   ======================================== */
+.timestamp-label {
+    font-family: 'Roboto Mono', 'Cascadia Code', monospace;
+    font-size: 0.8em;
+    color: #a0a0a0;                /* Lumo tertiary */
+    background: rgba(42, 42, 42, 0.8); /* Lumo dark glass */
+    backdrop-filter: blur(12px);
+    padding: 4px 10px;
+    border-radius: 4px;
+    border-left: 3px solid #60a5fa; /* Lumo blue accent */
+    white-space: nowrap;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    transition: all 0.15s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.timestamp-label:hover {
+    color: #e0e0e0;
+    background: rgba(51, 72, 90, 0.8);
+    transform: translateX(2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    border-left-color: #3b82f6;
+}
+
+/* ========================================
+   ЗАГОЛОВОК H3 ДЛЯ ДЕРЕВА ТЕСТОВ - LUMO DARK
+   ======================================== */
+   h3.tree-title {
+    font-family: 'Roboto Mono', 'Cascadia Code', monospace;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #b0c6ff;                /* Lumo blue primary */
+    background: rgba(42, 42, 42, 0.8); /* Тот же glass как у timestamp */
+    backdrop-filter: blur(12px);
+    padding: 8px 16px;             /* Больше отступов чем у лейбла */
+    margin: 0 0 16px 0;
+    border-radius: 6px;
+    border-left: 4px solid #60a5fa; /* Толще синяя полоска */
+    white-space: nowrap;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    transition: all 0.2s cubic-bezier(0.4, 0.2, 0.2, 1);
+    position: relative;
+}
+
+h3.tree-title::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+    border-radius: 2px;
+    opacity: 0.7;
+}
+
+h3.tree-title:hover {
+    color: #e0e0e0;
+    background: rgba(51, 72, 90, 0.9);
+    transform: translateX(4px);    /* Больше сдвиг */
+    box-shadow: 0 4px 20px rgba(96, 165, 250, 0.3);
+    border-left-color: #3b82f6;
+}
+
+h3.tree-title:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
+}
+
+
+/* ========================================
+   LUMO DARK ТЕМА (АКТИВНА ПО УМОЛЧАНИЮ)
+   ======================================== */
+@media (prefers-color-scheme: light) {
+    /* Автоматическая смена на light при системной светлой теме */
+    .test-tree {
+        background: #f8f9fa;
+        color: #1a1a1a;
+    }
+    .test-tree > li {
+        background: white;
+        border-bottom-color: #e9ecef;
+    }
+    .test-tree li:hover {
+        background: #e3f2fd;
+    }
+}
