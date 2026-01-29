@@ -40,7 +40,7 @@ public record ChatClientTestChecker(AiService aiService,
         return checkAllStages(test, publisher, conversationIds)
                 .thenCompose(cachedResult -> {
                     if (cachedResult != null) {
-                        log.info("✅ Найден результат в кэше для {}", test.getId());
+                        log.debug("✅ Найден результат в кэше для {}", test.getId());
                         return CompletableFuture.completedFuture(cachedResult);
                     }
 
@@ -81,7 +81,7 @@ public record ChatClientTestChecker(AiService aiService,
         // Первая попытка
         CompletableFuture<String> firstAttempt = jiraService.getTest(testId)
                 .thenApply(resp -> {
-                    log.info("Jira 1 для {}: длина={}", testId, resp != null ? resp.length() : 0);
+                    log.debug("Jira 1 для {}: длина={}", testId, resp != null ? resp.length() : 0);
                     return extractHtml(resp);
                 });
 
@@ -91,7 +91,7 @@ public record ChatClientTestChecker(AiService aiService,
                         CompletableFuture.completedFuture(firstResult) :
                         jiraService.getTest(testId)
                                 .thenApply(resp -> {
-                                    log.info("Jira 2 для {}: длина={}", testId, resp != null ? resp.length() : 0);
+                                    log.debug("Jira 2 для {}: длина={}", testId, resp != null ? resp.length() : 0);
                                     String result = extractHtml(resp);
                                     return result != null ? result : "";
                                 })

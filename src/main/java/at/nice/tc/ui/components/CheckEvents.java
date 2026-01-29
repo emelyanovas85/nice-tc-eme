@@ -4,6 +4,7 @@ import at.nice.tc.events.impl.CheckEvent;
 import at.nice.tc.model.TestTree;
 import at.nice.tc.utils.UiUtils;
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import static java.util.Objects.isNull;
 
 @Slf4j
+@CssImport(value = "./components/test-tree-styles.css")
 public class CheckEvents {
     private TestTreeView currentTestTreeView;
 
@@ -23,10 +25,11 @@ public class CheckEvents {
     public Component doOnBuiltTestTree(CheckEvent.AgentBuiltTestTreeEvent event) {
         TestTree test = event.getTest();
 
-        log.info("doOnBuiltTestTree: создаём дерево для теста {}", test);
+        log.debug("doOnBuiltTestTree: создаём дерево для теста {}", test);
 
         TimestampLabel timestampLabel = TimestampLabel.create();
         H3 h3 = new H3("Построено дерево тестов для проверки:");
+        h3.addClassName("tree-title");
         HorizontalLayout header = new HorizontalLayout(timestampLabel, h3);
 
         VerticalLayout section = new VerticalLayout();
@@ -34,7 +37,7 @@ public class CheckEvents {
         section.add(header, new TestTreeView(test));
 
         currentTestTreeView = (TestTreeView) section.getComponentAt(1);
-        log.info("doOnBuiltTestTree: currentTestTreeView установлен, promptStatusMap.size()={}",
+        log.debug("doOnBuiltTestTree: currentTestTreeView установлен, promptStatusMap.size()={}",
                 currentTestTreeView.promptStatusMap.size());
         return section;
     }
@@ -63,6 +66,9 @@ public class CheckEvents {
                         key, currentTestTreeView.promptStatusMap.keySet());
                 throw new RuntimeException("span по ключу '%s' не найден".formatted(key));
             }
+
+            span.setClassName("qwe");
+
             log.debug("doOnPromptStarted: обновляем span для ключа '{}' → ▶️", key);
             span.getElement().setProperty("innerHTML",
                     "▶️ %s проверяется (промпт %d: <a href=\"/?chatId=%s\" target=\"_blank\">%3$s</a>)"
@@ -83,10 +89,8 @@ public class CheckEvents {
         String conversationId = event.getConversationId();
         String key = getAfterFirstUnderscore(conversationId.replace("_prompt", ""));
 
-        log.info("doOnCheckFinished: test={}, conversationId='{}', вычисленный key='{}'",
-                test, conversationId, key);
-        log.debug("doOnCheckFinished: test.getId()='{}', все ключи в map (размер={}): {}",
-                test.getId(), currentTestTreeView.promptStatusMap.size(),
+        log.debug("doOnCheckFinished: test={}, conversationId='{}', вычисленный key='{}' test.getId()='{}', все ключи в map (размер={}): {}",
+                test, conversationId, key, test.getId(), currentTestTreeView.promptStatusMap.size(),
                 currentTestTreeView.promptStatusMap.keySet());
 
         UiUtils.doInUI(currentTestTreeView, () -> {
@@ -102,7 +106,9 @@ public class CheckEvents {
             String status = (isFailed ? "💀 " : "✅ ") + test + " проверен (<a href=\"/?chatId=%1$s\" target=\"_blank\">%1$s</a>)"
                     .formatted(conversationId);
 
-            log.info("doOnCheckFinished: обновляем span для ключа '{}' → {}", key, isFailed ? "💀" : "✅");
+            span.setClassName("status-done");
+
+            log.debug("doOnCheckFinished: обновляем span для ключа '{}' → {}", key, isFailed ? "💀" : "✅");
             span.getElement().setProperty("innerHTML", status);
         });
     }

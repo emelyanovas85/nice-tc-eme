@@ -33,6 +33,10 @@ public class ChatInputComponent extends HorizontalLayout {
 
         sendButton.setWidth("8em");
         stopButton.setWidth("8em");
+
+
+        sendButton.addClassName("send-button");
+        stopButton.addClassName("stop-button");
     }
 
     private void configureInput() {
@@ -40,6 +44,7 @@ public class ChatInputComponent extends HorizontalLayout {
         area.setValueChangeMode(ValueChangeMode.EAGER); // Реагировать сразу на изменения
         area.addFocusListener(e -> area.setPlaceholder(""));
         area.addBlurListener(e -> area.setPlaceholder("Напишите ваше сообщение здесь..."));
+        area.addClassName("lumo-textarea");
     }
 
     private void addComponents() {

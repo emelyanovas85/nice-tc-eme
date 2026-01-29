@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 
 @Slf4j
-@CssImport("./styles/test-tree-styles.css")
+@CssImport(value = "./components/test-tree-styles.css")
 public class TestTreeView extends VerticalLayout {
     final Map<Integer, ListItem> testIdToItem = new ConcurrentHashMap<>();
     final Map<String, Span> promptStatusMap = new ConcurrentHashMap<>();
@@ -31,10 +31,9 @@ public class TestTreeView extends VerticalLayout {
     }
 
     private Component buildTestTree(TestTree root) {
-        HtmlContainer ul = new OrderedList();
+        OrderedList ul = new OrderedList();
         ul.addClassNames("test-tree");
         buildTreeRecursive(root, ul);
-//        root.getDescendants().stream().map(this::buildLeafNode).forEach(ul::add);
         return ul;
     }
 
@@ -97,7 +96,7 @@ public class TestTreeView extends VerticalLayout {
             Span promptStatus = new Span("⏸️ " + t + "_" + promptIndex);
             promptStatus.addClassNames("prompt-status", "status-pending");
 
-            log.info("TestTreeView: создали ключ '{}' для теста {}  t.getId()='{}', promptIndex={}", promptKey, t, t.getId(), promptIndex);
+            log.debug("TestTreeView: создали ключ '{}' для теста {}  t.getId()='{}', promptIndex={}", promptKey, t, t.getId(), promptIndex);
             promptStatusMap.put(promptKey, promptStatus);
 
             promptLi.add(promptStatus);
