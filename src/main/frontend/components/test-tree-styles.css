@@ -1,7 +1,7 @@
 /* ========================================
    ГЛОБАЛЬНЫЕ ПРАВИЛА ДЕРЕВА ТЕСТОВ - LUMO DARK
    ======================================== */
-.test-tree {
+   .test-tree {
     padding: 0;
     margin: 0;
     background: #1e1e1e;
@@ -140,12 +140,12 @@
 }
 
 .qwe {
-    animation: lumo-pulse 1.5s infinite; /* Пульсация без плавания */
+    animation: lumo-pulse 1.5s infinite;
 }
 
-/* ========================================
-   КОНКРЕТНЫЕ СТАТУСЫ ТЕСТОВ (БЕЗ !IMPORTANT)
-   ======================================== */
+/* ==========================
+   КОНКРЕТНЫЕ СТАТУСЫ ТЕСТОВ
+   ==========================*/
 .status-done, .status-pending, .status-failed, .status-progress {
     padding: 4px 8px;
     border-radius: 12px;
@@ -162,7 +162,6 @@
     overflow: hidden;
 }
 
-/* ЦВЕТА ПО КЛАССАМ */
 .status-done {
     background: rgba(40, 167, 69, 0.15);
     color: #4ade80;
@@ -200,11 +199,8 @@
     color: #60a5fa;
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
     border-color: rgba(59, 130, 246, 0.3);
-    /* ✅ УБИРАЕМ проблемную анимацию */
-    /* animation: lumo-progress 2s infinite; */
 }
 
-/* HOVER */
 .status-done:hover {
     background: rgba(40, 167, 69, 0.25) !important;
     box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
@@ -231,7 +227,7 @@
     background: rgba(59, 130, 246, 0.25) !important;
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
     border-color: rgba(59, 130, 246, 0.5);
-    transform: translateY(-1px); /* ✅ Только вертикальный подъем */
+    transform: translateY(-1px);
 }
 
 
