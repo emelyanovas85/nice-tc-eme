@@ -44,8 +44,8 @@ public class CheckEvents {
 
 
     /**
-     * Обновляет статус на "▶️" (in progress) с ссылкой на чат
-     */
+           * Обновляет статус на "▶️" (in progress) с ссылкой на чат
+ */
     public void doOnPromptStarted(CheckEvent.CheckPromptStartedEvent event) {
         if (isNull(currentTestTreeView)) {
             log.error("doOnPromptStarted: currentTestTreeView == null!");
@@ -67,12 +67,14 @@ public class CheckEvents {
                 throw new RuntimeException("span по ключу '%s' не найден".formatted(key));
             }
 
-            span.setClassName("qwe");
+            // ✅ ИСПРАВЛЕНО: setText + setClassName
+            span.setClassName("status-progress qwe");  // progress + пульсация
+
+            String statusText = String.format("▶️ %s проверяется промпт %d: <a href=\"/?chatId=%s\" target=\"_blank\">%s</a>",
+                    test, promptIndex, event.getConversationId(), event.getConversationId());
+            span.getElement().setProperty("innerHTML", statusText); // HTML остается для ссылок
 
             log.debug("doOnPromptStarted: обновляем span для ключа '{}' → ▶️", key);
-            span.getElement().setProperty("innerHTML",
-                    "▶️ %s проверяется (промпт %d: <a href=\"/?chatId=%s\" target=\"_blank\">%3$s</a>)"
-                            .formatted(test, promptIndex, event.getConversationId()));
         });
     }
 
@@ -89,27 +91,29 @@ public class CheckEvents {
         String conversationId = event.getConversationId();
         String key = getAfterFirstUnderscore(conversationId.replace("_prompt", ""));
 
-        log.debug("doOnCheckFinished: test={}, conversationId='{}', вычисленный key='{}' test.getId()='{}', все ключи в map (размер={}): {}",
-                test, conversationId, key, test.getId(), currentTestTreeView.promptStatusMap.size(),
-                currentTestTreeView.promptStatusMap.keySet());
+        log.debug("doOnCheckFinished: test={}, conversationId='{}', вычисленный key='{}'",
+                test, conversationId, key);
 
         UiUtils.doInUI(currentTestTreeView, () -> {
             Span span = currentTestTreeView.promptStatusMap.get(key);
             if (span == null) {
                 log.error("doOnCheckFinished: span НЕ НАЙДЕН для ключа '{}'. Доступные ключи: {}",
                         key, currentTestTreeView.promptStatusMap.keySet());
-                return; // Не бросать exception, чтобы не ломать другие промпты
+                return;
             }
 
             Throwable t = event.getThrowable();
-            boolean isFailed = t != null;
-            String status = (isFailed ? "💀 " : "✅ ") + test + " проверен (<a href=\"/?chatId=%1$s\" target=\"_blank\">%1$s</a>)"
-                    .formatted(conversationId);
+            String statusClass = t != null ? "status-failed" : "status-done";
+            String emoji = t != null ? "💀" : "✅";
 
-            span.setClassName("status-done");
+            String status = String.format("%s %s проверен <a href=\"/?chatId=%s\" target=\"_blank\">%s</a>",
+                    emoji, test, conversationId, conversationId);
 
-            log.debug("doOnCheckFinished: обновляем span для ключа '{}' → {}", key, isFailed ? "💀" : "✅");
-            span.getElement().setProperty("innerHTML", status);
+            // ✅ ИСПРАВЛЕНО: правильный порядок + классы
+            span.setClassName(statusClass);  // Сначала очищаем и ставим статус-класс
+            span.getElement().setProperty("innerHTML", status); // Потом HTML
+
+            log.debug("doOnCheckFinished: обновляем span для ключа '{}' → {}", key, emoji);
         });
     }
 
