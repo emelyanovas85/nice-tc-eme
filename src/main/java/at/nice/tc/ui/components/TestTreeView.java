@@ -1,6 +1,6 @@
 package at.nice.tc.ui.components;
 
-import at.nice.tc.ai.client.Prompt;
+import at.nice.tc.ai.client.Prompts;
 import at.nice.tc.model.TestTree;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.HtmlContainer;
@@ -81,7 +81,7 @@ public class TestTreeView extends VerticalLayout {
     }
 
     private void addPromptsList(ListItem li, TestTree.Test t) {
-        int promptCount = Prompt.all().size();
+        int promptCount = Prompts.REQUIREMENTS.size();
         if (promptCount == 0) return;
 
         HtmlContainer promptsUl = new OrderedList();

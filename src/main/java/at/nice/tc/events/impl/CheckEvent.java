@@ -67,21 +67,6 @@ public abstract class CheckEvent extends ToolEvent {
     }
 
 
-//    /**
-//     * Начата проверка теста агентами
-//     */
-//    @Getter
-//    public static class CheckStartedEvent extends CheckEvent {
-//        private final TestTree.Test test;
-//
-//        public CheckStartedEvent(String conversationId, TestTree.Test test) {
-//            super(conversationId, test);
-//            this.test = test;
-//        }
-//
-//    }
-
-
     /**
      * Закончена проверка теста агентами
      */

@@ -1,6 +1,6 @@
 package at.nice.tc.ui;
 
-import at.nice.tc.events.ChatEvent;
+import at.nice.tc.ai.client.Prompts;
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.AiToolCallService;
 import at.nice.tc.service.MemoryService;
@@ -10,7 +10,6 @@ import at.nice.tc.ui.components.SmartScroller;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
@@ -22,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
 
@@ -215,6 +213,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (!config.getScope().isBlank())
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
+        prompt.append("\n\n").append(Prompts.aggregatorPrompt);
         aiService.sendMainMessageStream(prompt.toString(), config.getChatId()); // Токены будут push-иться в MemoryService
 
         // Подписка на ответ ассистента

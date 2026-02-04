@@ -31,9 +31,7 @@ public record ChatClientTestChecker(AiService aiService,
                                     JiraService jiraService,
                                     MemoryService memoryService) {
 
-    private static final String PROMPT_TEMPLATE = "%s\n\n%s";
-
-    public CompletableFuture<String> checkTestCase(TestTree.Test test, ToolEventPublisher publisher) {
+    public CompletableFuture<String> checkTestCase(TestTree.Test test, ToolEventPublisher publisher, boolean isMainTest) {
         log.debug("🚀 START checkTestCase: testId={}, name={}", test.getId(), test);
         List<String> conversationIds = generateConversationIds(test, publisher);
 
@@ -48,7 +46,7 @@ public record ChatClientTestChecker(AiService aiService,
                     conversationIds.forEach(memoryService::clearMessages);
 
                     return getTestAsFuture(test, publisher)
-                            .thenCompose(testData -> runAllPromptsParallel(conversationIds, testData, test, publisher));
+                            .thenCompose(testData -> runAllPromptsParallel(conversationIds, testData, test, isMainTest, publisher));
                 })
                 .exceptionally(t -> {
                     log.error("💥 checkTestCase полностью упал для {}: {}", test.getId(), t.getMessage(), t);
@@ -181,15 +179,22 @@ public record ChatClientTestChecker(AiService aiService,
     private CompletableFuture<String> runAllPromptsParallel(List<String> conversationIds,
                                                             Map<String, Object> testData,
                                                             TestTree.Test test,
+                                                            boolean isMainTest,
                                                             ToolEventPublisher publisher) {
-        List<String> prompts = Prompt.all();
+        List<String> prompts = Prompts.REQUIREMENTS;
         List<CompletableFuture<String>> futures = new ArrayList<>(prompts.size());
 
         for (int i = 0; i < prompts.size(); i++) {
             String convId = conversationIds.get(i);
             publisher.publish(new CheckEvent.CheckPromptStartedEvent(convId, test, i));
 
-            String fullPrompt = String.format(PROMPT_TEMPLATE, prompts.get(i), toMarkdown(testData));
+            String fullPrompt = String.format("%s\n\n### **%s**\n\n%s\n\n%s",
+                    prompts.get(i),
+                    isMainTest ? "Верхнеуровневый (основной) тест-кейс:" : "Представленный ниже тест-кейс является вложенным, а не верхнеуровневым (основным):",
+                    toMarkdown(testData),
+                    "Текст заключенный в знаки '<!--' и  '-->' является комментарием и не учитывается");
+
+
             int finalI = i;
 
             futures.add(sendMessage(
@@ -221,7 +226,7 @@ public record ChatClientTestChecker(AiService aiService,
 
 
     private List<String> generateConversationIds(TestTree.Test test, ToolEventPublisher publisher) {
-        return IntStream.range(0, Prompt.all().size())
+        return IntStream.range(0, Prompts.REQUIREMENTS.size())
                 .mapToObj(i -> publisher.conversationId() + "_" + test.getId() + "_" + i + "_prompt")
                 .toList();
     }

@@ -14,6 +14,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static at.nice.tc.ui.MessageDelimiters.THINK_CLOSE;
+import static at.nice.tc.ui.MessageDelimiters.THINK_OPEN;
+
+
 @Component
 @RequiredArgsConstructor
 public class MainChatTools {
@@ -22,11 +26,10 @@ public class MainChatTools {
     private final ToolEventPublisher.Factory publisherFactory;
 
     @Tool(name = "checkTestCaseByRequirements",
-            description = "Проверяет тест-кейс по требованиям. " +
-                    "Получает требования из Google Docs и запускает проверку для основного и всех вложенных тест-кейсов. " +
-                    "Возвращает результаты проверки по тест-кейсу и вложенным в него тест-кейсам.")
+            description = "Получение необходимых для данных в формате json c результатами проверки верхнеуровнего" +
+                    " (основного) тест-кейса и вложенных в него тест-кейсов. Необходим для выполнения ")
     public String checkTestCaseByRequirements(
-            @ToolParam(description = "Ключ или ID основного тест-кейса для проверки")
+            @ToolParam(description = "Ключ или ID верхнеуровнего (основного) тест-кейса для проверки")
             String keyTestCase,
             ToolContext toolContext) {
         String chatId = ToolUtils.conversationId(toolContext);
@@ -34,7 +37,6 @@ public class MainChatTools {
         ToolEventPublisher publisher = publisherFactory.forConversation(chatId);
         publisher.eventPublisher().beginTool(chatId);
         try {
-//        String requirements = googleTools.getTestCaseRequirements("a");
             List<String> results = new CopyOnWriteArrayList<>();
             aggregatorChecker.startChecks(keyTestCase, publisher)
                     .thenApply(futures -> futures
@@ -48,7 +50,12 @@ public class MainChatTools {
                     )
                     .thenCompose(futures -> CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])))
                     .join();
-            return String.join("", results);
+
+            String allWithoutThinking = String.join("", results)
+                    .replaceAll("(?s)" + THINK_OPEN.getPlaceholder() + ".*?" + THINK_CLOSE.getPlaceholder(), "");
+
+            return allWithoutThinking.trim();
+
         } finally {
             publisher.eventPublisher().endTool(chatId);
         }

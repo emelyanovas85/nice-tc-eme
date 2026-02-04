@@ -34,9 +34,7 @@ public class TestCheckersAggregator {
             "key",
             "majorVersion",
             "testScript.steps.index",
-            "testScript.steps.testCase.id"//,
-//            "testScript.steps.testCase.key",
-//            "testScript.steps.testCase.majorVersion"
+            "testScript.steps.testCase.id"
     );
 
     /**
@@ -51,7 +49,7 @@ public class TestCheckersAggregator {
                     return test.getDescendants();
                 })
                 .thenApply(testsList -> testsList.stream()
-                        .map(test -> chatClientTestChecker.checkTestCase(test, publisher))
+                        .map(test -> chatClientTestChecker.checkTestCase(test, publisher, test.getKey().equals(keyTestCase)))
                         .collect(toList())
                 );
     }
