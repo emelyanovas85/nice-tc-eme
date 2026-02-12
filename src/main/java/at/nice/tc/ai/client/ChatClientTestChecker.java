@@ -154,7 +154,7 @@ public record ChatClientTestChecker(AiService aiService,
 
         return flux
                 .doOnSubscribe(s -> log.debug("▶️ Подписка: {}", conversationId))
-                .doOnNext(chunk -> log.debug("📥 Chunk: {} (длина={})", conversationId, chunk.length()))
+                .doOnNext(chunk -> log.debug("📥 Chunk: {} {} (длина={})", chunk, conversationId, chunk.length()))
                 .doOnError(e -> {
                     log.error("💥 Flux error для {}: {}", conversationId, e.getMessage());
                     publisher.publish(new CheckEvent.CheckFinishedEvent(conversationId, test, e));

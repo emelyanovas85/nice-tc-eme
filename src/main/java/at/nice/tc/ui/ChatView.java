@@ -201,7 +201,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         long timestamp = System.currentTimeMillis();
         // Добавляем timestamp в Set, чтобы не добавить это сообщение снова при получении события
         addedMessageTimestamps.add(timestamp);
-//        eventPublisher.publishEvent(new UserMessageEvent(config.getChatId(), userText, config.getUserFio(), timestamp));
 
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
         actualBotMessage.getMainMessage().setUserColorIndex(5);
@@ -247,6 +246,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
 
+/*
     private void subscribeToChatStream() {
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
@@ -274,5 +274,53 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                             stop();
                         })
                 );
+    }
+*/
+
+    private void subscribeToChatStream() {
+        if (subscription != null && !subscription.isDisposed()) {
+            subscription.dispose();
+        }
+        if (getUI().isEmpty()) {
+            return;
+        }
+        final UI ui = getUI().get();
+
+        subscription = memoryService.subscribe(config.getChatId())
+                .subscribe(
+                        token -> ui.access(() -> {
+                            MarkdownMessageWithThinking botMsg = findActiveBotMessage();
+                            if (botMsg != null) {
+                                botMsg.appendMarkdownAsync(token);
+                                scroll.scrollToBottom();
+                            } else {
+                                log.warn("Нет активного bot сообщения для chatId: {}", config.getChatId());
+                            }
+                        }),
+                        err -> ui.access(() -> {
+                            MarkdownMessageWithThinking botMsg = findActiveBotMessage();
+                            if (botMsg != null) {
+                                botMsg.appendMarkdownAsync("\n\n**Ошибка:** " + err.getMessage());
+                                stop();
+                            } else {
+                                log.error("Ошибка 429/другая, но нет bot сообщения: {}", err.getMessage());
+                                stop();
+                            }
+                        }),
+                        () -> ui.access(() -> {
+                            MarkdownMessageWithThinking botMsg = findActiveBotMessage();
+                            if (botMsg != null) {
+                                botMsg.finish();
+                                stop();
+                            }
+                        })
+                );
+    }
+
+    private MarkdownMessageWithThinking findActiveBotMessage() {
+        return (MarkdownMessageWithThinking) messageList.getChildren()
+                .filter(c -> c instanceof MarkdownMessageWithThinking)
+                .reduce((first, second) -> second)
+                .orElse(null);
     }
 }

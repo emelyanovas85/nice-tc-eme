@@ -84,6 +84,9 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Для лимитирования частоты отправки запросов к LLM
+    implementation 'com.google.guava:guava:33.5.0-jre'
 }
 
 tasks.named('test') {
