@@ -90,7 +90,7 @@ public class AiService {
      * Не дает выполнить действие (запрос к LLM), если с момента последнего обращения к нему (к RateLimiter)
      * за разрешением не прошло установленно время (время выражено в скорости 0,45 обращений в секунду)
      */
-    private static final RateLimiter START_LIMITER = RateLimiter.create(0.30);
+    private static final RateLimiter START_LIMITER = RateLimiter.create(0.55);
 
     /// каждые 2.2 секунды делаем обращение
     @SneakyThrows
