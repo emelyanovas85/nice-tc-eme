@@ -21,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
 
 import java.time.LocalDateTime;
@@ -141,18 +140,18 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         // Добавление сообщений из истории снизу вверх
         final List<Message> completedMessages = memoryService.getCompletedMessages(chatId);
         Collections.reverse(completedMessages); // отрисовывать снизу вверх
-        
+
         // Вычисляем время для каждого сообщения на основе его позиции
         // Предполагаем, что сообщения идут последовательно с интервалом ~2 секунды
         final LocalDateTime now = LocalDateTime.now();
         final int messageCount = completedMessages.size();
-        
+
         for (int i = 0; i < completedMessages.size(); i++) {
             Message m = completedMessages.get(i);
             // Время вычисляется от текущего момента назад, предполагая интервал ~2 секунды между сообщениями
             // Самое старое сообщение будет иметь время (messageCount - i) * 2 секунд назад
             LocalDateTime messageTime = now.minusSeconds((long) (messageCount - i) * 2);
-            
+
             switch (m.getMessageType()) {
                 case ASSISTANT -> restorer.createCompletedAssistantMessage(m.getText(), messageTime);
                 case USER -> restorer.createUserMessage(m.getText(), messageTime);
@@ -167,14 +166,19 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
             botMessage.setMarkdown(text);
-            botMessage.getMainMessage().setUserColorIndex(5);
+//            botMessage.getMainMessage().setUserColorIndex(5);
+            botMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
             messageList.addComponentAtIndex(0, botMessage);
         }
 
 
         public void createUserMessage(String text, LocalDateTime timestamp) {
-            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), timestamp);
-            userMessage.setUserColorIndex(3);
+//            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), timestamp);
+//            userMessage.setUserColorIndex(3);
+//            messageList.addComponentAtIndex(0, userMessage);
+            MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), timestamp, aiToolCallService);
+            userMessage.setMarkdown(text);
+            userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
             messageList.addComponentAtIndex(0, userMessage);
         }
     }
@@ -193,8 +197,12 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         inputLayout.getArea().clear();
 
         LocalDateTime now = LocalDateTime.now();
-        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), now);
-        userMessage.setUserColorIndex(3);
+//        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), now);
+//        userMessage.setUserColorIndex(3);
+//        messageList.add(userMessage);
+        MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), now, aiToolCallService);
+        userMessage.setMarkdown(userText);
+        userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
         messageList.add(userMessage);
 
         // Публикуем событие о новом сообщении пользователя для синхронизации между вкладками
@@ -203,7 +211,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         addedMessageTimestamps.add(timestamp);
 
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
-        actualBotMessage.getMainMessage().setUserColorIndex(5);
+//        actualBotMessage.getMainMessage().setUserColorIndex(5);
+        actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
         messageList.add(actualBotMessage);
 
         StringBuilder prompt = new StringBuilder();
@@ -285,6 +294,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             return;
         }
         final UI ui = getUI().get();
+
+//        actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
 
         subscription = memoryService.subscribe(config.getChatId())
                 .subscribe(
