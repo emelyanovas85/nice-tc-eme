@@ -11,6 +11,7 @@ import at.nice.tc.ui.components.state.ProcessingState;
 import at.nice.tc.utils.UiUtils;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -19,14 +20,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.stream.Stream;
 
 @Slf4j
 @Getter
+@CssImport(value = "./components/test-tree-styles.css")
 public class MarkdownMessageWithThinking extends VerticalLayout {
 
     private Details thinkingDetails;
@@ -37,12 +36,35 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private ProcessingState state;
     private final EventHandlers handlers = new EventHandlers();
     private final AiToolCallService aiToolCallService;
+    private final String authorName;
+    private final LocalDateTime timestamp;
 
     public MarkdownMessageWithThinking(String name, LocalDateTime timestamp, AiToolCallService aiToolCallService) {
         this.aiToolCallService = aiToolCallService;
+        this.authorName = name;
+        this.timestamp = timestamp;
+
+        addClassNames("chat-message", "assistant-message");
+
         mainMessage = new MarkdownMessage(name, timestamp);
         add(mainMessage);
         state = new InitialState(this);
+    }
+
+    /**
+     * Устанавливает тип сообщения (пользователь или ИИ)
+     */
+    public void setMessageType(MessageType type) {
+        removeClassNames("user-message", "assistant-message");
+
+        switch (type) {
+            case USER -> addClassName("user-message");
+            case ASSISTANT -> addClassName("assistant-message");
+        }
+    }
+
+    public enum MessageType {
+        USER, ASSISTANT
     }
 
     @Override
@@ -78,8 +100,11 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             thinkingContent = new VerticalLayout() {{
                 setPadding(false);
                 setSpacing(false);
+                addClassName("thinking-content");
             }};
+
             thinkingDetails = new Details("Размышления модели", thinkingContent);
+            thinkingDetails.addClassName("thinking-details");
             thinkingDetails.setOpened(true);
 
             state.addChangeStateListener((oldState, newState) -> {
@@ -98,6 +123,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     public Markdown addNewThinkingMarkdown() {
         ensureThinkingDetailsCreated();
         thinkingMessage = new Markdown();
+        thinkingMessage.addClassName("markdown");
         UiUtils.doInUI(this, () -> thinkingContent.add(thinkingMessage));
         return thinkingMessage;
     }
@@ -139,8 +165,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             getHandlers().log.doOnLog(e, thinkingMessage);
         }
     }
-
-
 
 
     @RequiredArgsConstructor
