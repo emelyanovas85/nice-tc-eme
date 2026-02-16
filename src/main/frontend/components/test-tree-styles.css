@@ -491,17 +491,6 @@ textarea:focus::placeholder {
     }
 }
 
-/* Стили для светлой темы */
-@media (prefers-color-scheme: light) {
-    .test-tree {
-        background: #f8f9fa;
-        color: #1a1a1a;
-    }
-    .test-tree > li {
-        background: white;
-        border-bottom-color: #e9ecef;
-    }
-
 /* ========================================
    СТИЛИ СООБЩЕНИЙ ЧАТА - СООТВЕТСТВУЮЩИЕ ДЕРЕВУ ТЕСТОВ
    ======================================== */
@@ -828,38 +817,43 @@ textarea:focus::placeholder {
     }
 }
 
+/* Стили для светлой темы */
+@media (prefers-color-scheme: light) {
+    .test-tree {
+        background: #f8f9fa;
+        color: #1a1a1a;
+    }
+    .test-tree > li {
+        background: white;
+        border-bottom-color: #e9ecef;
+    }
 
+    .chat-message {
+        background: rgba(248, 250, 252, 0.95);
+        border-color: rgba(59, 130, 246, 0.3);
+        color: #1e293b;
+    }
 
+    .message-content {
+        color: #334155;
+    }
 
+    .message-author {
+        color: #1e40af;
+    }
 
+    .thinking-details {
+        background: rgba(241, 245, 249, 0.8);
+        border-color: rgba(59, 130, 246, 0.3);
+    }
 
+    .thinking-header {
+        background: linear-gradient(135deg, rgba(241, 245, 249, 0.9), rgba(226, 232, 240, 0.9));
+        color: #1e40af;
+    }
 
-        .chat-message {
-            background: rgba(248, 250, 252, 0.95);
-            border-color: rgba(59, 130, 246, 0.3);
-            color: #1e293b;
-        }
-
-        .message-content {
-            color: #334155;
-        }
-
-        .message-author {
-            color: #1e40af;
-        }
-
-        .thinking-details {
-            background: rgba(241, 245, 249, 0.8);
-            border-color: rgba(59, 130, 246, 0.3);
-        }
-
-        .thinking-header {
-            background: linear-gradient(135deg, rgba(241, 245, 249, 0.9), rgba(226, 232, 240, 0.9));
-            color: #1e40af;
-        }
-
-        .thinking-content {
-            background: rgba(248, 250, 252, 0.5);
-            color: #475569;
-        }
+    .thinking-content {
+        background: rgba(248, 250, 252, 0.5);
+        color: #475569;
+    }
 }
