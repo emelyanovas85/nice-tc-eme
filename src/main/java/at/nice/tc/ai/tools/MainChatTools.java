@@ -2,6 +2,8 @@ package at.nice.tc.ai.tools;
 
 import at.nice.tc.ai.aggregator.TestCheckersAggregator;
 import at.nice.tc.events.ToolEventPublisher;
+import at.nice.tc.utils.JsonLLMResponseFileWriter;
+import at.nice.tc.utils.ScoreChecker;
 import at.nice.tc.utils.ThrowableUtils;
 import at.nice.tc.utils.ToolUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -62,10 +64,7 @@ public class MainChatTools {
 
             jsonArray = jsonArray
                     .replaceAll("\\n\\s+", "")
-                    .replaceAll("}\\s*\\{", "},{")
-            //.replaceAll(",\\s*]", "]")
-            //.replaceAll("\\[\\s*,", "[")
-            ;
+                    .replaceAll("}\\s*\\{", "},{");
 
             // Исправляем проблему с отсутствием поля "results"
             jsonArray = jsonArray.replaceAll(
@@ -73,22 +72,19 @@ public class MainChatTools {
                     "\"key\": \"$1\", \"results\": ["
             );
 
-//             5. Приводим строковые значения к числам
-//            jsonArray = jsonArray.replaceAll(
-//                    "\"value\":\\s*\"(\\d+)\"",
-//                    "\"value\": $1"
-//            );
 
+            // Ваш существующий код
+//            final ObjectMapper MAPPER = new ObjectMapper();
+//            List<Map<String, String>> stringObjectMap;
+//            try {
+//                stringObjectMap = MAPPER.readValue(jsonArray, new TypeReference<>() {
+//                });
+//                boolean saved = JsonLLMResponseFileWriter.saveIfNotExists(jsonArray, keyTestCase + ".json");
+//            } catch (JsonProcessingException e) {
+//                throw new RuntimeException(e);
+//            }
 
-            final ObjectMapper MAPPER = new ObjectMapper();
-            List<Map<String, String>> stringObjectMap;
-            try {
-                stringObjectMap = MAPPER.readValue(jsonArray, new TypeReference<>() {
-                });
-
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+//            ScoreChecker.findReferenceJSONByLLM(keyTestCase + ".json");
 
             return jsonArray;
 
