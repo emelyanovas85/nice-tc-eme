@@ -2,7 +2,6 @@ package at.nice.tc.ai.tools;
 
 import at.nice.tc.ai.aggregator.TestCheckersAggregator;
 import at.nice.tc.events.ToolEventPublisher;
-import at.nice.tc.utils.JsonLLMResponseFileWriter;
 import at.nice.tc.utils.ScoreChecker;
 import at.nice.tc.utils.ThrowableUtils;
 import at.nice.tc.utils.ToolUtils;
@@ -13,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -22,6 +22,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import static at.nice.tc.ui.MessageDelimiters.THINK_CLOSE;
 import static at.nice.tc.ui.MessageDelimiters.THINK_OPEN;
+import static java.util.Objects.isNull;
 
 
 @Component
@@ -42,6 +43,8 @@ public class MainChatTools {
 
         ToolEventPublisher publisher = publisherFactory.forConversation(chatId);
         publisher.eventPublisher().beginTool(chatId);
+
+
         try {
             List<String> results = new CopyOnWriteArrayList<>();
             aggregatorChecker.startChecks(keyTestCase, publisher)
@@ -72,24 +75,28 @@ public class MainChatTools {
                     "\"key\": \"$1\", \"results\": ["
             );
 
+            final ObjectMapper MAPPER = new ObjectMapper();
+            ScoreChecker scoreChecker = new ScoreChecker();
+            final String fileName = keyTestCase + ".json";
+            Resource referenceJSONByLLM = scoreChecker.findReferenceJSONByLLM(fileName);
+            if (isNull(referenceJSONByLLM)) scoreChecker.writeJsonToResources(fileName, jsonArray);
+            List<Map<String, Object>> expected = scoreChecker.parseJsonToListOfMaps(referenceJSONByLLM);
+            List<Map<String, Object>> actual;
+            try {
+                actual = MAPPER.readValue(jsonArray, new TypeReference<>() {
+                });
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
 
-            // Ваш существующий код
-//            final ObjectMapper MAPPER = new ObjectMapper();
-//            List<Map<String, String>> stringObjectMap;
-//            try {
-//                stringObjectMap = MAPPER.readValue(jsonArray, new TypeReference<>() {
-//                });
-//                boolean saved = JsonLLMResponseFileWriter.saveIfNotExists(jsonArray, keyTestCase + ".json");
-//            } catch (JsonProcessingException e) {
-//                throw new RuntimeException(e);
-//            }
-
-//            ScoreChecker.findReferenceJSONByLLM(keyTestCase + ".json");
+            scoreChecker.validateScores(actual, expected, keyTestCase);
 
             return jsonArray;
 
         } finally {
             publisher.eventPublisher().endTool(chatId);
         }
+
+        /// проверь тест VPEPVV-T800
     }
 }

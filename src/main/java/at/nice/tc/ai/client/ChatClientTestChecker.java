@@ -188,11 +188,10 @@ public record ChatClientTestChecker(AiService aiService,
             String convId = conversationIds.get(i);
             publisher.publish(new CheckEvent.CheckPromptStartedEvent(convId, test, i));
 
-            String fullPrompt = String.format("%s\n\n### **%s**\n\n%s\n\n%s",
+            String fullPrompt = String.format("%s\n\n### **%s**\n\n%s",
                     prompts.get(i),
                     isMainTest ? "Верхнеуровневый (основной) тест-кейс:" : "Представленный ниже тест-кейс является вложенным, а не верхнеуровневым (основным):",
-                    toMarkdown(testData),
-                    "Текст заключенный в знаки '<!--' и  '-->' является комментарием и не учитывается");
+                    toMarkdown(testData));
 
 
             int finalI = i;
