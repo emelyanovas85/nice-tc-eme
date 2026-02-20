@@ -219,7 +219,7 @@ public record ChatClientTestChecker(AiService aiService,
                     return futures.stream()
                             .map(CompletableFuture::join)
                             .filter(Objects::nonNull)
-                            .collect(joining("\n\n"));
+                            .collect(joining(","));
                 });
     }
 
