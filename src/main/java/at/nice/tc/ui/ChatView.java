@@ -14,7 +14,6 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.Lumo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +40,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     private SmartScroller scroll; // обертка для панели сообщений
     private VerticalLayout messageList; // панель сообщений
-    private ChatInputComponent inputLayout; // textArea с кнопками
+    private ChatInputComponent inputLayout; // textArea с кнопкой отправки
 
     // Хранилище timestamp последних добавленных сообщений для предотвращения дублирования
     private final Set<Long> addedMessageTimestamps = new HashSet<>();
@@ -191,12 +190,12 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
-        String userText = inputLayout.getArea().getValue().trim();
+        String userText = inputLayout.getTextField().getValue().trim();
         if (userText.isEmpty()) return;
 
         scroll.setStickDown(true);
         inputLayout.showStopButton();
-        inputLayout.getArea().clear();
+        inputLayout.getTextField().clear();
 
         LocalDateTime now = LocalDateTime.now();
 //        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), now);
