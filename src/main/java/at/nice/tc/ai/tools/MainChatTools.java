@@ -31,7 +31,7 @@ public class MainChatTools {
 
     /// проверь тест VPEPVV-T2706
     /// проверь тест VPEPVV-T800
-
+    /// проверь тест EHDRUONIA-T9
 
     @Tool(name = "checkTestCaseByRequirements",
             description = "Получение необходимых для данных в формате json c результатами проверки верхнеуровнего" +

@@ -98,11 +98,13 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
 
     private void initUI() {
-        Button toggleButton = new Button("Toggle theme", click -> {
-            getElement().executeJs("document.documentElement.setAttribute('theme', document.documentElement.getAttribute('theme', document) === $0 ? $1 : $0)", Lumo.DARK, Lumo.LIGHT);
-        });
+        //TODO нужно добавить в css файле (frontend/components/test-tree-styles.css) цвета для светлой темы и тогда вернуть тогл
+/*        Button toggleButton = new Button("Toggle theme", click -> getElement().executeJs(
+                "document.documentElement.setAttribute('theme', " +
+                        "document.documentElement.getAttribute('theme') === $0 ? $1 : $0)",
+                Lumo.DARK, Lumo.LIGHT));
 
-        getContent().add(toggleButton);
+        getContent().add(toggleButton);*/
 
         messageList = new VerticalLayout();
 

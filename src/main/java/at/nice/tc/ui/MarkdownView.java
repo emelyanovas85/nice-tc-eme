@@ -5,7 +5,6 @@ import at.nice.tc.utils.ThrowableUtils;
 import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.markdown.Markdown;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -32,10 +31,11 @@ public class MarkdownView extends VerticalLayout {
         setPadding(true);
         setSpacing(true);
 
-        Button themeToggle = new Button(VaadinIcon.ADJUST.create());
+        //TODO нужно добавить в css файле (frontend/components/test-tree-styles.css) цвета для светлой темы и тогда вернуть тогл
+/*        Button themeToggle = new Button(VaadinIcon.ADJUST.create());
         themeToggle.addThemeVariants(ButtonVariant.LUMO_ICON);
         themeToggle.addClickListener(e -> toggleTheme());
-        themeToggle.getElement().setAttribute("aria-label", "Toggle theme");
+        themeToggle.getElement().setAttribute("aria-label", "Toggle theme");*/
 
         TextField inputField = new TextField();
         inputField.setPlaceholder("Введите ключ теста, типа VPEPVV-T777 или ID версии теста, типа 123456");
@@ -53,7 +53,8 @@ public class MarkdownView extends VerticalLayout {
         progressBar.setVisible(false);
         progressBar.setWidthFull();
 
-        HorizontalLayout inputLayout = new HorizontalLayout(themeToggle, inputField, processButton);
+        //TODO нужно добавить в css файле (frontend/components/test-tree-styles.css) цвета для светлой темы и тогда вернуть тогл
+        HorizontalLayout inputLayout = new HorizontalLayout(/*themeToggle, */inputField, processButton);
         inputLayout.setWidthFull();
         inputLayout.setFlexGrow(1, inputField);
 
