@@ -37,10 +37,10 @@ public record ChatClientTestChecker(AiService aiService,
 
         return checkAllStages(test, publisher, conversationIds)
                 .thenCompose(cachedResult -> {
-                    if (cachedResult != null) {
-                        log.debug("✅ Найден результат в кэше для {}", test.getId());
-                        return CompletableFuture.completedFuture(cachedResult);
-                    }
+//                    if (cachedResult != null) {
+//                        log.debug("✅ Найден результат в кэше для {}", test.getId());
+//                        return CompletableFuture.completedFuture(cachedResult);
+//                    }
 
                     // Очищаем память и запускаем новые промпты
                     conversationIds.forEach(memoryService::clearMessages);

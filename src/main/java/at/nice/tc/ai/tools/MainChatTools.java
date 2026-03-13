@@ -7,7 +7,6 @@ import at.nice.tc.utils.ToolUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -40,7 +39,7 @@ public class MainChatTools {
             @ToolParam(description = "Ключ или ID верхнеуровнего (основного) тест-кейса для проверки")
             String keyTestCase,
             ToolContext toolContext) {
-        String chatId = ToolUtils.conversationId(toolContext);
+        String chatId = ToolUtils.getConversationId(toolContext);
 
         ToolEventPublisher publisher = publisherFactory.forConversation(chatId);
         publisher.eventPublisher().beginTool(chatId);

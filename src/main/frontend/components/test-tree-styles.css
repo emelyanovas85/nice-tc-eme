@@ -567,7 +567,7 @@ vaadin-text-field::part(clear-button) {
 .chat-message.user-message {
     background: linear-gradient(135deg, rgba(51, 65, 85, 0.9), rgba(30, 41, 59, 0.9));
     border-color: rgba(59, 130, 246, 0.3);
-    margin-left: 20%;
+    margin-right: 30%;
 }
 
 .chat-message.assistant-message {
@@ -865,6 +865,57 @@ vaadin-text-field::part(clear-button) {
     .thinking-content {
         padding: 12px;
     }
+}
+
+/* ========================================
+   ПОЛОСА СКРОЛИНГА - АНИМИРОВАННОЕ ПОЯВЛЕНИЕ
+   ======================================== */
+
+vaadin-scroller {
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(96, 165, 250, 0.5) rgba(42, 42, 42, 0.3);
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+vaadin-scroller::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+vaadin-scroller::-webkit-scrollbar-track {
+    background: rgba(42, 42, 42, 0.3);
+    border-radius: 10px;
+}
+
+vaadin-scroller::-webkit-scrollbar-thumb {
+    background: rgba(96, 165, 250, 0.5);
+    border-radius: 10px;
+}
+
+/* Скрываем через opacity с анимацией */
+vaadin-scroller:not(:hover)::-webkit-scrollbar-thumb,
+vaadin-scroller:not(:hover)::-webkit-scrollbar-track {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Показываем при наведении с анимацией */
+vaadin-scroller:hover::-webkit-scrollbar-thumb,
+vaadin-scroller:hover::-webkit-scrollbar-track {
+    opacity: 1;
+    transition: opacity 0.2s ease 0.1s; /* небольшая задержка для плавности */
+}
+
+/* Firefox */
+vaadin-scroller:not(:hover) {
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s ease;
+}
+
+vaadin-scroller:hover {
+    scrollbar-color: rgba(96, 165, 250, 0.5) rgba(42, 42, 42, 0.3);
+    transition: scrollbar-color 0.2s ease 0.1s;
 }
 
 }
