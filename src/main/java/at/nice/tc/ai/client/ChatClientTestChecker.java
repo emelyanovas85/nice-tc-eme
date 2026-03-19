@@ -13,12 +13,10 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
@@ -61,9 +59,12 @@ public record ChatClientTestChecker(AiService aiService,
         log.debug("📥 Загружаем тест из Jira: ID={}", testId);
 
         // ✅ 2 попытки Jira + fallback
-        CompletableFuture<String> htmlContent = tryJiraTwice(testId);
+        CompletableFuture<String> htmlContentTest = tryJiraTwice(testId, jiraService::getTest);
+        CompletableFuture<String> htmlContentExecutionTest = tryJiraTwice(testId, jiraService::getTestExecutions);
 
-        return htmlContent
+
+
+        CompletableFuture<Map<String, Object>> futureContentTest = htmlContentTest
                 .thenApply(html -> html.isEmpty() ? "" : html)
                 .thenApplyAsync(JiraUtils::simplifyHtmlVariables)
                 .thenApplyAsync(JiraUtils::parseTreeMapJson)
@@ -73,13 +74,29 @@ public record ChatClientTestChecker(AiService aiService,
                     publisher.publish(new CheckEvent.CheckFinishedEvent(publisher.conversationId(), test, t));
                     return Map.of("name", test.toString(), "error", "Jira unavailable: " + t.getMessage());
                 });
+
+        CompletableFuture<Map<String, Object>> futureContentExecutionTest = htmlContentExecutionTest
+                .thenApply(html -> html.isEmpty() ? "" : html)
+                .thenApplyAsync(JiraUtils::parseTreeMapJson)
+                .exceptionally(t -> {
+                    log.error("💥 getTestExecutionAsFuture FAILED для {}: {}", testId, t.getMessage(), t);
+                    publisher.publish(new CheckEvent.CheckFinishedEvent(publisher.conversationId(), test, t));
+                    return Map.of("name", test.toString(), "error", "Jira unavailable: " + t.getMessage());
+                });
+
+
+        return futureContentTest.thenCombine(futureContentExecutionTest, (testMap, execMap) -> {
+            Map<String, Object> result = new HashMap<>(testMap);
+            result.putAll(execMap);
+            return result;
+        });
     }
 
-    private CompletableFuture<String> tryJiraTwice(String testId) {
+    private <T> CompletableFuture<String> tryJiraTwice(T testId, Function<T, CompletableFuture<String>> jiraMethod) {
         // Первая попытка
-        CompletableFuture<String> firstAttempt = jiraService.getTest(testId)
+        CompletableFuture<String> firstAttempt = jiraMethod.apply(testId)
                 .thenApply(resp -> {
-                    log.debug("Jira 1 для {}: длина={}", testId, resp != null ? resp.length() : 0);
+                    log.debug("Попытка 1 получения данных из Jira для {}: длина={}", testId, resp != null ? resp.length() : 0);
                     return extractHtml(resp);
                 });
 
@@ -87,9 +104,9 @@ public record ChatClientTestChecker(AiService aiService,
         return firstAttempt.thenCompose(firstResult ->
                 firstResult != null && !firstResult.isEmpty() ?
                         CompletableFuture.completedFuture(firstResult) :
-                        jiraService.getTest(testId)
+                        jiraMethod.apply(testId)
                                 .thenApply(resp -> {
-                                    log.debug("Jira 2 для {}: длина={}", testId, resp != null ? resp.length() : 0);
+                                    log.debug("Попытка 2 получения данных из Jira для {}: длина={}", testId, resp != null ? resp.length() : 0);
                                     String result = extractHtml(resp);
                                     return result != null ? result : "";
                                 })

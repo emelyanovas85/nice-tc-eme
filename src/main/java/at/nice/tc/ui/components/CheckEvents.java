@@ -67,12 +67,11 @@ public class CheckEvents {
                 throw new RuntimeException("span по ключу '%s' не найден".formatted(key));
             }
 
-            // ✅ ИСПРАВЛЕНО: setText + setClassName
-            span.setClassName("status-progress qwe");  // progress + пульсация
+            span.setClassName("status-progress qwe");//TODO подправить название класса в css
 
             String statusText = String.format("▶️ %s проверяется промпт %d: <a href=\"/?chatId=%s\" target=\"_blank\">%s</a>",
                     test, promptIndex, event.getConversationId(), event.getConversationId());
-            span.getElement().setProperty("innerHTML", statusText); // HTML остается для ссылок
+            span.getElement().setProperty("innerHTML", statusText);
 
             log.debug("doOnPromptStarted: обновляем span для ключа '{}' → ▶️", key);
         });

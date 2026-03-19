@@ -1,6 +1,5 @@
 package at.nice.tc.utils;
 
-import at.nice.tc.model.TestTree;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -8,11 +7,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static java.util.Objects.isNull;
 
 public abstract class JiraUtils {
 
@@ -35,7 +39,6 @@ public abstract class JiraUtils {
     private static final Pattern FORMATTING_TAGS_PATTERN = Pattern.compile("</?(em|strong)>");
     private static final Pattern MULTIPLE_SPACES_PATTERN = Pattern.compile("[\\s\u00A0]{2,}");
     private static final Pattern UNPRINTABLE_CHARS_PATTERN = Pattern.compile("\u2060");
-
 
 
     /**
@@ -199,20 +202,24 @@ public abstract class JiraUtils {
 
         MarkdownMap<String, Object> markdown = new MarkdownMap<>(test);
 
+
         markdown.appendRow("\n## Тест-кейс ", "id")
                 .appendRow("\n### Подробнее")
+                .appendRow("#### Статус тест-кейса\n-", "status", "name")
                 .appendRow("#### Ключ\n- ", "key")
                 .appendRow("#### Версия\n- ", "majorVersion")
                 .appendRow("#### Наименование\n- ", "name")
                 .appendRow("#### Задача тест-кейса\n- ", "objective")
                 .appendRow("#### Предварительные действия\n", "precondition");
 
+
         markdown.optionalListMap("parameters").ifPresent(parameters -> {
-            if (parameters.isEmpty())
-                return;
+            if (parameters.isEmpty()) return;
+
             markdown.appendRow("\n### Входные параметры")
                     .appendRow("|name|default value|")
                     .appendRow("|-|-|");
+
             parameters.sort(Comparator.comparingInt(params -> (int) params.get("index")));
             parameters.forEach(param ->
                     markdown.append("|").append(param.get("name")).append("|").append(param.get("defaultValue")).appendRow("|")
@@ -254,6 +261,7 @@ public abstract class JiraUtils {
 
         if (!markdown.toString().trim().endsWith("|")) // не добавлена таблица параметров
             markdown.appendRow("\n### Параметры").appendRow("нет параметров");
+
 
         markdown.appendRow("\n### Шаги");
         markdown.optionalMap("testScript").ifPresent(tScript -> {
@@ -299,6 +307,7 @@ public abstract class JiraUtils {
             });
         });
 
+
         markdown.appendRow("\n### Вложения")
                 .append("- ")
                 .append(
@@ -309,34 +318,44 @@ public abstract class JiraUtils {
                                 .orElse("нет вложений")
                 );
 
+
         markdown.appendRow("\n\n### Выполнения");
-        markdown.optionalMap("testResults").ifPresentOrElse(tResults -> {
-            new OptionalMap<>(tResults).optionalListMap("data").ifPresent(data -> {
-                if (data.isEmpty()) {
-                    markdown.appendRow("- нет выполнений");
-                    return;
-                }
-                markdown.appendRow("|Дата|Статус|Исполнитель|Прогон|Ключ|automated|")
-                        .appendRow("|-|-|-|-|-|-|");
-                data.forEach(execution -> {
-                    Object date = execution.get("executionDate");
+        String currentDate = ZonedDateTime.ofInstant(Instant.now(), ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"));
+        markdown.appendRow("Текущая дата %s".formatted(currentDate));
+
+        markdown.optionalListMap("data").ifPresentOrElse(
+                data -> {
+                    if (data.isEmpty()) {
+                        markdown.appendRow("- нет выполнений");
+                        return;
+                    }
+
+
+                    markdown.appendRow("|Дата|Статус|")
+                            .appendRow("|-|-|");
+
+                    //сортируем по дате выполнения
                     //noinspection unchecked
-                    Object status = ((Map<String, Object>) execution.get("testResultStatus")).get("name");
-                    Object userKey = execution.get("userKey");
-                    //noinspection unchecked
-                    Object runKey = ((Map<String, Object>) execution.get("testRun")).get("key");
-                    Object key = execution.get("key");
-                    Object automated = execution.get("automated");
-                    markdown.append("|").append(date)
-                            .append("|").append(status)
-                            .append("|").append(userKey)
-                            .append("|").append(runKey)
-                            .append("|").append(key)
-                            .append("|").append(automated)
-                            .appendRow("|");
-                });
-            });
-        }, () -> markdown.appendRow("- нет выполнений"));
+                    data.sort(Comparator.comparing(
+                                    ex -> Objects.toString(((Map<String, Object>) ex).get("executionDate"), ""))
+                            .reversed());
+
+                    final String testId = Objects.toString(test.get("id"), "А тут должен был быть id теста!");
+                    data.stream()
+                            //так как приходят выполнения для всех версий теста берем только нужные по id
+                            .filter(execution -> {
+                                @SuppressWarnings("unchecked")
+                                String id = String.valueOf(((Map<String, Object>) execution.get("testCase")).get("id"));
+                                return testId.equals(id);
+                            })
+                            .forEach(execution -> {
+                                Object date = execution.get("executionDate");
+                                @SuppressWarnings("unchecked")
+                                Object status = ((Map<String, Object>) execution.get("testResultStatus")).get("name");
+                                markdown.appendRow("|%s|%s|".formatted(isNull(date) ? "-" : date, status));
+                            });
+                },
+                () -> markdown.appendRow("- нет выполнений"));
 
         return markdown.toString();
     }
@@ -371,13 +390,25 @@ public abstract class JiraUtils {
             super(m);
         }
 
-        public MarkdownMap<K, V> appendRow(String prefix, Object key) {
-            Optional.ofNullable(get(key)).ifPresent(value -> append(prefix).appendRow(value));
-            return this;
-        }
+//        public MarkdownMap<K, V> appendRow(String prefix, Object key) {
+//            Optional.ofNullable(get(key)).ifPresent(value -> append(prefix).appendRow(value));
+//            return this;
+//        }
 
         public MarkdownMap<K, V> appendRow(Object text) {
             return append(text).append("\n");
+        }
+
+        public MarkdownMap<K, V> appendRow(String prefix, Object firstKey, Object... keys) {
+            Object currentValue = get(firstKey);
+            if (currentValue == null) return this;
+            for (Object key : keys) {
+                if (!(currentValue instanceof Map<?, ?> currentMap)) return this;
+                currentValue = currentMap.get(key);
+            }
+
+            Optional.ofNullable(currentValue).ifPresent(value -> appendRow(prefix).appendRow(value));
+            return this;
         }
 
         public MarkdownMap<K, V> append(Object text) {
