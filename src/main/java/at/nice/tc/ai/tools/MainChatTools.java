@@ -75,7 +75,20 @@ public class MainChatTools {
             List<Map<String, Object>> jsonTable3 = jsonTable3(map);
 
 
-            return jsonArray + "\n\njson для формирования таблицы 2:\n\n" + jsonTable2 + "\n\njson для формирования таблицы 3:\n\n" + jsonTable3;
+            int size = jsonTable3.size();
+            int sum = jsonTable3.stream()
+                    .map(b -> (Integer) b.get("value"))
+                    .filter(Objects::nonNull)
+                    .mapToInt(Integer::intValue)
+                    .sum();
+
+            return jsonArray +
+                    "\n\njson для формирования таблицы 2:\n\n" + jsonTable2 +
+                    "\n\njson для формирования таблицы 3:\n\n" + jsonTable3 +
+                    "\n\nДанные для блока 'Сводка результатов':\n\n" +
+                    "\nКоличество требований: " + size +
+                    "\nКоличество ✅: " + sum +
+                    "\nКоличество ❌: " + (size - sum);
 
         } finally {
             publisher.eventPublisher().endTool(chatId);
@@ -120,7 +133,12 @@ public class MainChatTools {
             String reqNumber = entry.getKey();
             List<Map<String, Object>> itemsWithSameReq = entry.getValue();
 
-            Integer value = (Integer) itemsWithSameReq.get(0).get("value");
+            Integer minValue = itemsWithSameReq.stream()
+                    .map(b -> (Integer) b.get("value"))
+                    .filter(Objects::nonNull)
+                    .min(Integer::compareTo)
+                    .orElseThrow(() -> new RuntimeException("Отсутствуют значения 'value' в json:\n\n" + entry));
+
 
             List<Map<String, String>> allComments = new ArrayList<>();
             for (Map<String, Object> item : itemsWithSameReq) {
@@ -146,7 +164,7 @@ public class MainChatTools {
 
             Map<String, Object> resultItem = new LinkedHashMap<>();
             resultItem.put("req_number", reqNumber);
-            resultItem.put("value", value);
+            resultItem.put("value", minValue);
             resultItem.put("comments", allComments);
 
             transformedResults.add(resultItem);

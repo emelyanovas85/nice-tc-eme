@@ -144,8 +144,8 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
      * Выполняются в UI потоке (синхронно)
      */
     public void handleEvent(ChatEvent event) {
-        if (!isThinkingMessageLatestElement())
-            addNewThinkingMarkdown();
+//        if (!isThinkingMessageLatestElement())
+//            addNewThinkingMarkdown();
 
         if (event instanceof CheckEvent.AgentBuiltTestTreeEvent e) {
             addNewThinkingMarkdown();
