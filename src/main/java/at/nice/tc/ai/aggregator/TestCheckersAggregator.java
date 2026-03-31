@@ -34,23 +34,22 @@ public class TestCheckersAggregator {
             "key",
             "majorVersion",
             "testScript.steps.index",
-            "testScript.steps.testCase.id"//,
-//            "testScript.steps.testCase.key",
-//            "testScript.steps.testCase.majorVersion"
+            "testScript.steps.testCase.id"
     );
 
     /**
      * Запускает проверку теста с учетом вложенных по ключу
      */
-    public CompletableFuture<List<CompletableFuture<String>>> checkTestCase(String keyTestCase, ToolEventPublisher publisher) {
+    public CompletableFuture<List<CompletableFuture<String>>> startChecks(String keyTestCase, ToolEventPublisher publisher) {
         Map<String, CompletableFuture<TestTree.Test>> cache = new ConcurrentHashMap<>();
+
         return collectNestedTests(keyTestCase, publisher, cache)
-                .thenApply(testTree -> {
-                    publisher.publish(conversationId -> new CheckEvent.AgentBuiltTestTreeEvent(conversationId, testTree));
-                    return testTree.getDescendants();
+                .thenApply(test -> {
+                    publisher.publish(conversationId -> new CheckEvent.AgentBuiltTestTreeEvent(conversationId, test));
+                    return test.getDescendants();
                 })
                 .thenApply(testsList -> testsList.stream()
-                        .map(test -> chatClientTestChecker.checkTestCase(test, publisher))
+                        .map(test -> chatClientTestChecker.checkTestCase(test, publisher, test.getKey().equals(keyTestCase)))
                         .collect(toList())
                 );
     }
@@ -70,7 +69,7 @@ public class TestCheckersAggregator {
         // чтобы предотвратить повторные запросы, если тот же тест запрашивается параллельно
         CompletableFuture<TestTree.Test> future = createFutureForTest(testId, publisher, cache);
         cache.put(testId, future);
-        
+
         return future;
     }
 
@@ -83,9 +82,7 @@ public class TestCheckersAggregator {
 
                     publisher.publish(cId ->
                             new ToolEvent("Получение тестов, вложенных в тест " + test.getId() + ", завершено",
-                                    new Attachment.Text(test + ".json", json)
-                            )
-                    );
+                                    new Attachment.Text(test + ".json", json)));
 
                     List<CompletableFuture<Void>> futures = dto.testScript().stepByStepScript().steps()
                             .stream()

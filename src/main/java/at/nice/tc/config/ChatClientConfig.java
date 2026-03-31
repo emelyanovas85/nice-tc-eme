@@ -26,8 +26,8 @@ public class ChatClientConfig {
         return ChatClient.builder(chatModel)
                 .defaultTools(mainChatTools, googleTools, jiraTools)
                 .defaultOptions(ChatOptions.builder()
-                        .temperature(0.4)
-                        .topP(0.8)
+                        .temperature(0.0)
+                        .topP(0.5)
                         .build())
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
@@ -36,10 +36,9 @@ public class ChatClientConfig {
     @Bean
     public ChatClient agentChatClient(ChatMemory chatMemory, ChatModel chatModel) {
         return ChatClient.builder(chatModel)
-//            .defaultTools(jiraTools, googleTools) // промпт и данные получит в готовом виде
                 .defaultOptions(ChatOptions.builder()
-                        .temperature(0.3)
-                        .topP(0.3)
+                        .temperature(0.0)
+                        .topP(0.5)
                         .build())
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();

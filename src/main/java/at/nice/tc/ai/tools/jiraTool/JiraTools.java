@@ -114,7 +114,7 @@ public class JiraTools {
     }
 
     private <T> T sendEvents(String description, ThrowableSupplier<T> valueSupplier, ToolContext context) {
-        String chatId = ToolUtils.conversationId(context);
+        String chatId = ToolUtils.getConversationId(context);
         ToolEventPublisher publisher = publisherFactory.forConversation(chatId);
         var eventBase = new OnGetValue<T>(description, chatId);
         return EventUtils.getValueSendingEvents(valueSupplier, eventBase, publisher);

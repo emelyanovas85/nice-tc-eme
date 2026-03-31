@@ -103,7 +103,6 @@ public class JiraService {
 
     @Cacheable
     public List<String> getRequiredExecutionsProperties() {
-        // Читаем файл (построчный текст)
         ClassPathResource resource = new ClassPathResource("executions_required_fields.txt");
         try {
             return Files.readAllLines(resource.getFile().toPath())
@@ -131,7 +130,12 @@ public class JiraService {
                 .toList();
     }
 
+    public CompletableFuture<String> getTestExecutions(String versionId) {
+        return CompletableFuture.supplyAsync(() -> jira.getTestExecutions(Integer.parseInt(versionId), List.of("testResultStatus(name)", "executionDate", "testCase")));
+    }
+
     public CompletableFuture<String> getTestExecutions(int versionId, List<String> fields) {
         return CompletableFuture.supplyAsync(() -> jira.getTestExecutions(versionId, fields));
     }
+
 }

@@ -8,7 +8,7 @@ import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
 
 @Push(PushMode.AUTOMATIC)
-@Theme(variant = Lumo.DARK)
+@Theme(value = "my-theme", variant = Lumo.DARK)
 public class AppShellConfig implements AppShellConfigurator {
     // Можно оставить пустым, это маркер для Vaadin
 }

@@ -19,12 +19,6 @@ public class AiToolCallService {
     private final MemoryService memoryService;
     private final Map<Long, ToolEvent> updates = new ConcurrentHashMap<>();
 
-    /**
-     *
-     */
-    public void beginTool(String chatId) {
-        memoryService.pushToken(chatId, TOOL_OPEN.getPlaceholder());
-    }
 
     /**
      * Сигнал вьюхе использовать {@link #updates}
@@ -36,7 +30,14 @@ public class AiToolCallService {
     }
 
     /**
-     *
+     * Отправляет <tool> в чат
+     */
+    public void beginTool(String chatId) {
+        memoryService.pushToken(chatId, TOOL_OPEN.getPlaceholder());
+    }
+
+    /**
+     * Отправляет </tool> в чат
      */
     public void endTool(String chatId) {
         memoryService.pushToken(chatId, TOOL_CLOSE.getPlaceholder());

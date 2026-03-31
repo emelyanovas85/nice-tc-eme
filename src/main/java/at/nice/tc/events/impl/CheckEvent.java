@@ -39,27 +39,31 @@ public abstract class CheckEvent extends ToolEvent {
     @Getter
     public static class CheckPreparingEvent extends CheckEvent {
         private final String description;
+        private final TestTree.Test test;
+        private final int promptIndex;
 
-        public CheckPreparingEvent(String description, String conversationId, TestTree.Test test) {
+        public CheckPreparingEvent(String description, String conversationId, TestTree.Test test, int promptIndex) {
             super(conversationId, test);
             this.description = description;
+            this.test = test;
+            this.promptIndex = promptIndex;
         }
 
     }
 
-
     /**
-     * Начата проверка теста агентами
+     * Начата проверка конкретного промпта теста
      */
     @Getter
-    public static class CheckStartedEvent extends CheckEvent {
+    public static class CheckPromptStartedEvent extends CheckEvent {
         private final TestTree.Test test;
+        private final int promptIndex;
 
-        public CheckStartedEvent(String conversationId, TestTree.Test test) {
+        public CheckPromptStartedEvent(String conversationId, TestTree.Test test, int promptIndex) {
             super(conversationId, test);
             this.test = test;
+            this.promptIndex = promptIndex;
         }
-
     }
 
 

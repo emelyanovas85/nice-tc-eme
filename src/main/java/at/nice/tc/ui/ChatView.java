@@ -1,6 +1,6 @@
 package at.nice.tc.ui;
 
-import at.nice.tc.events.ChatEvent;
+import at.nice.tc.ai.client.Prompts;
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.AiToolCallService;
 import at.nice.tc.service.MemoryService;
@@ -14,15 +14,12 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.Lumo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
-import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
 
 import java.time.LocalDateTime;
@@ -43,7 +40,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     private SmartScroller scroll; // обертка для панели сообщений
     private VerticalLayout messageList; // панель сообщений
-    private ChatInputComponent inputLayout; // textArea с кнопками
+    private ChatInputComponent inputLayout; // textArea с кнопкой отправки
 
     // Хранилище timestamp последних добавленных сообщений для предотвращения дублирования
     private final Set<Long> addedMessageTimestamps = new HashSet<>();
@@ -100,18 +97,13 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
 
     private void initUI() {
-        Button toggleButton = new Button("Toggle theme", click -> {
-            getElement().executeJs("document.documentElement.setAttribute('theme', document.documentElement.getAttribute('theme', document) === $0 ? $1 : $0)", Lumo.DARK, Lumo.LIGHT);
-        });
+        //TODO нужно добавить в css файле (frontend/components/test-tree-styles.css) цвета для светлой темы и тогда вернуть тогл
+/*        Button toggleButton = new Button("Toggle theme", click -> getElement().executeJs(
+                "document.documentElement.setAttribute('theme', " +
+                        "document.documentElement.getAttribute('theme') === $0 ? $1 : $0)",
+                Lumo.DARK, Lumo.LIGHT));
 
-        getContent().add(toggleButton);
-
-//        String test = jiraService.getTestWithNestedMarkdown("VPEPVV-T2706").join();
-////        test = jiraService.getTestWithNested("VPEPVV-T2706").join();
-//        test = jiraService.getTestWithNestedMarkdown("VPEPVV-T800").join();
-//        test = jiraService.getTestWithNestedMarkdown("CK7DITR007-T55").join();
-//        test = jiraService.getTestWithNestedMarkdown("CK3DITP442-T1547").join();
-//        test = testjiraService.getTestWithNested("VPEPVV-T2706").join();
+        getContent().add(toggleButton);*/
 
         messageList = new VerticalLayout();
 
@@ -149,18 +141,18 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         // Добавление сообщений из истории снизу вверх
         final List<Message> completedMessages = memoryService.getCompletedMessages(chatId);
         Collections.reverse(completedMessages); // отрисовывать снизу вверх
-        
+
         // Вычисляем время для каждого сообщения на основе его позиции
         // Предполагаем, что сообщения идут последовательно с интервалом ~2 секунды
         final LocalDateTime now = LocalDateTime.now();
         final int messageCount = completedMessages.size();
-        
+
         for (int i = 0; i < completedMessages.size(); i++) {
             Message m = completedMessages.get(i);
             // Время вычисляется от текущего момента назад, предполагая интервал ~2 секунды между сообщениями
             // Самое старое сообщение будет иметь время (messageCount - i) * 2 секунд назад
             LocalDateTime messageTime = now.minusSeconds((long) (messageCount - i) * 2);
-            
+
             switch (m.getMessageType()) {
                 case ASSISTANT -> restorer.createCompletedAssistantMessage(m.getText(), messageTime);
                 case USER -> restorer.createUserMessage(m.getText(), messageTime);
@@ -175,14 +167,19 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
             botMessage.setMarkdown(text);
-            botMessage.getMainMessage().setUserColorIndex(5);
+//            botMessage.getMainMessage().setUserColorIndex(5);
+            botMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
             messageList.addComponentAtIndex(0, botMessage);
         }
 
 
         public void createUserMessage(String text, LocalDateTime timestamp) {
-            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), timestamp);
-            userMessage.setUserColorIndex(3);
+//            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), timestamp);
+//            userMessage.setUserColorIndex(3);
+//            messageList.addComponentAtIndex(0, userMessage);
+            MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), timestamp, aiToolCallService);
+            userMessage.setMarkdown(text);
+            userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
             messageList.addComponentAtIndex(0, userMessage);
         }
     }
@@ -193,28 +190,30 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
-        String userText = inputLayout.getArea().getValue().trim();
-        if (userText.isEmpty()) {
-            return;
-        }
+        String userText = inputLayout.getTextField().getValue().trim();
+        if (userText.isEmpty()) return;
 
         scroll.setStickDown(true);
         inputLayout.showStopButton();
-        inputLayout.getArea().clear();
+        inputLayout.getTextField().clear();
 
         LocalDateTime now = LocalDateTime.now();
-        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), now);
-        userMessage.setUserColorIndex(3);
+//        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), now);
+//        userMessage.setUserColorIndex(3);
+//        messageList.add(userMessage);
+        MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), now, aiToolCallService);
+        userMessage.setMarkdown(userText);
+        userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
         messageList.add(userMessage);
 
         // Публикуем событие о новом сообщении пользователя для синхронизации между вкладками
         long timestamp = System.currentTimeMillis();
         // Добавляем timestamp в Set, чтобы не добавить это сообщение снова при получении события
         addedMessageTimestamps.add(timestamp);
-//        eventPublisher.publishEvent(new UserMessageEvent(config.getChatId(), userText, config.getUserFio(), timestamp));
 
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
-        actualBotMessage.getMainMessage().setUserColorIndex(5);
+//        actualBotMessage.getMainMessage().setUserColorIndex(5);
+        actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
         messageList.add(actualBotMessage);
 
         StringBuilder prompt = new StringBuilder();
@@ -223,7 +222,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (!config.getScope().isBlank())
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
+        prompt.append("\n\n").append(Prompts.aggregatorPrompt);
         aiService.sendMainMessageStream(prompt.toString(), config.getChatId()); // Токены будут push-иться в MemoryService
+
         // Подписка на ответ ассистента
         subscribeToChatStream();
     }
@@ -241,31 +242,21 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
 
-
-//    private EventService.Registration eventServiceRegistration;
-
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        // Подписка на ответ ассистента
         subscribeToChatStream();
-        // Подписка на события для текущего chatId
-//        eventServiceRegistration = eventService.subscribe(config.getChatId(), this::handleBroadcastEvent);
     }
+
 
     @Override
     protected void onDetach(DetachEvent detachEvent) {
-        if (subscription != null && !subscription.isDisposed()) {
-            subscription.dispose();
-        }
-//        if (eventServiceRegistration != null) {
-//            eventServiceRegistration.unsubscribe();
-//            eventServiceRegistration = null;
-//        }
+        if (subscription != null && !subscription.isDisposed()) subscription.dispose();
         super.onDetach(detachEvent);
     }
 
 
+/*
     private void subscribeToChatStream() {
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
@@ -294,5 +285,54 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                         })
                 );
     }
+*/
 
+    private void subscribeToChatStream() {
+        if (subscription != null && !subscription.isDisposed()) {
+            subscription.dispose();
+        }
+        if (getUI().isEmpty()) {
+            return;
+        }
+        final UI ui = getUI().get();
+
+//        actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
+
+        subscription = memoryService.subscribe(config.getChatId())
+                .subscribe(
+                        token -> ui.access(() -> {
+                            MarkdownMessageWithThinking botMsg = findActiveBotMessage();
+                            if (botMsg != null) {
+                                botMsg.appendMarkdownAsync(token);
+                                scroll.scrollToBottom();
+                            } else {
+                                log.warn("Нет активного bot сообщения для chatId: {}", config.getChatId());
+                            }
+                        }),
+                        err -> ui.access(() -> {
+                            MarkdownMessageWithThinking botMsg = findActiveBotMessage();
+                            if (botMsg != null) {
+                                botMsg.appendMarkdownAsync("\n\n**Ошибка:** " + err.getMessage());
+                                stop();
+                            } else {
+                                log.error("Ошибка 429/другая, но нет bot сообщения: {}", err.getMessage());
+                                stop();
+                            }
+                        }),
+                        () -> ui.access(() -> {
+                            MarkdownMessageWithThinking botMsg = findActiveBotMessage();
+                            if (botMsg != null) {
+                                botMsg.finish();
+                                stop();
+                            }
+                        })
+                );
+    }
+
+    private MarkdownMessageWithThinking findActiveBotMessage() {
+        return (MarkdownMessageWithThinking) messageList.getChildren()
+                .filter(c -> c instanceof MarkdownMessageWithThinking)
+                .reduce((first, second) -> second)
+                .orElse(null);
+    }
 }

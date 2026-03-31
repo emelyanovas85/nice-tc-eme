@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class GoogleTools {
-    private static final String LINK_GOOGLE_DOC_SCRIPT = "https://script.google.com/macros/s/AKfycbxdkAUev2eproimYerADMJ1WVMXiWXrrfb6gViGHvPgewe6Ed0QsLrnMl7Nc-dn8Uw/exec";
-    private static final String GOOGLE_DOC_ID = "1Q-mqX9hAcDhPTdLDtR7lj3MTocK-WmLkWHZOpAl8WxE";
-    private final GoogleDocsService googleDocsService;
+    public static final String LINK_GOOGLE_DOC_SCRIPT = "https://script.google.com/macros/s/AKfycbxdkAUev2eproimYerADMJ1WVMXiWXrrfb6gViGHvPgewe6Ed0QsLrnMl7Nc-dn8Uw/exec";
+    public static final String GOOGLE_DOC_ID = "1Q-mqX9hAcDhPTdLDtR7lj3MTocK-WmLkWHZOpAl8WxE";
+    public final GoogleDocsService googleDocsService;
 
     @Tool(description = "Получает требования к тестовым прогонам из Google Docs. " +
             "Возвращает данные в формате JSON с полями col1, col2, col3 и т.д., где номер поля соответствует индексу колонки таблицы. " +

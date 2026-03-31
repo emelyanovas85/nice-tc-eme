@@ -50,7 +50,7 @@ public class MemoryService {
      * Получает или создает Sink для указанного conversationId.
      * <p>
      * Все подписчики на этот conversationId будут получать одни и те же токены.
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
      * @return Sink для публикации токенов
      */
@@ -61,27 +61,13 @@ public class MemoryService {
         });
     }
 
-    /**
-     * Получает или создает Sink для указанного conversationId.
-     * <p>
-     * Все подписчики на этот conversationId будут получать одни и те же токены.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     * @return Sink для публикации токенов
-     */
-    public Sinks.Many<ChatResponse> getOrCreateSink2(String conversationId) {
-        return replaySinks2.computeIfAbsent(conversationId, id -> {
-            log.debug("Создан новый Sink для conversationId: {}", id);
-            return Sinks.many().replay().all();
-        });
-    }
 
     /**
      * Подписывается на поток токенов для указанного conversationId.
      * <p>
      * Новые подписчики получат всю историю токенов + новые в реальном времени.
      * Используется для подключения UI компонентов к активному потоку ответа.
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
      * @return Flux с историей и новыми токенами
      */
@@ -91,29 +77,15 @@ public class MemoryService {
         return sink.asFlux();
     }
 
-    /**
-     * Подписывается на поток токенов для указанного conversationId.
-     * <p>
-     * Новые подписчики получат всю историю токенов + новые в реальном времени.
-     * Используется для подключения UI компонентов к активному потоку ответа.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     * @return Flux с историей и новыми токенами
-     */
-    public Flux<ChatResponse> subscribe2(String conversationId) {
-        Sinks.Many<ChatResponse> sink = getOrCreateSink2(conversationId);
-        log.debug("Подписка на поток для conversationId: {}", conversationId);
-        return sink.asFlux();
-    }
 
     /**
      * Отправляет токен во все активные подписки для указанного conversationId.
      * <p>
      * Используется {@link AiService} для публикации токенов,
      * полученных от AI модели, во все подключенные UI компоненты.
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
-     * @param token токен для отправки
+     * @param token          токен для отправки
      */
     public void pushToken(String conversationId, String token) {
         Sinks.Many<String> sink = replaySinks.get(conversationId);
@@ -130,7 +102,7 @@ public class MemoryService {
      * <p>
      * После завершения новые подписчики получат всю историю,
      * но новые токены не будут приниматься.
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
      */
     public void completeStream(String conversationId) {
@@ -152,9 +124,9 @@ public class MemoryService {
      * Завершает поток с ошибкой для указанного conversationId.
      * <p>
      * Ошибка будет передана всем текущим и будущим подписчикам.
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
-     * @param error ошибка, которую нужно передать
+     * @param error          ошибка, которую нужно передать
      */
     public void errorStream(String conversationId, Throwable error) {
         Sinks.Many<String> sink = replaySinks.get(conversationId);
@@ -173,7 +145,7 @@ public class MemoryService {
      * Проверяет, есть ли активный поток для указанного conversationId.
      * <p>
      * Sink считается активным, если он существует в кэше и не завершен.
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
      * @return true, если поток активен
      */
@@ -187,7 +159,7 @@ public class MemoryService {
      * <p>
      * История сохраняется Spring AI и может быть использована
      * для восстановления контекста разговора после перезапуска приложения.
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
      * @return список сообщений или пустой список
      */
@@ -209,7 +181,7 @@ public class MemoryService {
      *   <li>Есть активный поток (Sink) для conversationId</li>
      *   <li>Есть завершенные сообщения в ChatMemory</li>
      * </ul>
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
      * @return true, если есть данные
      */
@@ -224,7 +196,7 @@ public class MemoryService {
      * <p>
      * Не влияет на активный поток токенов (Sink).
      * Используется для сброса контекста перед новой проверкой.
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
      */
     public void clearMessages(String conversationId) {
@@ -244,7 +216,7 @@ public class MemoryService {
      *   <li>Очищает историю сообщений в ChatMemory</li>
      * </ul>
      * Используйте для полной очистки разговора.
-     * 
+     *
      * @param conversationId уникальный идентификатор разговора
      */
     public void removeConversation(String conversationId) {

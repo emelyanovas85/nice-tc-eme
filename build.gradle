@@ -36,7 +36,7 @@ dependencyManagement {
 
 dependencies {
     //bugbusters библиотеки
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+//    developmentOnly 'org.springframework.boot:spring-boot-devtools'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation files('libs/JiraClient-1.6.3.jar', 'libs/JiraClient-1.6.3-sources.jar')
     implementation 'org.apache.commons:commons-text:1.3'
@@ -49,8 +49,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webflux' // для Reactor Flux
 
     // Spring AI для работы с OpenAI-совместимыми моделями (Qwen через vLLM)
-    implementation 'org.springframework.ai:spring-ai-starter-model-openai:1.1.0-M3'
-    implementation 'org.springframework.ai:spring-ai-client-chat:1.1.0-M3'
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai:1.1.2'
+    implementation 'org.springframework.ai:spring-ai-client-chat:1.1.2'
 
     // Spring Doc (Swagger UI) для документации и тестирования API в браузере
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
@@ -84,6 +84,9 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Для лимитирования частоты отправки запросов к LLM
+    implementation 'com.google.guava:guava:33.5.0-jre'
 }
 
 tasks.named('test') {
