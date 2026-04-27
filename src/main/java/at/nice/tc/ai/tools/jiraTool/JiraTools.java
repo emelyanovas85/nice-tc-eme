@@ -24,7 +24,7 @@ public class JiraTools {
     private final ToolEventPublisher.Factory publisherFactory;
 
     //    @Cacheable("availableTestProperties")
-    @Tool(name = "getAvailableTestProperties", description = "Перечень доступных свойств тест-кейса")
+//    @Tool(name = "getAvailableTestProperties", description = "Перечень доступных свойств тест-кейса")
     public List<String> getAvailableTestProperties(@ToolParam(description = "передай букву 'a'") String ignore,
                                                    ToolContext toolContext) {
         return sendEvents("Получение списка доступных json-свойств теста",
@@ -33,29 +33,29 @@ public class JiraTools {
     }
 
 
-    @Tool(description = "Получает информацию о доступности Jira")
+//    @Tool(description = "Получает информацию о доступности Jira")
     public String isAvailable(@ToolParam(description = "передай букву 'a'") String ignore, ToolContext context) {//todo ignore избавиться от заплатки в виде параметра в методе
         return sendEvents("Проверка доступности Jira",
                 () -> jiraService.isAvailable().join().toString(),
                 context);
     }
 
-    @Cacheable(value = "jiraAllVersions", key = "#testKey")
-    @Tool(name = "getAllVersions",
-            description = """
-                    Получает информацию о версиях теста по его ключу.
-                    Пример ключа: "VPEPVV-T800";
-                    Пример ответа:
-                                    [
-                                    	"0": {
-                                    		"updatedOn": "2025-10-24T09:04:21.657Z",
-                                    		"id": 159362,
-                                    		"majorVersion": 5,
-                                    		"createdOn": "2025-04-02T11:56:26.757Z"
-                                    	},
-                                    	...
-                                    ]
-                    """)
+//    @Cacheable(value = "jiraAllVersions", key = "#testKey")
+//    @Tool(name = "getAllVersions",
+//            description = """
+//                    Получает информацию о версиях теста по его ключу.
+//                    Пример ключа: "VPEPVV-T800";
+//                    Пример ответа:
+//                                    [
+//                                    	"0": {
+//                                    		"updatedOn": "2025-10-24T09:04:21.657Z",
+//                                    		"id": 159362,
+//                                    		"majorVersion": 5,
+//                                    		"createdOn": "2025-04-02T11:56:26.757Z"
+//                                    	},
+//                                    	...
+//                                    ]
+//                    """)
     public String getAllVersions(String testKey, ToolContext context) {
         return sendEvents("Получение версий теста " + testKey,
                 () -> jiraService.getAllVersionsAsync(testKey)
@@ -65,31 +65,31 @@ public class JiraTools {
     }
 
 
-    @Tool(description = """
-            Получает информацию произведенных выполнениях теста.
-            Пример ответа:
-                    {
-                    	"data": [
-                    		{
-                    			"automated": false,
-                    			"testResultStatus": {
-                    				"name": "Pass"
-                    			},
-                    			"issueLinks": [],
-                    			"executionDate": "2024-12-03T05:55:10.469Z",
-                    			"key": "PERUFR-E35",
-                    			"testCase": {
-                    				"id": 134595,
-                    				"majorVersion": 1
-                    			},
-                    			"testRun": {
-                    				"id": 65649,
-                    				"key": "PERUFR-C1"
-                    			}
-                    		}
-                    	]
-                    }
-            """)
+//    @Tool(description = """
+//            Получает информацию произведенных выполнениях теста.
+//            Пример ответа:
+//                    {
+//                    	"data": [
+//                    		{
+//                    			"automated": false,
+//                    			"testResultStatus": {
+//                    				"name": "Pass"
+//                    			},
+//                    			"issueLinks": [],
+//                    			"executionDate": "2024-12-03T05:55:10.469Z",
+//                    			"key": "PERUFR-E35",
+//                    			"testCase": {
+//                    				"id": 134595,
+//                    				"majorVersion": 1
+//                    			},
+//                    			"testRun": {
+//                    				"id": 65649,
+//                    				"key": "PERUFR-C1"
+//                    			}
+//                    		}
+//                    	]
+//                    }
+//            """)
     public String getTestExecutions(
             @ToolParam(description = "id конкретной версии тест-кейса, например 12345. Можно получить с помощью getAllVersions")
             int versionId,
@@ -104,7 +104,7 @@ public class JiraTools {
     }
 
     //    @Cacheable("availableTestExecutionProperties")
-    @Tool(name = "getAvailableTestExecutionProperties", description = "Перечень доступных свойств выполнений тест-кейс")
+//    @Tool(name = "getAvailableTestExecutionProperties", description = "Перечень доступных свойств выполнений тест-кейс")
     public List<String> getAvailableTestExecutionProperties(
             @ToolParam(description = "передай букву 'a'") String ignore,
             ToolContext context) {

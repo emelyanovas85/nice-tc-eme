@@ -24,7 +24,7 @@ public class ChatClientConfig {
                                      GoogleTools googleTools,
                                      JiraTools jiraTools) {
         return ChatClient.builder(chatModel)
-                .defaultTools(mainChatTools, googleTools, jiraTools)
+                .defaultTools(mainChatTools, googleTools)
                 .defaultOptions(ChatOptions.builder()
                         .temperature(0.0)
                         .topP(0.5)

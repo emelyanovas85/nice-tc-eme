@@ -60,7 +60,11 @@ public class MainChatTools {
                     .thenCompose(futures -> CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])))
                     .join();
 
-            String jsonArray = "[" + String.join(",", results).trim().replaceAll("\\n\\s+", "") + "]";
+            String jsonArray = "[" + String.join(",", results)
+                    .trim()
+                    .replaceAll("```json", "")
+                    .replaceAll("```", "")
+                    .replaceAll("\\n\\s+", "") + "]";
 
             List<Map<String, Object>> map;
 
