@@ -4,9 +4,13 @@ import at.nice.tc.ai.aggregator.TestCheckersAggregator;
 import at.nice.tc.events.ToolEventPublisher;
 import at.nice.tc.utils.ThrowableUtils;
 import at.nice.tc.utils.ToolUtils;
+import com.fasterxml.jackson.core.JsonLocation;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -21,6 +25,7 @@ import static java.util.stream.Collectors.groupingBy;
 
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class MainChatTools {
 
@@ -62,17 +67,17 @@ public class MainChatTools {
 
             String jsonArray = "[" + String.join(",", results)
                     .trim()
-                    .replaceAll("```json", "")
-                    .replaceAll("```", "")
+//                    .replaceAll("```json", "")
+//                    .replaceAll("```", "")
                     .replaceAll("\\n\\s+", "") + "]";
 
-            List<Map<String, Object>> map;
+            List<Map<String, Object>> map = null;
 
             try {
                 map = MAPPER.readValue(jsonArray, new TypeReference<>() {
                 });
             } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+                logBrokenJsonContext(jsonArray, e);
             }
 
             List<Map<String, Object>> jsonTable2 = jsonTable2(keyTestCase, map);
@@ -98,7 +103,30 @@ public class MainChatTools {
             publisher.eventPublisher().endTool(chatId);
         }
     }
+    private static void logBrokenJsonContext(String json, JsonProcessingException e) {
+        JsonLocation loc = e.getLocation();
+        int offset = (int) loc.getCharOffset();   // позиция символа 'В'
+        int radius = 120;
 
+        int from = Math.max(0, offset - radius);
+        int to = Math.min(json.length(), offset + radius);
+
+        String context = json.substring(from, to);
+        int caretPos = offset - from;
+
+        StringBuilder marker = new StringBuilder();
+        for (int i = 0; i < caretPos; i++) marker.append(' ');
+        marker.append('^');
+
+        log.error(
+                "JSON parse error at line {}, column {} (char {}): {}\n" +
+                        "Context ({}..{} of {}):\n{}\n{}\n",
+                loc.getLineNr(), loc.getColumnNr(), offset, e.getOriginalMessage(),
+                from, to, json.length(),
+                context,
+                marker
+        );
+    }
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> jsonTable2(String keyTestCase, List<Map<String, Object>> map) {
         return map.stream()

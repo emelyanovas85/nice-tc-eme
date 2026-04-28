@@ -33,7 +33,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private Markdown thinkingMessage;
     private final MarkdownMessage mainMessage;
 
-    private ProcessingState state;
+    private volatile ProcessingState state;
     private final EventHandlers handlers = new EventHandlers();
     private final AiToolCallService aiToolCallService;
     private final String authorName;
@@ -81,8 +81,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         // Сбрасываем состояние в InitialState при установке полного текста
         // чтобы избежать накопления данных в буферах предыдущих состояний
-        state = new InitialState(this);
-        state = state.process(fullText);
+        state = new InitialState(this).process(fullText);
     }
 
     public void appendMarkdownAsync(String chunk) {
@@ -91,7 +90,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         }
         getUI().ifPresent(ui -> { // без этого чанки путаются местами
             if (ui.isAttached())
-                ui.access(() -> state = state.process(chunk));
+                ui.access(() -> {
+                    ProcessingState current = state;
+                    if (current != null) {
+                        state = current.process(chunk);
+                    }
+                });
         });
     }
 

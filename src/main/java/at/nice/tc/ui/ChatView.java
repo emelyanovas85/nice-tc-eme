@@ -1,6 +1,6 @@
 package at.nice.tc.ui;
 
-import at.nice.tc.ai.client.Prompts;
+import at.nice.tc.events.ChatEvent;
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.AiToolCallService;
 import at.nice.tc.service.MemoryService;
@@ -14,12 +14,14 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.theme.lumo.Lumo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
 
 import java.time.LocalDateTime;
@@ -136,11 +138,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private void restoreUI() {
         final String chatId = config.getChatId();
         final Restorer restorer = new Restorer();
-        // Подписка на активный ответ ассистента
-        subscribeToChatStream();
-        // Добавление сообщений из истории снизу вверх
+
         final List<Message> completedMessages = memoryService.getCompletedMessages(chatId);
-        Collections.reverse(completedMessages); // отрисовывать снизу вверх
+        Collections.reverse(completedMessages);
 
         // Вычисляем время для каждого сообщения на основе его позиции
         // Предполагаем, что сообщения идут последовательно с интервалом ~2 секунды
@@ -167,19 +167,13 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
             botMessage.setMarkdown(text);
-//            botMessage.getMainMessage().setUserColorIndex(5);
-            botMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
+            botMessage.getMainMessage().setUserColorIndex(5);
             messageList.addComponentAtIndex(0, botMessage);
         }
 
-
         public void createUserMessage(String text, LocalDateTime timestamp) {
-//            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), timestamp);
-//            userMessage.setUserColorIndex(3);
-//            messageList.addComponentAtIndex(0, userMessage);
-            MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), timestamp, aiToolCallService);
-            userMessage.setMarkdown(text);
-            userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
+            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), timestamp);
+            userMessage.setUserColorIndex(3);
             messageList.addComponentAtIndex(0, userMessage);
         }
     }
@@ -191,7 +185,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
         String userText = inputLayout.getTextField().getValue().trim();
-        if (userText.isEmpty()) return;
+        if (userText.isEmpty()) {
+            return;
+        }
 
         scroll.setStickDown(true);
         inputLayout.showStopButton();
@@ -222,11 +218,11 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (!config.getScope().isBlank())
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
-        prompt.append("\n\n").append(Prompts.aggregatorPrompt);
-        aiService.sendMainMessageStream(prompt.toString(), config.getChatId()); // Токены будут push-иться в MemoryService
 
-        // Подписка на ответ ассистента
+        // FIX: сначала переподписываемся, потом отправляем сообщение,
+        // чтобы гарантированно не пропустить первые токены
         subscribeToChatStream();
+        aiService.sendMainMessageStream(prompt.toString(), config.getChatId());
     }
 
     private void onStop(ClickEvent<Button> buttonClickEvent) {
@@ -238,6 +234,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             subscription.dispose();
             subscription = null;
         }
+        // FIX: сбрасываем actualBotMessage, чтобы следующие токены
+        // (например от агентских под-чатов) не писались в старое сообщение
+        actualBotMessage = null;
         inputLayout.showSendButton();
     }
 
@@ -245,19 +244,21 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
+        // FIX: единственное место где подписываемся на стрим при загрузке страницы
         subscribeToChatStream();
     }
 
-
     @Override
     protected void onDetach(DetachEvent detachEvent) {
-        if (subscription != null && !subscription.isDisposed()) subscription.dispose();
+        if (subscription != null && !subscription.isDisposed()) {
+            subscription.dispose();
+        }
         super.onDetach(detachEvent);
     }
 
 
-/*
     private void subscribeToChatStream() {
+        // Отменяем предыдущую подписку если есть
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
         }
@@ -276,63 +277,18 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                             scroll.scrollToBottom();
                         }),
                         err -> ui.access(() -> {
-                            actualBotMessage.appendMarkdownAsync("\n\nОшибка: " + err.getMessage());
+                            if (actualBotMessage != null) {
+                                actualBotMessage.appendMarkdownAsync("\n\nОшибка: " + err.getMessage());
+                            }
                             stop();
                         }),
                         () -> ui.access(() -> {
-                            actualBotMessage.finish();
+                            if (actualBotMessage != null) {
+                                actualBotMessage.finish();
+                            }
                             stop();
                         })
                 );
     }
-*/
 
-    private void subscribeToChatStream() {
-        if (subscription != null && !subscription.isDisposed()) {
-            subscription.dispose();
-        }
-        if (getUI().isEmpty()) {
-            return;
-        }
-        final UI ui = getUI().get();
-
-//        actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
-
-        subscription = memoryService.subscribe(config.getChatId())
-                .subscribe(
-                        token -> ui.access(() -> {
-                            MarkdownMessageWithThinking botMsg = findActiveBotMessage();
-                            if (botMsg != null) {
-                                botMsg.appendMarkdownAsync(token);
-                                scroll.scrollToBottom();
-                            } else {
-                                log.warn("Нет активного bot сообщения для chatId: {}", config.getChatId());
-                            }
-                        }),
-                        err -> ui.access(() -> {
-                            MarkdownMessageWithThinking botMsg = findActiveBotMessage();
-                            if (botMsg != null) {
-                                botMsg.appendMarkdownAsync("\n\n**Ошибка:** " + err.getMessage());
-                                stop();
-                            } else {
-                                log.error("Ошибка 429/другая, но нет bot сообщения: {}", err.getMessage());
-                                stop();
-                            }
-                        }),
-                        () -> ui.access(() -> {
-                            MarkdownMessageWithThinking botMsg = findActiveBotMessage();
-                            if (botMsg != null) {
-                                botMsg.finish();
-                                stop();
-                            }
-                        })
-                );
-    }
-
-    private MarkdownMessageWithThinking findActiveBotMessage() {
-        return (MarkdownMessageWithThinking) messageList.getChildren()
-                .filter(c -> c instanceof MarkdownMessageWithThinking)
-                .reduce((first, second) -> second)
-                .orElse(null);
-    }
 }
