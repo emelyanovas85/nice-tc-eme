@@ -128,27 +128,37 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
 
     /**
-     * Добавляет в чат сообщения из истории, в том числе сообщения, которые ИИ генерит прямо сейчас
+     * Добавляет в чат сообщения из истории.
+     * Если есть завершённые сообщения ассистента — показываем кнопку "Сохранить ответ".
      */
     private void restoreUI() {
         final String chatId = config.getChatId();
         final Restorer restorer = new Restorer();
 
-        final List<Message> completedMessages = memoryService.getCompletedMessages(chatId);
+        final List<Message> completedMessages = new ArrayList<>(memoryService.getCompletedMessages(chatId));
         Collections.reverse(completedMessages);
 
         final LocalDateTime now = LocalDateTime.now();
         final int messageCount = completedMessages.size();
+        boolean hasAssistantMessage = false;
 
         for (int i = 0; i < completedMessages.size(); i++) {
             Message m = completedMessages.get(i);
             LocalDateTime messageTime = now.minusSeconds((long) (messageCount - i) * 2);
 
             switch (m.getMessageType()) {
-                case ASSISTANT -> restorer.createCompletedAssistantMessage(m.getText(), messageTime);
+                case ASSISTANT -> {
+                    restorer.createCompletedAssistantMessage(m.getText(), messageTime);
+                    hasAssistantMessage = true;
+                }
                 case USER -> restorer.createUserMessage(m.getText(), messageTime);
                 default -> log.warn("Не обработано сообщение {}:\n{}", m.getMessageType(), m.getText());
             }
+        }
+
+        // Если есть история — показываем кнопку "Сохранить ответ" сразу
+        if (hasAssistantMessage) {
+            inputLayout.showSaveButton();
         }
     }
 
@@ -215,7 +225,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     /**
      * Обработчик кнопки "Сохранить ответ".
-     * Берёт последнее сообщение ассистента из истории и сохраняет в файл {scope}.md
+     * Берёт последнее сообщение ассистента из истории и сохраняет в файл {scope}.md.
+     * Если scope не задан — показывает ошибку с подсказкой передать его через URL.
      */
     private void onSave(ClickEvent<Button> buttonClickEvent) {
         String scope = config.getScope();
@@ -225,13 +236,16 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             return;
         }
 
-        // Гетем последнее сообщение ассистента из ChatMemory
+        // Берём последнее сообщение ассистента из ChatMemory
+        // getCompletedMessages возвращает список в порядке от старых к новым — последний элемент ответа ассистента
         List<Message> messages = memoryService.getCompletedMessages(config.getChatId());
-        String lastAssistantText = messages.stream()
-                .filter(m -> m.getMessageType() == MessageType.ASSISTANT)
-                .findFirst() // список в обратном порядке после reverse() в restoreUI — первый = последний
-                .map(Message::getText)
-                .orElse(null);
+        String lastAssistantText = null;
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if (messages.get(i).getMessageType() == MessageType.ASSISTANT) {
+                lastAssistantText = messages.get(i).getText();
+                break;
+            }
+        }
 
         if (lastAssistantText == null || lastAssistantText.isBlank()) {
             showNotification("Нет ответа ассистента для сохранения", NotificationVariant.LUMO_WARNING);
@@ -287,7 +301,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         }
         final UI ui = getUI().get();
         subscription = memoryService.subscribe(config.getChatId())
-                .subscribe(token -> ui.access(() -> {
+                .subscribe(
+                        token -> ui.access(() -> {
                             if (actualBotMessage == null) {
                                 actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
                                 actualBotMessage.getMainMessage().setUserColorIndex(5);
@@ -307,10 +322,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                                 actualBotMessage.finish();
                             }
                             stop();
-                            // Показываем кнопку "Сохранить ответ" только если scope задан (тест-кейс открыт)
-                            if (!config.getScope().isBlank()) {
-                                inputLayout.showSaveButton();
-                            }
+                            // Показываем кнопку "Сохранить ответ" всегда после завершения генерации
+                            // если scope не задан — покажем ошибку при нажатии (в onSave)
+                            inputLayout.showSaveButton();
                         })
                 );
     }
