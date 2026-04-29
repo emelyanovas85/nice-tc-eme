@@ -1,30 +1,33 @@
 package at.nice.tc.ui;
 
 import at.nice.tc.ai.client.Prompts;
-import at.nice.tc.events.ChatEvent;
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.AiToolCallService;
+import at.nice.tc.service.MarkdownSaveService;
 import at.nice.tc.service.MemoryService;
 import at.nice.tc.ui.components.ChatInputComponent;
 import at.nice.tc.ui.components.MarkdownMessageWithThinking;
 import at.nice.tc.ui.components.SmartScroller;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.Lumo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
 
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,12 +43,12 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private final AiService aiService;
     private final MemoryService memoryService;
     private final AiToolCallService aiToolCallService;
+    private final MarkdownSaveService markdownSaveService;
 
-    private SmartScroller scroll; // обертка для панели сообщений
-    private VerticalLayout messageList; // панель сообщений
-    private ChatInputComponent inputLayout; // textArea с кнопкой отправки
+    private SmartScroller scroll;
+    private VerticalLayout messageList;
+    private ChatInputComponent inputLayout;
 
-    // Хранилище timestamp последних добавленных сообщений для предотвращения дублирования
     private final Set<Long> addedMessageTimestamps = new HashSet<>();
 
     private final Config config = new Config(UUID.randomUUID().toString(), "browser", 70, 70, "", "", "Пользователь");
@@ -100,14 +103,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
 
     private void initUI() {
-        //TODO нужно добавить в css файле (frontend/components/test-tree-styles.css) цвета для светлой темы и тогда вернуть тогл
-/*        Button toggleButton = new Button("Toggle theme", click -> getElement().executeJs(
-                "document.documentElement.setAttribute('theme', " +
-                        "document.documentElement.getAttribute('theme') === $0 ? $1 : $0)",
-                Lumo.DARK, Lumo.LIGHT));
-
-        getContent().add(toggleButton);*/
-
         messageList = new VerticalLayout();
 
         scroll = new SmartScroller(messageList);
@@ -121,14 +116,13 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         inputLayout.setWidthFull();
         inputLayout.getSendButton().addClickListener(this::onSubmit);
         inputLayout.getStopButton().addClickListener(this::onStop);
+        inputLayout.getSaveButton().addClickListener(this::onSave);
         inputLayout.setWidth(config.getWidthPerc(), PERCENTAGE);
-
 
         getContent().add(inputLayout);
         getContent().setSizeFull();
         inputLayout.showSendButton();
 
-        // restore all previous/active messages on UI init
         restoreUI();
     }
 
@@ -143,15 +137,11 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         final List<Message> completedMessages = memoryService.getCompletedMessages(chatId);
         Collections.reverse(completedMessages);
 
-        // Вычисляем время для каждого сообщения на основе его позиции
-        // Предполагаем, что сообщения идут последовательно с интервалом ~2 секунды
         final LocalDateTime now = LocalDateTime.now();
         final int messageCount = completedMessages.size();
 
         for (int i = 0; i < completedMessages.size(); i++) {
             Message m = completedMessages.get(i);
-            // Время вычисляется от текущего момента назад, предполагая интервал ~2 секунды между сообщениями
-            // Самое старое сообщение будет иметь время (messageCount - i) * 2 секунд назад
             LocalDateTime messageTime = now.minusSeconds((long) (messageCount - i) * 2);
 
             switch (m.getMessageType()) {
@@ -195,21 +185,15 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         inputLayout.getTextField().clear();
 
         LocalDateTime now = LocalDateTime.now();
-//        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), now);
-//        userMessage.setUserColorIndex(3);
-//        messageList.add(userMessage);
         MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), now, aiToolCallService);
         userMessage.setMarkdown(userText);
         userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
         messageList.add(userMessage);
 
-        // Публикуем событие о новом сообщении пользователя для синхронизации между вкладками
         long timestamp = System.currentTimeMillis();
-        // Добавляем timestamp в Set, чтобы не добавить это сообщение снова при получении события
         addedMessageTimestamps.add(timestamp);
 
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
-//        actualBotMessage.getMainMessage().setUserColorIndex(5);
         actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
         messageList.add(actualBotMessage);
 
@@ -221,8 +205,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         prompt.append("\n").append(userText);
         prompt.append("\n").append(Prompts.aggregatorPrompt);
 
-        // FIX: сначала переподписываемся, потом отправляем сообщение,
-        // чтобы гарантированно не пропустить первые токены
         subscribeToChatStream();
         aiService.sendMainMessageStream(prompt.toString(), config.getChatId());
     }
@@ -231,22 +213,59 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         stop();
     }
 
+    /**
+     * Обработчик кнопки "Сохранить ответ".
+     * Берёт последнее сообщение ассистента из истории и сохраняет в файл {scope}.md
+     */
+    private void onSave(ClickEvent<Button> buttonClickEvent) {
+        String scope = config.getScope();
+        if (scope == null || scope.isBlank()) {
+            showNotification("Сохранение невозможно: scope (ключ тест-кейса) не задан. Передайте ?scope=КЛЮЧ-ТXXX в URL",
+                    NotificationVariant.LUMO_ERROR);
+            return;
+        }
+
+        // Гетем последнее сообщение ассистента из ChatMemory
+        List<Message> messages = memoryService.getCompletedMessages(config.getChatId());
+        String lastAssistantText = messages.stream()
+                .filter(m -> m.getMessageType() == MessageType.ASSISTANT)
+                .findFirst() // список в обратном порядке после reverse() в restoreUI — первый = последний
+                .map(Message::getText)
+                .orElse(null);
+
+        if (lastAssistantText == null || lastAssistantText.isBlank()) {
+            showNotification("Нет ответа ассистента для сохранения", NotificationVariant.LUMO_WARNING);
+            return;
+        }
+
+        try {
+            Path saved = markdownSaveService.save(scope, lastAssistantText);
+            showNotification("✅ Сохранено: " + saved.toAbsolutePath(), NotificationVariant.LUMO_SUCCESS);
+            log.info("Ответ для '{}' сохранён в файл: {}", scope, saved);
+        } catch (Exception e) {
+            log.error("Ошибка сохранения ответа для scope={}", scope, e);
+            showNotification("❌ Ошибка сохранения: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
+        }
+    }
+
     private void stop() {
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
             subscription = null;
         }
-        // FIX: сбрасываем actualBotMessage, чтобы следующие токены
-        // (например от агентских под-чатов) не писались в старое сообщение
         actualBotMessage = null;
         inputLayout.showSendButton();
+    }
+
+    private void showNotification(String message, NotificationVariant variant) {
+        Notification notification = Notification.show(message, 4000, Notification.Position.BOTTOM_END);
+        notification.addThemeVariants(variant);
     }
 
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        // FIX: единственное место где подписываемся на стрим при загрузке страницы
         subscribeToChatStream();
     }
 
@@ -260,7 +279,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
 
     private void subscribeToChatStream() {
-        // Отменяем предыдущую подписку если есть
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
         }
@@ -289,6 +307,10 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                                 actualBotMessage.finish();
                             }
                             stop();
+                            // Показываем кнопку "Сохранить ответ" только если scope задан (тест-кейс открыт)
+                            if (!config.getScope().isBlank()) {
+                                inputLayout.showSaveButton();
+                            }
                         })
                 );
     }
