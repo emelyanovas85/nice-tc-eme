@@ -10,9 +10,14 @@ import at.nice.tc.ui.components.MarkdownMessageWithThinking;
 import at.nice.tc.ui.components.SmartScroller;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
@@ -53,14 +58,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     private final Config config = new Config(UUID.randomUUID().toString(), "browser", 70, 70, "", "", "Пользователь");
 
-    /**
-     * - mode        browser/extension (просто мета-инфа)
-     * - heightPerc  высота чата внутри контейнера
-     * - widthPerc   ширина чата внутри контенера
-     * - scope       "", либо ASDKO-T777, либо ASDKO-C666, либо 12345
-     * - userId      40FamiliaIO (в нижнем регистре)
-     * - userFio     инициалы пользователя
-     */
     @Data
     @AllArgsConstructor
     public static class Config {
@@ -76,7 +73,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     public static class Constants {
         public static final String CHAT_ID = "chatId";
     }
-
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
@@ -100,7 +96,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                 .map(s -> s.substring(0, 1))
                 .collect(Collectors.joining());
     }
-
 
     private void initUI() {
         messageList = new VerticalLayout();
@@ -126,11 +121,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         restoreUI();
     }
 
-
-    /**
-     * Добавляет в чат сообщения из истории.
-     * Если есть завершённые сообщения ассистента — показываем кнопку "Сохранить ответ".
-     */
     private void restoreUI() {
         final String chatId = config.getChatId();
         final Restorer restorer = new Restorer();
@@ -156,15 +146,12 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             }
         }
 
-        // Если есть история — показываем кнопку "Сохранить ответ" сразу
         if (hasAssistantMessage) {
             inputLayout.showSaveButton();
         }
     }
 
-
     class Restorer {
-
         public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
             botMessage.setMarkdown(text);
@@ -179,10 +166,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         }
     }
 
-
     private Disposable subscription;
     private MarkdownMessageWithThinking actualBotMessage;
-
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
         String userText = inputLayout.getTextField().getValue().trim();
@@ -225,19 +210,66 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     /**
      * Обработчик кнопки "Сохранить ответ".
-     * Берёт последнее сообщение ассистента из истории и сохраняет в файл {scope}.md.
-     * Если scope не задан — показывает ошибку с подсказкой передать его через URL.
+     * Если scope задан через URL — сразу сохраняет.
+     * Если scope пустой — показывает диалог с полем ввода ID тест-кейса.
      */
     private void onSave(ClickEvent<Button> buttonClickEvent) {
         String scope = config.getScope();
-        if (scope == null || scope.isBlank()) {
-            showNotification("Сохранение невозможно: scope (ключ тест-кейса) не задан. Передайте ?scope=КЛЮЧ-ТXXX в URL",
-                    NotificationVariant.LUMO_ERROR);
-            return;
+        if (scope != null && !scope.isBlank()) {
+            // scope задан через URL — сохраняем сразу
+            doSave(scope);
+        } else {
+            // scope пустой — спрашиваем пользователя через диалог
+            showScopeInputDialog();
         }
+    }
 
-        // Берём последнее сообщение ассистента из ChatMemory
-        // getCompletedMessages возвращает список в порядке от старых к новым — последний элемент ответа ассистента
+    /**
+     * Показывает диалог с полем для ввода ID тест-кейса, если scope не задан через URL.
+     */
+    private void showScopeInputDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Сохранить ответ");
+        dialog.setCloseOnOutsideClick(true);
+        dialog.setCloseOnEsc(true);
+
+        TextField scopeField = new TextField("Ключ тест-кейса");
+        scopeField.setPlaceholder("Например: VPEPVV-T2834");
+        scopeField.setWidth("280px");
+        scopeField.focus();
+
+        Button saveBtn = new Button("Сохранить", e -> {
+            String entered = scopeField.getValue().trim();
+            if (entered.isBlank()) {
+                scopeField.setInvalid(true);
+                scopeField.setErrorMessage("Введите ключ тест-кейса");
+                return;
+            }
+            dialog.close();
+            doSave(entered);
+        });
+        saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Button cancelBtn = new Button("Отмена", e -> dialog.close());
+
+        // Сохранение по Enter
+        scopeField.addKeyPressListener(Key.ENTER, e -> saveBtn.click());
+
+        HorizontalLayout buttons = new HorizontalLayout(saveBtn, cancelBtn);
+        buttons.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
+
+        VerticalLayout content = new VerticalLayout(scopeField, buttons);
+        content.setPadding(false);
+        content.setSpacing(true);
+
+        dialog.add(content);
+        dialog.open();
+    }
+
+    /**
+     * Фактическое сохранение ответа в файл {testCaseId}.md
+     */
+    private void doSave(String testCaseId) {
         List<Message> messages = memoryService.getCompletedMessages(config.getChatId());
         String lastAssistantText = null;
         for (int i = messages.size() - 1; i >= 0; i--) {
@@ -253,11 +285,11 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         }
 
         try {
-            Path saved = markdownSaveService.save(scope, lastAssistantText);
+            Path saved = markdownSaveService.save(testCaseId, lastAssistantText);
             showNotification("✅ Сохранено: " + saved.toAbsolutePath(), NotificationVariant.LUMO_SUCCESS);
-            log.info("Ответ для '{}' сохранён в файл: {}", scope, saved);
+            log.info("Ответ для '{}' сохранён в файл: {}", testCaseId, saved);
         } catch (Exception e) {
-            log.error("Ошибка сохранения ответа для scope={}", scope, e);
+            log.error("Ошибка сохранения ответа для testCaseId={}", testCaseId, e);
             showNotification("❌ Ошибка сохранения: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
         }
     }
@@ -276,7 +308,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         notification.addThemeVariants(variant);
     }
 
-
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
@@ -290,7 +321,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         }
         super.onDetach(detachEvent);
     }
-
 
     private void subscribeToChatStream() {
         if (subscription != null && !subscription.isDisposed()) {
@@ -322,11 +352,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                                 actualBotMessage.finish();
                             }
                             stop();
-                            // Показываем кнопку "Сохранить ответ" всегда после завершения генерации
-                            // если scope не задан — покажем ошибку при нажатии (в onSave)
                             inputLayout.showSaveButton();
                         })
                 );
     }
-
 }
