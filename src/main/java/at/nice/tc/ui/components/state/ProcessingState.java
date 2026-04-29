@@ -2,8 +2,6 @@ package at.nice.tc.ui.components.state;
 
 import at.nice.tc.ui.components.MarkdownMessageWithThinking;
 
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
@@ -14,6 +12,9 @@ public abstract class ProcessingState {
 
     protected ProcessingState(MarkdownMessageWithThinking context) {
         this.context = context;
+        // Уведомляем контекст о создании нового состояния
+        // (передаем ссылку на экземпляр этого состояния)
+        context.notifyStateChanged(this);
     }
 
     public abstract ProcessingState process(String chunk);
@@ -29,24 +30,8 @@ public abstract class ProcessingState {
         );
     }
 
-    // <editor-fold desc="Функциональность слушателей" defaultstate="collapsed">
-
-    private static final List<Listener> LISTENERS = new CopyOnWriteArrayList<>();
-    private static ProcessingState currentState;
-
-    public void addChangeStateListener(ProcessingState.Listener l) {
-        LISTENERS.add(l);
-    }
-
-    {
-        LISTENERS.forEach(l -> l.changed(currentState, this));
-        currentState = this;
-    }
-
     @FunctionalInterface
     public interface Listener {
-        void changed(ProcessingState oldState, ProcessingState newState);
+        void changed(ProcessingState newState);
     }
-    // </editor-fold>
 }
-

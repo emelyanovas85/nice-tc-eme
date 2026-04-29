@@ -22,6 +22,8 @@ import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Slf4j
 @Getter
@@ -39,6 +41,9 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private final String authorName;
     private final LocalDateTime timestamp;
 
+    // Слушатели смены состояния — пер экземпляр, не статические!
+    private final List<ProcessingState.Listener> stateListeners = new CopyOnWriteArrayList<>();
+
     public MarkdownMessageWithThinking(String name, LocalDateTime timestamp, AiToolCallService aiToolCallService) {
         this.aiToolCallService = aiToolCallService;
         this.authorName = name;
@@ -49,6 +54,21 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         mainMessage = new MarkdownMessage(name, timestamp);
         add(mainMessage);
         state = new InitialState(this);
+    }
+
+    /**
+     * Уведомляет всех зарегистрированных слушателей о смене состояния.
+     * Вызывается из конструктора ProcessingState.
+     */
+    public void notifyStateChanged(ProcessingState newState) {
+        stateListeners.forEach(l -> l.changed(newState));
+    }
+
+    /**
+     * Добавляет слушатель смены состояния для этого конкретного сообщения.
+     */
+    public void addChangeStateListener(ProcessingState.Listener l) {
+        stateListeners.add(l);
     }
 
     /**
@@ -111,8 +131,8 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             thinkingDetails.addClassName("thinking-details");
             thinkingDetails.setOpened(true);
 
-            state.addChangeStateListener((oldState, newState) -> {
-                // когда размышления закончатся:
+            // Слушатель на этом екземпляре: когда размышления закончатся — свернуть Details
+            addChangeStateListener(newState -> {
                 if (newState instanceof MainState)
                     getUI().ifPresent(ui -> {
                         if (ui.isAttached())
@@ -148,16 +168,10 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
      * Выполняются в UI потоке (синхронно)
      */
     public void handleEvent(ChatEvent event) {
-//        if (!isThinkingMessageLatestElement())
-//            addNewThinkingMarkdown();
-
         if (event instanceof CheckEvent.AgentBuiltTestTreeEvent e) {
             addNewThinkingMarkdown();
             Component treeSection = getHandlers().check.doOnBuiltTestTree(e);
             UiUtils.doInUI(this, () -> thinkingContent.add(treeSection));
-
-//        } else if (event instanceof CheckEvent.CheckPreparingEvent e) {
-//            UiUtils.doInUI(this, () -> getHandlers().check.doOnCheckPreparing(e));
 
         } else if (event instanceof CheckEvent.CheckPromptStartedEvent e) {
             UiUtils.doInUI(this, () -> getHandlers().check.doOnPromptStarted(e));
@@ -189,16 +203,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
                 markdown.appendContent(timestamp() + "\t" + logEvent.getText() + "  \n");
 
-                // Для аттачментов используем компоненты Vaadin вместо HTML в markdown
-                // потому что Vaadin Markdown может не рендерить HTML теги <details>
                 if (!logEvent.getAttachments().isEmpty()) {
                     ensureThinkingDetailsCreated();
                     if (thinkingContent == null) {
-                        return; // На всякий случай проверяем
+                        return;
                     }
 
                     UiUtils.doInUI(MarkdownMessageWithThinking.this, () -> {
-                        // Убеждаемся, что thinkingDetails открыт, чтобы аттачменты были видны
                         if (thinkingDetails != null && !thinkingDetails.isOpened()) {
                             thinkingDetails.setOpened(true);
                         }
@@ -213,7 +224,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
 
         private void appendAttachment(Attachment a) {
-            // Добавляем Details сразу после соответствующего markdown
             Markdown value = new Markdown();
             VerticalLayout content = new VerticalLayout(value) {{
                 setPadding(false);

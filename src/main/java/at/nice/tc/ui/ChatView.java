@@ -154,9 +154,10 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     class Restorer {
         public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
-            botMessage.setMarkdown(text);
             botMessage.getMainMessage().setUserColorIndex(5);
             messageList.addComponentAtIndex(0, botMessage);
+            // Сначала добавляем в DOM, затем устанавливаем текст
+            botMessage.setMarkdown(text);
         }
 
         public void createUserMessage(String text, LocalDateTime timestamp) {
@@ -181,9 +182,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         LocalDateTime now = LocalDateTime.now();
         MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), now, aiToolCallService);
-        userMessage.setMarkdown(userText);
         userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
-        messageList.add(userMessage);
+        messageList.add(userMessage);            // <-- Сначала добавляем в DOM...
+        userMessage.setMarkdown(userText);       // <-- ...затем устанавливаем текст
 
         long timestamp = System.currentTimeMillis();
         addedMessageTimestamps.add(timestamp);
@@ -216,10 +217,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private void onSave(ClickEvent<Button> buttonClickEvent) {
         String scope = config.getScope();
         if (scope != null && !scope.isBlank()) {
-            // scope задан через URL — сохраняем сразу
             doSave(scope);
         } else {
-            // scope пустой — спрашиваем пользователя через диалог
             showScopeInputDialog();
         }
     }
@@ -252,7 +251,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         Button cancelBtn = new Button("Отмена", e -> dialog.close());
 
-        // Сохранение по Enter
         scopeField.addKeyPressListener(Key.ENTER, e -> saveBtn.click());
 
         HorizontalLayout buttons = new HorizontalLayout(saveBtn, cancelBtn);
