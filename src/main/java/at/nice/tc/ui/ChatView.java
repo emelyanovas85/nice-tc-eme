@@ -156,7 +156,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
             botMessage.getMainMessage().setUserColorIndex(5);
             messageList.addComponentAtIndex(0, botMessage);
-            // Сначала добавляем в DOM, затем устанавливаем текст
             botMessage.setMarkdown(text);
         }
 
@@ -181,10 +180,11 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         inputLayout.getTextField().clear();
 
         LocalDateTime now = LocalDateTime.now();
-        MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), now, aiToolCallService);
-        userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
-        messageList.add(userMessage);            // <-- Сначала добавляем в DOM...
-        userMessage.setMarkdown(userText);       // <-- ...затем устанавливаем текст
+        // Пользовательские сообщения никогда не содержат <think> или <tool> — используем plain MarkdownMessage
+        // аналогично Restorer.createUserMessage()
+        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), now);
+        userMessage.setUserColorIndex(3);
+        messageList.add(userMessage);
 
         long timestamp = System.currentTimeMillis();
         addedMessageTimestamps.add(timestamp);
@@ -209,11 +209,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         stop();
     }
 
-    /**
-     * Обработчик кнопки "Сохранить ответ".
-     * Если scope задан через URL — сразу сохраняет.
-     * Если scope пустой — показывает диалог с полем ввода ID тест-кейса.
-     */
     private void onSave(ClickEvent<Button> buttonClickEvent) {
         String scope = config.getScope();
         if (scope != null && !scope.isBlank()) {
@@ -223,9 +218,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         }
     }
 
-    /**
-     * Показывает диалог с полем для ввода ID тест-кейса, если scope не задан через URL.
-     */
     private void showScopeInputDialog() {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Сохранить ответ");
@@ -264,9 +256,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         dialog.open();
     }
 
-    /**
-     * Фактическое сохранение ответа в файл {testCaseId}.md
-     */
     private void doSave(String testCaseId) {
         List<Message> messages = memoryService.getCompletedMessages(config.getChatId());
         String lastAssistantText = null;
