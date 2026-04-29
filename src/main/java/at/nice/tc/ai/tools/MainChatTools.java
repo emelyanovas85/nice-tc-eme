@@ -65,23 +65,28 @@ public class MainChatTools {
                     .thenCompose(futures -> CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])))
                     .join();
 
-            String jsonArray = "[" + String.join(",", results)
-                    .trim()
-//                    .replaceAll("```json", "")
-//                    .replaceAll("```", "")
-                    .replaceAll("\\n\\s+", "") + "]";
+            List<Map<String, Object>> merged = new ArrayList<>();
 
-            List<Map<String, Object>> map = null;
+
+
+
+
+            String jsonArray = "[" + String.join(",", results) + "]";
+
+//            List<Map<String, Object>> map = null;
 
             try {
-                map = MAPPER.readValue(jsonArray, new TypeReference<>() {
-                });
+                for (String result : results) {
+                    if (result == null || result.isBlank()) continue;
+                    Map<String, Object> map = MAPPER.readValue(result, new TypeReference<>() {});
+                    merged.add(map);
+                }
             } catch (JsonProcessingException e) {
-                logBrokenJsonContext(jsonArray, e);
+//                logBrokenJsonContext(merged, e);
             }
 
-            List<Map<String, Object>> jsonTable2 = jsonTable2(keyTestCase, map);
-            List<Map<String, Object>> jsonTable3 = jsonTable3(map);
+            List<Map<String, Object>> jsonTable2 = jsonTable2(keyTestCase, merged);
+            List<Map<String, Object>> jsonTable3 = jsonTable3(merged);
 
 
             int size = jsonTable3.size();

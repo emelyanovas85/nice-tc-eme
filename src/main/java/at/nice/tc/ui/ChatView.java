@@ -1,5 +1,6 @@
 package at.nice.tc.ui;
 
+import at.nice.tc.ai.client.Prompts;
 import at.nice.tc.events.ChatEvent;
 import at.nice.tc.service.AiService;
 import at.nice.tc.service.AiToolCallService;
@@ -218,6 +219,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (!config.getScope().isBlank())
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
+        prompt.append("\n").append(Prompts.aggregatorPrompt);
 
         // FIX: сначала переподписываемся, потом отправляем сообщение,
         // чтобы гарантированно не пропустить первые токены
