@@ -35,6 +35,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
     private final SafeMarkdownMessage mainMessage;
 
+    /**
+     * Накапливает весь текст основного (main) сообщения.
+     * Используется чтобы вызывать setMarkdown(fullText) вместо appendMarkdown,
+     * что гарантирует рендеринг в браузере без зависимости от JS-буфера firitin.
+     */
+    private final StringBuilder mainTextBuffer = new StringBuilder();
+
     private volatile ProcessingState state;
     private final EventHandlers handlers = new EventHandlers();
     private final AiToolCallService aiToolCallService;
@@ -75,6 +82,16 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         USER, ASSISTANT
     }
 
+    /**
+     * Добавляет текст в основное сообщение через setMarkdown(fullText).
+     * Вызывается из ProcessingState (MainState, InitialState) — всегда в UI-потоке.
+     * Использует setMarkdown вместо appendMarkdown для надёжного рендеринга.
+     */
+    public void appendMainText(String text) {
+        mainTextBuffer.append(text);
+        mainMessage.setMarkdown(mainTextBuffer.toString());
+    }
+
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
@@ -83,17 +100,18 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     }
 
     /**
-     * Устанавливает полный текст сообщения.
+     * Устанавливает полный текст сообщения (для восстановления из истории и для сообщений пользователя).
      * Вызывать только когда компонент уже в DOM (messageList.add вызван до этого метода).
      */
     public void setMarkdown(String fullText) {
         if (fullText == null || fullText.isEmpty()) return;
+        mainTextBuffer.setLength(0);
         state = new InitialState(this).process(fullText);
     }
 
     /**
      * Добавляет чанк маркдауна асинхронно из фонового потока.
-     * Внутри вызывает ui.access и затем process через прямой appendMarkdown.
+     * Внутри вызывает ui.access и затем process через прямой appendMainText.
      */
     public void appendMarkdownAsync(String chunk) {
         if (chunk == null || chunk.isEmpty()) return;
@@ -145,13 +163,11 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     }
 
     /**
-     * Завершает стриминг: сбрасывает внутренние буферы состояний,
-     * затем вызывает mainMessage.finish() чтобы firitin отрендерил
-     * все накопленные через appendMarkdown токены в браузере.
+     * Завершает стриминг: сбрасывает хвост буфера MainState (последние MAX_TAG_LEN символов
+     * которые удерживались на случай тега).
      */
     public void finish() {
         state.flush();
-        mainMessage.finish();
     }
 
     public void handleEvent(ChatEvent event) {

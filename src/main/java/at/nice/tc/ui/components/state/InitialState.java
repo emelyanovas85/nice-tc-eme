@@ -30,7 +30,7 @@ public class InitialState extends ProcessingState {
         final String text = buffer.toString();
 
         // Буферизуем только если текст короче чем самый длинный тег И может ещё начинаться с начала тега
-        // Для полного сообщения (сетМаркдаун) проходим сразу вниз
+        // Для полного сообщения (setMarkdown) проходим сразу вниз
         boolean couldBeStartOfTag = tags.stream()
                 .anyMatch(t -> t.getPlaceholder().startsWith(text));
         if (couldBeStartOfTag && text.length() < THINK_OPEN.length()) {
@@ -42,25 +42,27 @@ public class InitialState extends ProcessingState {
             int minPos = firstTag.get().pos();
             return switch (firstTag.get().tag()) {
                 case THINK_OPEN -> {
-                    buffer.delete(minPos, minPos + THINK_OPEN.length());
-                    yield new ThinkingState(context).process(buffer.toString());
+                    if (minPos > 0) context.appendMainText(text.substring(0, minPos));
+                    buffer.setLength(0);
+                    yield new ThinkingState(context).process(text.substring(minPos + THINK_OPEN.length()));
                 }
                 case TOOL_OPEN -> {
-                    buffer.delete(minPos, minPos + TOOL_OPEN.length());
-                    yield new ToolCallingState(context).process(buffer.toString());
+                    if (minPos > 0) context.appendMainText(text.substring(0, minPos));
+                    buffer.setLength(0);
+                    yield new ToolCallingState(context).process(text.substring(minPos + TOOL_OPEN.length()));
                 }
                 default -> {
                     UiUtils.printAndShowNotification(
                             "В InitialState встречен тег %s в тексте %s [%d]".formatted(firstTag.get().tag(), text, minPos)
                     );
-                    buffer.delete(minPos, minPos + TOOL_OPEN.length());
-                    yield new InitialState(context).process(buffer.toString());
+                    buffer.setLength(0);
+                    yield new InitialState(context).process(text);
                 }
             };
         }
 
         // Нет тегов — отправляем весь буфер в mainMessage и переходим в MainState
-        context.getMainMessage().appendMarkdown(text);
+        context.appendMainText(text);
         buffer.setLength(0);
         return new MainState(context);
     }
@@ -68,7 +70,7 @@ public class InitialState extends ProcessingState {
     @Override
     public void flush() {
         if (!buffer.isEmpty()) {
-            context.getMainMessage().appendMarkdown(buffer.toString());
+            context.appendMainText(buffer.toString());
             buffer.setLength(0);
         }
     }

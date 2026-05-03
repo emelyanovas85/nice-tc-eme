@@ -37,7 +37,7 @@ public class MainState extends ProcessingState {
 
         int pos = firstTag.get().pos();
         if (pos > 0) {
-            context.getMainMessage().appendMarkdown(text.substring(0, pos));
+            context.appendMainText(text.substring(0, pos));
         }
 
         String remaining = text.substring(pos + firstTag.get().tag().length());
@@ -59,7 +59,7 @@ public class MainState extends ProcessingState {
     private void flushSafePart() {
         int safeLen = Math.max(0, buffer.length() - MAX_TAG_LEN);
         if (safeLen > 0) {
-            context.getMainMessage().appendMarkdown(buffer.substring(0, safeLen));
+            context.appendMainText(buffer.substring(0, safeLen));
             buffer.delete(0, safeLen);
         }
     }
@@ -67,7 +67,7 @@ public class MainState extends ProcessingState {
     @Override
     public void flush() {
         if (!buffer.isEmpty()) {
-            context.getMainMessage().appendMarkdown(buffer.toString());
+            context.appendMainText(buffer.toString());
             buffer.setLength(0);
         }
     }
