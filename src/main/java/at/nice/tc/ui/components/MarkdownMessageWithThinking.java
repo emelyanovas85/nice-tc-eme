@@ -41,6 +41,9 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private final String authorName;
     private final LocalDateTime timestamp;
 
+    // Текст, ожидающий отложенной отрисовки до attach
+    private volatile String pendingMarkdown = null;
+
     // Слушатели смены состояния — пер экземпляр, не статические!
     private final List<ProcessingState.Listener> stateListeners = new CopyOnWriteArrayList<>();
 
@@ -58,7 +61,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
     /**
      * Уведомляет всех зарегистрированных слушателей о смене состояния.
-     * Вызывается из конструктора ProcessingState.
      */
     public void notifyStateChanged(ProcessingState newState) {
         stateListeners.forEach(l -> l.changed(newState));
@@ -92,6 +94,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         super.onAttach(attachEvent);
         if (thinkingDetails != null)
             thinkingDetails.setOpened(!(state instanceof MainState));
+
+        // Если есть отложенный текст — отрисовываем его теперь, когда компонент уже в DOM
+        if (pendingMarkdown != null) {
+            String text = pendingMarkdown;
+            pendingMarkdown = null;
+            state = new InitialState(this).process(text);
+        }
     }
 
     public void setMarkdown(String fullText) {
@@ -99,9 +108,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             return;
         }
 
-        // Сбрасываем состояние в InitialState при установке полного текста
-        // чтобы избежать накопления данных в буферах предыдущих состояний
-        state = new InitialState(this).process(fullText);
+        if (isAttached()) {
+            // Компонент уже в DOM — отрисовываем сразу
+            state = new InitialState(this).process(fullText);
+        } else {
+            // Компонент ещё не в DOM — откладываем до onAttach
+            pendingMarkdown = fullText;
+        }
     }
 
     public void appendMarkdownAsync(String chunk) {
@@ -201,7 +214,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 if (markdown == null)
                     return;
 
-                markdown.appendContent(timestamp() + "\t" + logEvent.getText() + "  \n");
+                markdown.appendContent(тиместамп() + "\t" + logEvent.getText() + "  \n");
 
                 if (!logEvent.getAttachments().isEmpty()) {
                     ensureThinkingDetailsCreated();
@@ -237,7 +250,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         }
 
 
-        String timestamp() {
+        String тиместамп() {
             return LocalDateTime.now().format(DateTimeFormatter.ofPattern("`dd.MM HH:mm:ss`\t"));
         }
     }
