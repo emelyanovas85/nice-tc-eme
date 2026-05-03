@@ -18,7 +18,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -33,7 +32,9 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private Details thinkingDetails;
     private VerticalLayout thinkingContent;
     private Markdown thinkingMessage;
-    private final MarkdownMessage mainMessage;
+    // SafeMarkdownMessage буферизует контент до attach — решает проблему
+    // потери executeJs на detached-элементах
+    private final SafeMarkdownMessage mainMessage;
 
     private volatile ProcessingState state;
     private final EventHandlers handlers = new EventHandlers();
@@ -50,7 +51,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         addClassNames("chat-message", "assistant-message");
 
-        mainMessage = new MarkdownMessage(name, timestamp);
+        mainMessage = new SafeMarkdownMessage(name, timestamp);
         add(mainMessage);
         state = new InitialState(this);
     }
@@ -82,18 +83,11 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             thinkingDetails.setOpened(!(state instanceof MainState));
     }
 
-    /**
-     * Устанавливает полный текст сообщения.
-     * Использует forceSync=true, чтобы всегда вызывать синхронный appendMarkdown
-     * в обход проверки isUiAccessed, которая для второго и последующих
-     * сообщений возвращает true (т.к. UI уже есть), что привело бы
-     * к async-вызову, потеряющему текст.
-     */
     public void setMarkdown(String fullText) {
         if (fullText == null || fullText.isEmpty()) {
             return;
         }
-        state = new InitialState(this, true).process(fullText);
+        state = new InitialState(this).process(fullText);
     }
 
     public void appendMarkdownAsync(String chunk) {
@@ -119,7 +113,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 addClassName("thinking-content");
             }};
 
-            thinkingDetails = new Details("Размышления модели", thinkingContent);
+            thinkingDetails = new Details("\u0420\u0430\u0437\u043c\u044b\u0448\u043b\u0435\u043d\u0438\u044f \u043c\u043e\u0434\u0435\u043b\u0438", thinkingContent);
             thinkingDetails.addClassName("thinking-details");
             thinkingDetails.setOpened(true);
 
@@ -178,7 +172,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 if (markdown == null)
                     return;
 
-                markdown.appendContent(тиместамп() + "\t" + logEvent.getText() + "  \n");
+                markdown.appendContent(\u0442\u0438\u043c\u0435\u0441\u0442\u0430\u043c\u043f() + "\t" + logEvent.getText() + "  \n");
 
                 if (!logEvent.getAttachments().isEmpty()) {
                     ensureThinkingDetailsCreated();
@@ -208,7 +202,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             value.appendContent(a.getContent());
         }
 
-        String тиместамп() {
+        String \u0442\u0438\u043c\u0435\u0441\u0442\u0430\u043c\u043f() {
             return LocalDateTime.now().format(DateTimeFormatter.ofPattern("`dd.MM HH:mm:ss`\t"));
         }
     }
