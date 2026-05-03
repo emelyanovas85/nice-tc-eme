@@ -5,13 +5,3 @@
     border: 1px solid var(--lumo-contrast-20pct);
     border-radius: var(--lumo-border-radius-m);
 }
-
-/* Кнопка "Отправить" — залитая зелёная, такой же стиль как "Сохранить ответ" */
-vaadin-button.send-button {
-    background-color: var(--lumo-success-color);
-    color: var(--lumo-success-contrast-color);
-}
-
-vaadin-button.send-button:hover {
-    background-color: var(--lumo-success-color-50pct);
-}
