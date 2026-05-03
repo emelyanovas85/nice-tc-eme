@@ -153,17 +153,19 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
             botMessage.getMainMessage().setUserColorIndex(5);
-            // ВАЖНО: сначала add в DOM, потом setMarkdown — иначе executeJs теряется
             messageList.addComponentAtIndex(0, botMessage);
             botMessage.setMarkdown(text);
+            // finish() сбрасывает хвост внутренних буферов состояний (MainState оставляет хвост MAX_TAG_LEN символов)
+            botMessage.finish();
         }
 
         public void createUserMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), timestamp, aiToolCallService);
             userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
-            // ВАЖНО: сначала add в DOM, потом setMarkdown — иначе executeJs теряется
             messageList.addComponentAtIndex(0, userMessage);
             userMessage.setMarkdown(text);
+            // finish() сбрасывает хвост внутренних буферов состояний
+            userMessage.finish();
         }
     }
 
@@ -180,15 +182,15 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         LocalDateTime now = LocalDateTime.now();
 
-        // Сообщение пользователя: сначала add, потом setMarkdown
         MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), now, aiToolCallService);
         userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
         messageList.add(userMessage);
         userMessage.setMarkdown(userText);
+        // finish() сбрасывает хвост буфера MainState — весь текст отобразится
+        userMessage.finish();
 
         addedMessageTimestamps.add(System.currentTimeMillis());
 
-        // Сообщение бота: сначала add, потом подписка на стрим
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
         actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
         messageList.add(actualBotMessage);

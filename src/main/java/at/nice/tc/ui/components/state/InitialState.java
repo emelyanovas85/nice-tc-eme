@@ -14,7 +14,6 @@ import static at.nice.tc.ui.MessageDelimiters.*;
 public class InitialState extends ProcessingState {
 
     private final StringBuilder buffer = new StringBuilder();
-    private boolean bufferSent = false;
 
     private static final Set<MessageDelimiters> tags = Set.of(
             THINK_OPEN,
@@ -28,9 +27,13 @@ public class InitialState extends ProcessingState {
     @Override
     public ProcessingState process(String chunk) {
         buffer.append(chunk);
-
         final String text = buffer.toString();
-        if (text.trim().length() < THINK_OPEN.length()) {
+
+        // Буферизуем только если текст короче чем самый длинный тег И может ещё начинаться с начала тега
+        // Для полного сообщения (сетМаркдаун) проходим сразу вниз
+        boolean couldBeStartOfTag = tags.stream()
+                .anyMatch(t -> t.getPlaceholder().startsWith(text));
+        if (couldBeStartOfTag && text.length() < THINK_OPEN.length()) {
             return this;
         }
 
@@ -56,15 +59,9 @@ public class InitialState extends ProcessingState {
             };
         }
 
-        String markdownSnippet = bufferSent ? chunk : text;
-        bufferSent = true;
+        // Нет тегов — отправляем весь буфер в mainMessage и переходим в MainState
+        context.getMainMessage().appendMarkdown(text);
         buffer.setLength(0);
-
-        // Всегда вызываем напрямую appendMarkdown — мы уже в UI-потоке (либо request thread,
-        // либо ui.access). appendMarkdownAsync делает дополнительный ui.access внутри,
-        // что ведёт к двойной блокировке или потере обновлений.
-        context.getMainMessage().appendMarkdown(markdownSnippet);
-
         return new MainState(context);
     }
 
