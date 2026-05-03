@@ -41,7 +41,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private final String authorName;
     private final LocalDateTime timestamp;
 
-    // Слушатели смены состояния — пер экземпляр, не статические!
     private final List<ProcessingState.Listener> stateListeners = new CopyOnWriteArrayList<>();
 
     public MarkdownMessageWithThinking(String name, LocalDateTime timestamp, AiToolCallService aiToolCallService) {
@@ -56,27 +55,16 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         state = new InitialState(this);
     }
 
-    /**
-     * Уведомляет всех зарегистрированных слушателей о смене состояния.
-     * Вызывается из конструктора ProcessingState.
-     */
     public void notifyStateChanged(ProcessingState newState) {
         stateListeners.forEach(l -> l.changed(newState));
     }
 
-    /**
-     * Добавляет слушатель смены состояния для этого конкретного сообщения.
-     */
     public void addChangeStateListener(ProcessingState.Listener l) {
         stateListeners.add(l);
     }
 
-    /**
-     * Устанавливает тип сообщения (пользователь или ИИ)
-     */
     public void setMessageType(MessageType type) {
         removeClassNames("user-message", "assistant-message");
-
         switch (type) {
             case USER -> addClassName("user-message");
             case ASSISTANT -> addClassName("assistant-message");
@@ -94,29 +82,18 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             thinkingDetails.setOpened(!(state instanceof MainState));
     }
 
-    /**
-     * Устанавливает полный текст сообщения.
-     * Всегда откладывает рендеринг через addAttachListener,
-     * чтобы гарантировать что MarkdownMessage уже прикреплён к DOM.
-     */
     public void setMarkdown(String fullText) {
         if (fullText == null || fullText.isEmpty()) {
             return;
         }
-
-        // addAttachListener срабатывает когда компонент (и все его дети) прикреплены к DOM.
-        // Это надёжнее чем isAttached(), который остаётся false
-        // до следующего roundtrip даже после messageList.add().
-        addAttachListener(e -> {
-            state = new InitialState(this).process(fullText);
-        });
+        state = new InitialState(this).process(fullText);
     }
 
     public void appendMarkdownAsync(String chunk) {
         if (chunk == null || chunk.isEmpty()) {
             return;
         }
-        getUI().ifPresent(ui -> { // без этого чанки путаются местами
+        getUI().ifPresent(ui -> {
             if (ui.isAttached())
                 ui.access(() -> {
                     ProcessingState current = state;
@@ -139,7 +116,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             thinkingDetails.addClassName("thinking-details");
             thinkingDetails.setOpened(true);
 
-            // Слушатель на этом екземпляре: когда размышления закончатся — свернуть Details
             addChangeStateListener(newState -> {
                 if (newState instanceof MainState)
                     getUI().ifPresent(ui -> {
@@ -162,7 +138,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
     public boolean isThinkingMessageLatestElement() {
         if (thinkingMessage == null)
-            return false; // нужно создавать
+            return false;
         return thinkingContent.indexOf(thinkingMessage) == thinkingContent.getComponentCount() - 1;
     }
 
@@ -170,28 +146,19 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         state.flush();
     }
 
-
-    /**
-     * Обрабатывает событие, логика обработки в {@link EventHandlers}
-     * Выполняются в UI потоке (синхронно)
-     */
     public void handleEvent(ChatEvent event) {
         if (event instanceof CheckEvent.AgentBuiltTestTreeEvent e) {
             addNewThinkingMarkdown();
             Component treeSection = getHandlers().check.doOnBuiltTestTree(e);
             UiUtils.doInUI(this, () -> thinkingContent.add(treeSection));
-
         } else if (event instanceof CheckEvent.CheckPromptStartedEvent e) {
             UiUtils.doInUI(this, () -> getHandlers().check.doOnPromptStarted(e));
-
         } else if (event instanceof CheckEvent.CheckFinishedEvent e) {
             UiUtils.doInUI(this, () -> getHandlers().check.doOnCheckFinished(e));
-
         } else if (event instanceof ToolEvent e) {
             getHandlers().log.doOnLog(e, thinkingMessage);
         }
     }
-
 
     @RequiredArgsConstructor
     public class EventHandlers {
@@ -199,12 +166,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         public final LogEvents log = new LogEvents();
         public final CheckEvents check = new CheckEvents();
 
-
         public class LogEvents {
-
-            /**
-             * Обрабатывает ToolEvent, добавляя его в указанный Markdown компонент
-             */
             public void doOnLog(ToolEvent logEvent, Markdown markdown) {
                 if (markdown == null)
                     return;
@@ -213,15 +175,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
                 if (!logEvent.getAttachments().isEmpty()) {
                     ensureThinkingDetailsCreated();
-                    if (thinkingContent == null) {
-                        return;
-                    }
+                    if (thinkingContent == null) return;
 
                     UiUtils.doInUI(MarkdownMessageWithThinking.this, () -> {
                         if (thinkingDetails != null && !thinkingDetails.isOpened()) {
                             thinkingDetails.setOpened(true);
                         }
-
                         for (var a : logEvent.getAttachments()) {
                             appendAttachment(a);
                         }
@@ -229,7 +188,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 }
             }
         }
-
 
         private void appendAttachment(Attachment a) {
             Markdown value = new Markdown();
@@ -239,15 +197,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             }};
             Details details = new Details(a.getName(), content);
             details.getStyle().set("margin-left", "2em");
-
             thinkingContent.add(details);
             value.appendContent(a.getContent());
         }
-
 
         String тиместамп() {
             return LocalDateTime.now().format(DateTimeFormatter.ofPattern("`dd.MM HH:mm:ss`\t"));
         }
     }
-
 }
