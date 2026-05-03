@@ -33,19 +33,20 @@ public class ChatInputComponent extends HorizontalLayout {
         sendButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_PRIMARY);
         // Стоп — красная (ERROR)
         stopButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
-        // Сохранить ответ — синяя (PRIMARY), тот же стиль что и Отправить
+        // Сохранить ответ — синяя (PRIMARY)
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         sendButton.setWidth("8em");
         stopButton.setWidth("8em");
-        saveButton.setWidth("8em");
+        // ширина auto — кнопка тянется по тексту, ничего не обрезается
+        saveButton.setWidthUndefined();
 
         sendButton.addClassName("send-button");
         stopButton.addClassName("stop-button");
         saveButton.addClassName("save-button");
 
         stopButton.setVisible(false);
-        saveButton.setVisible(false); // скрыта до получения ответа
+        saveButton.setVisible(false);
     }
 
     private void configureInput() {
