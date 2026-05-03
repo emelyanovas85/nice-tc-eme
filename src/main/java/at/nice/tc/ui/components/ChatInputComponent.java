@@ -29,13 +29,16 @@ public class ChatInputComponent extends HorizontalLayout {
     }
 
     private void configureButtons() {
-        sendButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-        stopButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        // Отправить — зелёная (SUCCESS)
+        sendButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_PRIMARY);
+        // Стоп — красная (ERROR)
+        stopButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+        // Сохранить ответ — синяя (PRIMARY), тот же стиль что и Отправить
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         sendButton.setWidth("8em");
         stopButton.setWidth("8em");
-        saveButton.setWidth("11em");
+        saveButton.setWidth("8em");
 
         sendButton.addClassName("send-button");
         stopButton.addClassName("stop-button");
