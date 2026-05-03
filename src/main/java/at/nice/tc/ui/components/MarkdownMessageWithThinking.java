@@ -82,11 +82,18 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             thinkingDetails.setOpened(!(state instanceof MainState));
     }
 
+    /**
+     * Устанавливает полный текст сообщения.
+     * Использует forceSync=true, чтобы всегда вызывать синхронный appendMarkdown
+     * в обход проверки isUiAccessed, которая для второго и последующих
+     * сообщений возвращает true (т.к. UI уже есть), что привело бы
+     * к async-вызову, потеряющему текст.
+     */
     public void setMarkdown(String fullText) {
         if (fullText == null || fullText.isEmpty()) {
             return;
         }
-        state = new InitialState(this).process(fullText);
+        state = new InitialState(this, true).process(fullText);
     }
 
     public void appendMarkdownAsync(String chunk) {
