@@ -16,18 +16,23 @@ import static at.nice.tc.ui.MessageDelimiters.*;
 public class MainState extends ProcessingState {
 
     private final StringBuilder buffer = new StringBuilder();
+    private final boolean forceSync;
 
     private static final Set<MessageDelimiters> INTERCEPT_TAGS = Set.of(
             THINK_OPEN,
             TOOL_OPEN
     );
 
-    // Максимальная длина тега, которая может быть разбита между чанками — для безопасной части
     private static final int MAX_TAG_LEN = INTERCEPT_TAGS.stream()
             .mapToInt(MessageDelimiters::length).max().orElse(0);
 
     public MainState(MarkdownMessageWithThinking context) {
+        this(context, false);
+    }
+
+    public MainState(MarkdownMessageWithThinking context, boolean forceSync) {
         super(context);
+        this.forceSync = forceSync;
     }
 
     @Override
@@ -37,20 +42,17 @@ public class MainState extends ProcessingState {
 
         Optional<MessageDelimiters.Tag> firstTag = MessageDelimiters.firstIn(text, INTERCEPT_TAGS);
         if (firstTag.isEmpty()) {
-            // Тегов нет — отдаём безопасную часть, оставляя хвост для возможного начала тега
             flushSafePart();
             return this;
         }
 
         int pos = firstTag.get().pos();
 
-        // Отправляем текст до тега в главное сообщение
         if (pos > 0) {
             String before = text.substring(0, pos);
             sendToMain(before);
         }
 
-        // Убираем тег из буфера, остаток передаём следующему состоянию
         String remaining = text.substring(pos + firstTag.get().tag().length());
         buffer.setLength(0);
 
@@ -67,10 +69,6 @@ public class MainState extends ProcessingState {
         };
     }
 
-    /**
-     * Отправляет безопасную часть буфера (без последних MAX_TAG_LEN символов,
-     * которые могут быть началом тега)
-     */
     private void flushSafePart() {
         int safeLen = Math.max(0, buffer.length() - MAX_TAG_LEN);
         if (safeLen > 0) {
@@ -81,12 +79,16 @@ public class MainState extends ProcessingState {
     }
 
     private void sendToMain(String text) {
-        checkUiAccessed(isAccessed -> {
-            if (isAccessed)
-                context.getMainMessage().appendMarkdownAsync(text);
-            else
-                context.getMainMessage().appendMarkdown(text);
-        });
+        if (forceSync) {
+            context.getMainMessage().appendMarkdown(text);
+        } else {
+            checkUiAccessed(isAccessed -> {
+                if (isAccessed)
+                    context.getMainMessage().appendMarkdownAsync(text);
+                else
+                    context.getMainMessage().appendMarkdown(text);
+            });
+        }
     }
 
     @Override
