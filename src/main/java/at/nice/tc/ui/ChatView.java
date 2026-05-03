@@ -154,15 +154,17 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
             botMessage.getMainMessage().setUserColorIndex(5);
-            messageList.addComponentAtIndex(0, botMessage);
+            // setMarkdown до add: компонент ещё не в DOM, appendMarkdown работает синхронно
             botMessage.setMarkdown(text);
+            messageList.addComponentAtIndex(0, botMessage);
         }
 
         public void createUserMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), timestamp, aiToolCallService);
             userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
-            messageList.addComponentAtIndex(0, userMessage);
+            // setMarkdown до add: компонент ещё не в DOM, appendMarkdown работает синхронно
             userMessage.setMarkdown(text);
+            messageList.addComponentAtIndex(0, userMessage);
         }
     }
 
@@ -182,8 +184,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         LocalDateTime now = LocalDateTime.now();
         MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), now, aiToolCallService);
         userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
-        messageList.add(userMessage);
+        // setMarkdown до add: компонент ещё не в DOM, appendMarkdown работает синхронно
         userMessage.setMarkdown(userText);
+        messageList.add(userMessage);
 
         long timestamp = System.currentTimeMillis();
         addedMessageTimestamps.add(timestamp);
@@ -194,7 +197,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         StringBuilder prompt = new StringBuilder();
         if (!config.getUserId().isBlank())
-            prompt.append("Меня зовут ").append(config.getUserFio()).append(". Обращайся по имени.\n");
+            prompt.append("Меня зовут ").append(config.getUserFio()).append(". Обращайсь по имени.\n");
         if (!config.getScope().isBlank())
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
