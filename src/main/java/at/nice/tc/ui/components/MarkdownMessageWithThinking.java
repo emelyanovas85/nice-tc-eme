@@ -144,8 +144,14 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         return thinkingContent.indexOf(thinkingMessage) == thinkingContent.getComponentCount() - 1;
     }
 
+    /**
+     * Завершает стриминг: сбрасывает внутренние буферы состояний,
+     * затем вызывает mainMessage.finish() чтобы firitin отрендерил
+     * все накопленные через appendMarkdown токены в браузере.
+     */
     public void finish() {
         state.flush();
+        mainMessage.finish();
     }
 
     public void handleEvent(ChatEvent event) {
