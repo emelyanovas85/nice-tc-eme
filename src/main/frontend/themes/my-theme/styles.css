@@ -1,7 +1,2 @@
 @import "./components/test-tree-styles.css";
 
-/* Сообщения пользователя — рамка для визуального отличия от ответов ассистента */
-.user-message vaadin-message {
-    border: 1px solid var(--lumo-contrast-20pct);
-    border-radius: var(--lumo-border-radius-m);
-}
