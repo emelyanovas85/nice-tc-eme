@@ -29,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import reactor.core.Disposable;
 
 import java.nio.file.Path;
@@ -160,9 +159,10 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         }
 
         public void createUserMessage(String text, LocalDateTime timestamp) {
-            MarkdownMessage userMessage = new MarkdownMessage(text, config.getUserFio(), timestamp);
-            userMessage.setUserColorIndex(3);
+            MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), timestamp, aiToolCallService);
+            userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
             messageList.addComponentAtIndex(0, userMessage);
+            userMessage.setMarkdown(text);
         }
     }
 
@@ -180,11 +180,10 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         inputLayout.getTextField().clear();
 
         LocalDateTime now = LocalDateTime.now();
-        // Пользовательские сообщения никогда не содержат <think> или <tool> — используем plain MarkdownMessage
-        // аналогично Restorer.createUserMessage()
-        MarkdownMessage userMessage = new MarkdownMessage(userText, config.getUserFio(), now);
-        userMessage.setUserColorIndex(3);
+        MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), now, aiToolCallService);
+        userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
         messageList.add(userMessage);
+        userMessage.setMarkdown(userText);
 
         long timestamp = System.currentTimeMillis();
         addedMessageTimestamps.add(timestamp);
