@@ -41,9 +41,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private final String authorName;
     private final LocalDateTime timestamp;
 
-    // Текст, ожидающий отложенной отрисовки до attach
-    private volatile String pendingMarkdown = null;
-
     // Слушатели смены состояния — пер экземпляр, не статические!
     private final List<ProcessingState.Listener> stateListeners = new CopyOnWriteArrayList<>();
 
@@ -61,6 +58,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
     /**
      * Уведомляет всех зарегистрированных слушателей о смене состояния.
+     * Вызывается из конструктора ProcessingState.
      */
     public void notifyStateChanged(ProcessingState newState) {
         stateListeners.forEach(l -> l.changed(newState));
@@ -94,27 +92,24 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         super.onAttach(attachEvent);
         if (thinkingDetails != null)
             thinkingDetails.setOpened(!(state instanceof MainState));
-
-        // Если есть отложенный текст — отрисовываем его теперь, когда компонент уже в DOM
-        if (pendingMarkdown != null) {
-            String text = pendingMarkdown;
-            pendingMarkdown = null;
-            state = new InitialState(this).process(text);
-        }
     }
 
+    /**
+     * Устанавливает полный текст сообщения.
+     * Всегда откладывает рендеринг через addAttachListener,
+     * чтобы гарантировать что MarkdownMessage уже прикреплён к DOM.
+     */
     public void setMarkdown(String fullText) {
         if (fullText == null || fullText.isEmpty()) {
             return;
         }
 
-        if (isAttached()) {
-            // Компонент уже в DOM — отрисовываем сразу
+        // addAttachListener срабатывает когда компонент (и все его дети) прикреплены к DOM.
+        // Это надёжнее чем isAttached(), который остаётся false
+        // до следующего roundtrip даже после messageList.add().
+        addAttachListener(e -> {
             state = new InitialState(this).process(fullText);
-        } else {
-            // Компонент ещё не в DOM — откладываем до onAttach
-            pendingMarkdown = fullText;
-        }
+        });
     }
 
     public void appendMarkdownAsync(String chunk) {
