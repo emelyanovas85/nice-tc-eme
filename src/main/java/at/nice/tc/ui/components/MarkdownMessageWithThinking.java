@@ -32,8 +32,11 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private Details thinkingDetails;
     private VerticalLayout thinkingContent;
     private Markdown thinkingMessage;
-    // SafeMarkdownMessage буферизует контент до attach — решает проблему
-    // потери executeJs на detached-элементах
+
+    /**
+     * SafeMarkdownMessage буферизует контент до attach к DOM —
+     * решает проблему потери executeJs на detached-элементах.
+     */
     private final SafeMarkdownMessage mainMessage;
 
     private volatile ProcessingState state;
@@ -83,6 +86,10 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             thinkingDetails.setOpened(!(state instanceof MainState));
     }
 
+    /**
+     * Устанавливает полный текст сообщения.
+     * SafeMarkdownMessage гарантирует корректную буферизацию до attach.
+     */
     public void setMarkdown(String fullText) {
         if (fullText == null || fullText.isEmpty()) {
             return;
@@ -107,13 +114,12 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
     public void ensureThinkingDetailsCreated() {
         if (thinkingDetails == null) {
-            thinkingContent = new VerticalLayout() {{
-                setPadding(false);
-                setSpacing(false);
-                addClassName("thinking-content");
-            }};
+            thinkingContent = new VerticalLayout();
+            thinkingContent.setPadding(false);
+            thinkingContent.setSpacing(false);
+            thinkingContent.addClassName("thinking-content");
 
-            thinkingDetails = new Details("\u0420\u0430\u0437\u043c\u044b\u0448\u043b\u0435\u043d\u0438\u044f \u043c\u043e\u0434\u0435\u043b\u0438", thinkingContent);
+            thinkingDetails = new Details("Размышления модели", thinkingContent);
             thinkingDetails.addClassName("thinking-details");
             thinkingDetails.setOpened(true);
 
@@ -172,7 +178,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                 if (markdown == null)
                     return;
 
-                markdown.appendContent(\u0442\u0438\u043c\u0435\u0441\u0442\u0430\u043c\u043f() + "\t" + logEvent.getText() + "  \n");
+                markdown.appendContent(timestamp() + "\t" + logEvent.getText() + "  \n");
 
                 if (!logEvent.getAttachments().isEmpty()) {
                     ensureThinkingDetailsCreated();
@@ -192,17 +198,16 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         private void appendAttachment(Attachment a) {
             Markdown value = new Markdown();
-            VerticalLayout content = new VerticalLayout(value) {{
-                setPadding(false);
-                setSpacing(false);
-            }};
+            VerticalLayout content = new VerticalLayout(value);
+            content.setPadding(false);
+            content.setSpacing(false);
             Details details = new Details(a.getName(), content);
             details.getStyle().set("margin-left", "2em");
             thinkingContent.add(details);
             value.appendContent(a.getContent());
         }
 
-        String \u0442\u0438\u043c\u0435\u0441\u0442\u0430\u043c\u043f() {
+        String timestamp() {
             return LocalDateTime.now().format(DateTimeFormatter.ofPattern("`dd.MM HH:mm:ss`\t"));
         }
     }

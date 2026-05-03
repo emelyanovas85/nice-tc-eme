@@ -10,13 +10,13 @@ import static at.nice.tc.ui.MessageDelimiters.*;
 
 /**
  * Обычный режим: передает текст в главное сообщение,
- * но буферизует чанки для перехвата тегов &lt;tool&gt; / &lt;think&gt;,
- * которые могут появиться в середине ответа после обычного текста.
+ * но буферизует чанки для перехвата тегов &lt;tool&gt; / &lt;think&gt;.
+ *
+ * Буферизация executeJs до attach решена на уровне SafeMarkdownMessage.
  */
 public class MainState extends ProcessingState {
 
     private final StringBuilder buffer = new StringBuilder();
-    private final boolean forceSync;
 
     private static final Set<MessageDelimiters> INTERCEPT_TAGS = Set.of(
             THINK_OPEN,
@@ -27,12 +27,7 @@ public class MainState extends ProcessingState {
             .mapToInt(MessageDelimiters::length).max().orElse(0);
 
     public MainState(MarkdownMessageWithThinking context) {
-        this(context, false);
-    }
-
-    public MainState(MarkdownMessageWithThinking context, boolean forceSync) {
         super(context);
-        this.forceSync = forceSync;
     }
 
     @Override
@@ -79,16 +74,12 @@ public class MainState extends ProcessingState {
     }
 
     private void sendToMain(String text) {
-        if (forceSync) {
-            context.getMainMessage().appendMarkdown(text);
-        } else {
-            checkUiAccessed(isAccessed -> {
-                if (isAccessed)
-                    context.getMainMessage().appendMarkdownAsync(text);
-                else
-                    context.getMainMessage().appendMarkdown(text);
-            });
-        }
+        checkUiAccessed(isAccessed -> {
+            if (isAccessed)
+                context.getMainMessage().appendMarkdownAsync(text);
+            else
+                context.getMainMessage().appendMarkdown(text);
+        });
     }
 
     @Override
