@@ -8,12 +8,6 @@ import java.util.Set;
 
 import static at.nice.tc.ui.MessageDelimiters.*;
 
-/**
- * Обычный режим: передает текст в главное сообщение,
- * но буферизует чанки для перехвата тегов &lt;tool&gt; / &lt;think&gt;.
- *
- * Буферизация executeJs до attach решена на уровне SafeMarkdownMessage.
- */
 public class MainState extends ProcessingState {
 
     private final StringBuilder buffer = new StringBuilder();
@@ -42,10 +36,8 @@ public class MainState extends ProcessingState {
         }
 
         int pos = firstTag.get().pos();
-
         if (pos > 0) {
-            String before = text.substring(0, pos);
-            sendToMain(before);
+            context.getMainMessage().appendMarkdown(text.substring(0, pos));
         }
 
         String remaining = text.substring(pos + firstTag.get().tag().length());
@@ -67,25 +59,15 @@ public class MainState extends ProcessingState {
     private void flushSafePart() {
         int safeLen = Math.max(0, buffer.length() - MAX_TAG_LEN);
         if (safeLen > 0) {
-            String safe = buffer.substring(0, safeLen);
-            sendToMain(safe);
+            context.getMainMessage().appendMarkdown(buffer.substring(0, safeLen));
             buffer.delete(0, safeLen);
         }
-    }
-
-    private void sendToMain(String text) {
-        checkUiAccessed(isAccessed -> {
-            if (isAccessed)
-                context.getMainMessage().appendMarkdownAsync(text);
-            else
-                context.getMainMessage().appendMarkdown(text);
-        });
     }
 
     @Override
     public void flush() {
         if (!buffer.isEmpty()) {
-            sendToMain(buffer.toString());
+            context.getMainMessage().appendMarkdown(buffer.toString());
             buffer.setLength(0);
         }
     }

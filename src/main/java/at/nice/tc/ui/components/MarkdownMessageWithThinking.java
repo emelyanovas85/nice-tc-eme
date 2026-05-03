@@ -33,10 +33,6 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     private VerticalLayout thinkingContent;
     private Markdown thinkingMessage;
 
-    /**
-     * SafeMarkdownMessage буферизует контент до attach к DOM —
-     * решает проблему потери executeJs на detached-элементах.
-     */
     private final SafeMarkdownMessage mainMessage;
 
     private volatile ProcessingState state;
@@ -88,19 +84,19 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
     /**
      * Устанавливает полный текст сообщения.
-     * SafeMarkdownMessage гарантирует корректную буферизацию до attach.
+     * Вызывать только когда компонент уже в DOM (messageList.add вызван до этого метода).
      */
     public void setMarkdown(String fullText) {
-        if (fullText == null || fullText.isEmpty()) {
-            return;
-        }
+        if (fullText == null || fullText.isEmpty()) return;
         state = new InitialState(this).process(fullText);
     }
 
+    /**
+     * Добавляет чанк маркдауна асинхронно из фонового потока.
+     * Внутри вызывает ui.access и затем process через прямой appendMarkdown.
+     */
     public void appendMarkdownAsync(String chunk) {
-        if (chunk == null || chunk.isEmpty()) {
-            return;
-        }
+        if (chunk == null || chunk.isEmpty()) return;
         getUI().ifPresent(ui -> {
             if (ui.isAttached())
                 ui.access(() -> {
@@ -144,8 +140,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     }
 
     public boolean isThinkingMessageLatestElement() {
-        if (thinkingMessage == null)
-            return false;
+        if (thinkingMessage == null) return false;
         return thinkingContent.indexOf(thinkingMessage) == thinkingContent.getComponentCount() - 1;
     }
 
@@ -175,8 +170,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
         public class LogEvents {
             public void doOnLog(ToolEvent logEvent, Markdown markdown) {
-                if (markdown == null)
-                    return;
+                if (markdown == null) return;
 
                 markdown.appendContent(timestamp() + "\t" + logEvent.getText() + "  \n");
 

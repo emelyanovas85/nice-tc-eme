@@ -10,12 +10,6 @@ import java.util.Set;
 
 import static at.nice.tc.ui.MessageDelimiters.*;
 
-/**
- * Начальное состояние: проверяем первые символы на предмет наличия &lt;think&gt;
- *
- * Буферизация executeJs до attach решена на уровне SafeMarkdownMessage —
- * здесь не нужно заботиться о forceSync.
- */
 @Slf4j
 public class InitialState extends ProcessingState {
 
@@ -62,35 +56,23 @@ public class InitialState extends ProcessingState {
             };
         }
 
-        String markdownSnippet;
-        if (bufferSent) {
-            markdownSnippet = chunk;
-        } else {
-            bufferSent = true;
-            markdownSnippet = text;
-        }
-
-        sendToMain(markdownSnippet);
-
+        String markdownSnippet = bufferSent ? chunk : text;
+        bufferSent = true;
         buffer.setLength(0);
-        return new MainState(context);
-    }
 
-    private void sendToMain(String text) {
-        // SafeMarkdownMessage сам буферизует до attach, поэтому просто вызываем appendMarkdown
-        // без проверок isAttached / isAccessed
-        checkUiAccessed(isAccessed -> {
-            if (isAccessed)
-                context.getMainMessage().appendMarkdownAsync(text);
-            else
-                context.getMainMessage().appendMarkdown(text);
-        });
+        // Всегда вызываем напрямую appendMarkdown — мы уже в UI-потоке (либо request thread,
+        // либо ui.access). appendMarkdownAsync делает дополнительный ui.access внутри,
+        // что ведёт к двойной блокировке или потере обновлений.
+        context.getMainMessage().appendMarkdown(markdownSnippet);
+
+        return new MainState(context);
     }
 
     @Override
     public void flush() {
         if (!buffer.isEmpty()) {
-            sendToMain(buffer.toString());
+            context.getMainMessage().appendMarkdown(buffer.toString());
+            buffer.setLength(0);
         }
     }
 }
