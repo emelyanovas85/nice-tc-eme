@@ -54,7 +54,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private ChatInputComponent inputLayout;
 
     private final Set<Long> addedMessageTimestamps = new HashSet<>();
-
     private final Config config = new Config(UUID.randomUUID().toString(), "browser", 70, 70, "", "", "Пользователь");
 
     @Data
@@ -134,7 +133,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         for (int i = 0; i < completedMessages.size(); i++) {
             Message m = completedMessages.get(i);
             LocalDateTime messageTime = now.minusSeconds((long) (messageCount - i) * 2);
-
             switch (m.getMessageType()) {
                 case ASSISTANT -> {
                     restorer.createCompletedAssistantMessage(m.getText(), messageTime);
@@ -151,20 +149,21 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
     class Restorer {
+
         public void createCompletedAssistantMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking botMessage = new MarkdownMessageWithThinking("Агент Jira", timestamp, aiToolCallService);
             botMessage.getMainMessage().setUserColorIndex(5);
-            // setMarkdown до add: компонент ещё не в DOM, appendMarkdown работает синхронно
-            botMessage.setMarkdown(text);
+            // ВАЖНО: сначала add в DOM, потом setMarkdown — иначе executeJs теряется
             messageList.addComponentAtIndex(0, botMessage);
+            botMessage.setMarkdown(text);
         }
 
         public void createUserMessage(String text, LocalDateTime timestamp) {
             MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), timestamp, aiToolCallService);
             userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
-            // setMarkdown до add: компонент ещё не в DOM, appendMarkdown работает синхронно
-            userMessage.setMarkdown(text);
+            // ВАЖНО: сначала add в DOM, потом setMarkdown — иначе executeJs теряется
             messageList.addComponentAtIndex(0, userMessage);
+            userMessage.setMarkdown(text);
         }
     }
 
@@ -173,31 +172,30 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
         String userText = inputLayout.getTextField().getValue().trim();
-        if (userText.isEmpty()) {
-            return;
-        }
+        if (userText.isEmpty()) return;
 
         scroll.setStickDown(true);
         inputLayout.showStopButton();
         inputLayout.getTextField().clear();
 
         LocalDateTime now = LocalDateTime.now();
+
+        // Сообщение пользователя: сначала add, потом setMarkdown
         MarkdownMessageWithThinking userMessage = new MarkdownMessageWithThinking(config.getUserFio(), now, aiToolCallService);
         userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
-        // setMarkdown до add: компонент ещё не в DOM, appendMarkdown работает синхронно
-        userMessage.setMarkdown(userText);
         messageList.add(userMessage);
+        userMessage.setMarkdown(userText);
 
-        long timestamp = System.currentTimeMillis();
-        addedMessageTimestamps.add(timestamp);
+        addedMessageTimestamps.add(System.currentTimeMillis());
 
+        // Сообщение бота: сначала add, потом подписка на стрим
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
         actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
         messageList.add(actualBotMessage);
 
         StringBuilder prompt = new StringBuilder();
         if (!config.getUserId().isBlank())
-            prompt.append("Меня зовут ").append(config.getUserFio()).append(". Обращайсь по имени.\n");
+            prompt.append("Меня зовут ").append(config.getUserFio()).append(". Обращайся по имени.\n");
         if (!config.getScope().isBlank())
             prompt.append("Я нахожусь на странице ").append(config.getScope()).append(" (определи - ключ теста, прогона или id версии теста).\n");
         prompt.append("\n").append(userText);
@@ -244,7 +242,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button cancelBtn = new Button("Отмена", e -> dialog.close());
-
         scopeField.addKeyPressListener(Key.ENTER, e -> saveBtn.click());
 
         HorizontalLayout buttons = new HorizontalLayout(saveBtn, cancelBtn);
@@ -315,9 +312,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
         }
-        if (getUI().isEmpty()) {
-            return;
-        }
+        if (getUI().isEmpty()) return;
+
         final UI ui = getUI().get();
         subscription = memoryService.subscribe(config.getChatId())
                 .subscribe(
