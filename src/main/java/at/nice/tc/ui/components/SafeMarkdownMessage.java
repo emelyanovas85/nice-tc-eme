@@ -6,15 +6,17 @@ import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import java.time.LocalDateTime;
 
 /**
- * Расширение MarkdownMessage, которое безопасно буферизует контент
+ * Расширение MarkdownMessage, которое безопасно буферизует любой контент
  * до момента attach к DOM.
  *
- * Проблема оригинального MarkdownMessage: appendMarkdown/setMarkdown
- * вызывают element.executeJs(), который теряется если компонент ещё
- * не attached к DOM (executeJs на detached-элементе не гарантирует выполнение).
+ * Проблема оригинального MarkdownMessage:
+ *   - appendMarkdown/setMarkdown вызывают element.executeJs(), который теряется
+ *     если компонент ещё не attached.
+ *   - appendMarkdownAsync внутри вызывает getUi(), который NPE если
+ *     ui ещё не установлен (т.к. onAttach ещё не вызывался).
  *
  * Решение: все вызовы до onAttach копятся в pendingMarkdown,
- * и применяются единым setMarkdown сразу после attach.
+ * и применяются единым super.setMarkdown() сразу после attach.
  */
 public class SafeMarkdownMessage extends MarkdownMessage {
 
@@ -30,6 +32,7 @@ public class SafeMarkdownMessage extends MarkdownMessage {
         super.onAttach(attachEvent);
         attached = true;
         if (!pendingMarkdown.isEmpty()) {
+            // super.setMarkdown — напрямую в firitin, UI уже есть (onAttach гарантирует)
             super.setMarkdown(pendingMarkdown.toString());
             pendingMarkdown.setLength(0);
         }
@@ -50,7 +53,7 @@ public class SafeMarkdownMessage extends MarkdownMessage {
     }
 
     /**
-     * Добавляет markdown-фрагмент.
+     * Добавляет markdown-фрагмент (синхронно, из UI-потока).
      * Если компонент ещё не в DOM — буферизует до onAttach.
      */
     @Override
@@ -59,6 +62,19 @@ public class SafeMarkdownMessage extends MarkdownMessage {
             pendingMarkdown.append(markdownSnippet);
         } else {
             super.appendMarkdown(markdownSnippet);
+        }
+    }
+
+    /**
+     * Добавляет markdown-фрагмент асинхронно (из фонового потока).
+     * Если компонент ещё не в DOM — буферизует до onAttach без NPE.
+     */
+    @Override
+    public void appendMarkdownAsync(String markdownSnippet) {
+        if (!attached) {
+            pendingMarkdown.append(markdownSnippet);
+        } else {
+            super.appendMarkdownAsync(markdownSnippet);
         }
     }
 }
