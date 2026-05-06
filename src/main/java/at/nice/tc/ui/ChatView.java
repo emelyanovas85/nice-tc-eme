@@ -12,6 +12,9 @@ import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -242,6 +245,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             doSave(entered);
         });
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveBtn.addClickShortcut(Key.KEY_S, KeyModifier.CONTROL, KeyModifier.SHIFT);
 
         Button cancelBtn = new Button("Отмена", e -> dialog.close());
         scopeField.addKeyPressListener(Key.ENTER, e -> saveBtn.click());
@@ -292,9 +296,25 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     }
 
     private void showNotification(String message, NotificationVariant variant) {
-        Notification notification = Notification.show(message, 4000, Notification.Position.BOTTOM_END);
+        Notification notification = new Notification();
+        notification.setPosition(Notification.Position.BOTTOM_END);
+        notification.setDuration(10_000);
         notification.addThemeVariants(variant);
+
+        Span text = new Span(message);
+
+        Button closeButton = new Button(new Icon(VaadinIcon.CLOSE), event -> notification.close());
+        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ICON);
+        closeButton.getElement().setAttribute("aria-label", "Закрыть уведомление");
+
+        HorizontalLayout layout = new HorizontalLayout(text, closeButton);
+        layout.setAlignItems(FlexComponent.Alignment.CENTER);
+        layout.setSpacing(true);
+
+        notification.add(layout);
+        notification.open();
     }
+
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {

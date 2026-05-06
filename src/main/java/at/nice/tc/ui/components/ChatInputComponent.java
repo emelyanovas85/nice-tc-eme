@@ -1,6 +1,8 @@
 package at.nice.tc.ui.components;
 
 
+import com.vaadin.flow.component.Key;
+import com.vaadin.flow.component.KeyModifier;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -8,6 +10,11 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import lombok.Getter;
 
+import static com.vaadin.flow.component.Key.ENTER;
+import static com.vaadin.flow.component.Key.KEY_S;
+import static com.vaadin.flow.component.KeyModifier.CONTROL;
+import static com.vaadin.flow.component.KeyModifier.SHIFT;
+import static com.vaadin.flow.component.button.ButtonVariant.*;
 import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
 
 /**
@@ -29,24 +36,30 @@ public class ChatInputComponent extends HorizontalLayout {
     }
 
     private void configureButtons() {
-        sendButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_PRIMARY);
-        stopButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-        sendButton.setWidth("8em");
-        stopButton.setWidth("8em");
-        // ширина не фиксируется — тянется по содержимому через CSS
-
+        sendButton.addThemeVariants(LUMO_SUCCESS, LUMO_PRIMARY);
         sendButton.addClassName("send-button");
-        stopButton.addClassName("stop-button");
-        saveButton.addClassName("save-button");
+        sendButton.setWidth("8em");
+        sendButton.setTooltipText("Shift + Enter");
 
+        stopButton.addThemeVariants(LUMO_ERROR, LUMO_PRIMARY);
+        stopButton.setWidth("8em");
+        stopButton.addClassName("stop-button");
         stopButton.setVisible(false);
+        stopButton.addClickShortcut(KEY_S, CONTROL);
+
+        saveButton.addThemeVariants(LUMO_PRIMARY);
+        saveButton.addClassName("save-button");
         saveButton.setVisible(false);
+        saveButton.addClickShortcut(KEY_S, CONTROL, SHIFT);
     }
 
     private void configureInput() {
         textField.setPlaceholder("Напишите ваше сообщение здесь...");
+        textField.addKeyPressListener(ENTER, event -> {
+            if (sendButton.isVisible() && sendButton.isEnabled()) {
+                sendButton.click();
+            }
+        }, CONTROL);
         textField.setValueChangeMode(ValueChangeMode.EAGER);
         textField.addFocusListener(e -> textField.setPlaceholder(""));
         textField.addBlurListener(e -> textField.setPlaceholder("Напишите ваше сообщение здесь..."));
