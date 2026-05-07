@@ -1,0 +1,13 @@
+:host {
+  overflow-x: hidden !important;
+  scrollbar-width: none !important;
+}
+
+:host::-webkit-scrollbar {
+  display: none !important;
+}
+
+:host::-webkit-scrollbar:horizontal {
+  display: none !important;
+  height: 0 !important;
+}
