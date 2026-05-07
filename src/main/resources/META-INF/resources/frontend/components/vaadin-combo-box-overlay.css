@@ -1,0 +1,19 @@
+/* Скрываем оба скроллбара внутри выпадающего списка */
+[part="content"] {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+}
+
+[part="content"]::-webkit-scrollbar {
+  display: none; /* Chrome / Safari / Edge */
+}
+
+#scroller {
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+#scroller::-webkit-scrollbar {
+  display: none;
+}

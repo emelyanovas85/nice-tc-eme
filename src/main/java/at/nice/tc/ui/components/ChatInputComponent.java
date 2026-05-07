@@ -1,13 +1,10 @@
 package at.nice.tc.ui.components;
 
 
-import com.vaadin.flow.component.Key;
-import com.vaadin.flow.component.KeyModifier;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.value.ValueChangeMode;
 import lombok.Getter;
 
 import static com.vaadin.flow.component.Key.ENTER;
@@ -20,16 +17,18 @@ import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CE
 /**
  * Горизонтальный компонент с полем для ввода текста и кнопками "Отправить"/"Стоп"/"Сохранить ответ"
  */
+//@CssImport(value = "./components/vaadin-combo-box-overlay.css", themeFor = "vaadin-combo-box-overlay")
 @Getter
+@CssImport(value = "./components/vaadin-combo-box-overlay.css")
 public class ChatInputComponent extends HorizontalLayout {
 
-    private final TextField textField = new TextField();
+    private final ComboBox<String> comboBox = new ComboBox<>();
     private final Button sendButton = new Button("Отправить");
     private final Button stopButton = new Button("Стоп");
     private final Button saveButton = new Button("Сохранить ответ");
 
     public ChatInputComponent() {
-        configureInput();
+        configureComboBox();
         configureButtons();
         addComponents();
         setLayoutDefaults();
@@ -53,27 +52,26 @@ public class ChatInputComponent extends HorizontalLayout {
         saveButton.addClickShortcut(KEY_S, CONTROL, SHIFT);
     }
 
-    private void configureInput() {
-        textField.setPlaceholder("Напишите ваше сообщение здесь...");
-        textField.addKeyPressListener(ENTER, event -> {
-            if (sendButton.isVisible() && sendButton.isEnabled()) {
-                sendButton.click();
-            }
-        }, CONTROL);
-        textField.setValueChangeMode(ValueChangeMode.EAGER);
-        textField.addFocusListener(e -> textField.setPlaceholder(""));
-        textField.addBlurListener(e -> textField.setPlaceholder("Напишите ваше сообщение здесь..."));
+    private void configureComboBox() {
+        comboBox.setPlaceholder("Напишите ваше сообщение здесь...");
+        comboBox.setItems("Проведи анализ тест-кейса ", "Проверь доступна ли Jira");
+        comboBox.setAllowCustomValue(true);
+        comboBox.setAutoOpen(true);
+        comboBox.addCustomValueSetListener(event -> comboBox.setValue(event.getDetail()));
+        comboBox.addFocusShortcut(ENTER, CONTROL);
+        comboBox.addFocusListener(e -> comboBox.setPlaceholder(""));
+        comboBox.addBlurListener(e -> comboBox.setPlaceholder("Напишите ваше сообщение здесь..."));
     }
 
     private void addComponents() {
-        add(textField, sendButton, stopButton, saveButton);
+        add(comboBox, sendButton, stopButton, saveButton);
     }
 
     private void setLayoutDefaults() {
         setPadding(true);
         setSpacing(true);
-        textField.setWidthFull();
-        setVerticalComponentAlignment(CENTER, textField, sendButton, stopButton, saveButton);
+        comboBox.setWidthFull();
+        setVerticalComponentAlignment(CENTER, comboBox, sendButton, stopButton, saveButton);
     }
 
     public void showSendButton() {

@@ -176,12 +176,12 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private MarkdownMessageWithThinking actualBotMessage;
 
     private void onSubmit(ClickEvent<Button> buttonClickEvent) {
-        String userText = inputLayout.getTextField().getValue().trim();
+        String userText = inputLayout.getComboBox().getValue().trim();
         if (userText.isEmpty()) return;
 
         scroll.setStickDown(true);
         inputLayout.showStopButton();
-        inputLayout.getTextField().clear();
+        inputLayout.getComboBox().clear();
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -298,7 +298,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     private void showNotification(String message, NotificationVariant variant) {
         Notification notification = new Notification();
         notification.setPosition(Notification.Position.BOTTOM_END);
-        notification.setDuration(10_000);
+        notification.setDuration(0);
         notification.addThemeVariants(variant);
 
         Span text = new Span(message);
