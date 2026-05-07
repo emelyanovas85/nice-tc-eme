@@ -103,6 +103,7 @@ public class ChatInputComponent extends HorizontalLayout {
                 "Проведи анализ тест-кейса ",
                 "Проведи анализ тест-кейса ",
                 "Проведи анализ тест-кейса ",
+                "Проведи анализ тест-кейса ",
                 "Проверь доступна ли Jira"
         );
         comboBox.setPageSize(5);
@@ -112,6 +113,24 @@ public class ChatInputComponent extends HorizontalLayout {
         comboBox.addFocusShortcut(ENTER, CONTROL);
         comboBox.addFocusListener(e -> comboBox.setPlaceholder(""));
         comboBox.addBlurListener(e -> comboBox.setPlaceholder("Напишите ваше сообщение здесь..."));
+
+        // Убираем инлайн min-width, который Vaadin выставляет программно и вызывает горизонтальный скроллбар
+        comboBox.addOpenedChangeListener(event -> {
+            if (event.isOpened()) {
+                comboBox.getElement().executeJs(
+                    "var overlay = this.$.overlay;" +
+                    "if (overlay) {" +
+                    "  var scroller = overlay.shadowRoot ? overlay.shadowRoot.querySelector('vaadin-combo-box-scroller') : null;" +
+                    "  if (!scroller) scroller = overlay.querySelector('vaadin-combo-box-scroller');" +
+                    "  if (scroller) {" +
+                    "    scroller.style.removeProperty('min-width');" +
+                    "    scroller.style.setProperty('max-width', '100%', 'important');" +
+                    "    scroller.style.setProperty('overflow-x', 'hidden', 'important');" +
+                    "  }" +
+                    "}"
+                );
+            }
+        });
     }
 
     private void addComponents() {
