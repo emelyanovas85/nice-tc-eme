@@ -8,7 +8,8 @@
 }
 
 [part="overlay"] {
-  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
 }
 
 :host {
@@ -19,4 +20,9 @@
 
 :host::-webkit-scrollbar {
   display: none !important;
+}
+
+:host::-webkit-scrollbar:horizontal {
+  display: none !important;
+  height: 0 !important;
 }

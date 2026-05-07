@@ -1343,3 +1343,17 @@ vaadin-combo-box-item[focused] {
   outline: none !important;
   box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35) inset !important;
 }
+
+vaadin-combo-box-overlay::part(overlay) {
+  overflow-x: hidden !important;
+}
+
+/* Это скроллбар снаружи Shadow DOM — попадает через глобальный CSS */
+vaadin-combo-box-overlay::-webkit-scrollbar:horizontal {
+  display: none !important;
+}
+
+vaadin-combo-box-overlay {
+  overflow-x: hidden !important;
+  scrollbar-width: none !important;
+}
