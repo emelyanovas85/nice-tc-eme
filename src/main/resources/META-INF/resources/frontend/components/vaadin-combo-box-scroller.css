@@ -1,7 +1,9 @@
 :host {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
-  max-width: 100% !important;
   box-sizing: border-box !important;
   scrollbar-width: none !important;
 }
@@ -13,6 +15,7 @@
 [part="item"],
 vaadin-combo-box-item {
   max-width: 100% !important;
+  min-width: 0 !important;
   overflow: hidden !important;
   white-space: nowrap !important;
   text-overflow: ellipsis !important;
