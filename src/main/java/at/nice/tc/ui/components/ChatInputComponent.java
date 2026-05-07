@@ -18,7 +18,6 @@ import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CE
  * Горизонтальный компонент с полем для ввода текста и кнопками "Отправить"/"Стоп"/"Сохранить ответ"
  */
 @CssImport(value = "./components/vaadin-combo-box-overlay.css", themeFor = "vaadin-combo-box-overlay")
-@CssImport(value = "./components/vaadin-combo-box-scroller.css", themeFor = "vaadin-combo-box-scroller")
 @Getter
 public class ChatInputComponent extends HorizontalLayout {
 
@@ -56,6 +55,7 @@ public class ChatInputComponent extends HorizontalLayout {
         comboBox.setPlaceholder("Напишите ваше сообщение здесь...");
         comboBox.setItems(
                 "Проведи анализ тест-кейса ",
+                "Да",
                 "Проведи анализ тест-кейса ",
                 "Проведи анализ тест-кейса ",
                 "Проведи анализ тест-кейса ",
