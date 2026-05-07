@@ -1,33 +1,29 @@
-[part="content"] {
+:host {
+  max-height: 220px !important;
+  max-width: 100% !important;
   overflow: hidden !important;
+  box-sizing: border-box !important;
   scrollbar-width: none !important;
 }
 
-[part="content"]::-webkit-scrollbar {
+:host::-webkit-scrollbar {
   display: none !important;
 }
 
 [part="overlay"] {
   overflow-x: hidden !important;
   overflow-y: hidden !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
-#scroller {
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  scrollbar-width: none !important;
-}
-
-#scroller::-webkit-scrollbar {
-  display: none !important;
-}
-
-:host {
-  max-height: 220px;
+[part="content"] {
   overflow: hidden !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
   scrollbar-width: none !important;
 }
 
-:host::-webkit-scrollbar {
+[part="content"]::-webkit-scrollbar {
   display: none !important;
 }
