@@ -1,23 +1,22 @@
 [part="content"] {
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: none;
+  overflow: hidden !important;
+  scrollbar-width: none !important;
 }
 
 [part="content"]::-webkit-scrollbar {
-  display: none;
+  display: none !important;
 }
 
-#scroller {
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-#scroller::-webkit-scrollbar {
-  display: none;
+[part="overlay"] {
+  overflow: hidden !important;
 }
 
 :host {
   max-height: 220px;
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+}
+
+:host::-webkit-scrollbar {
+  display: none !important;
 }
