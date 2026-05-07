@@ -1,5 +1,8 @@
 :host {
   overflow-x: hidden !important;
+  overflow-y: auto !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
   scrollbar-width: none !important;
 }
 
@@ -7,7 +10,11 @@
   display: none !important;
 }
 
-:host::-webkit-scrollbar:horizontal {
-  display: none !important;
-  height: 0 !important;
+[part="item"],
+vaadin-combo-box-item {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  box-sizing: border-box !important;
 }
