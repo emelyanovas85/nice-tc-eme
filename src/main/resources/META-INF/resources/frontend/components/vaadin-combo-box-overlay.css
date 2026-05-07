@@ -1,19 +1,23 @@
-/* Скрываем оба скроллбара внутри выпадающего списка */
 [part="content"] {
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;
 }
 
 [part="content"]::-webkit-scrollbar {
-  display: none; /* Chrome / Safari / Edge */
+  display: none;
 }
 
 #scroller {
   overflow-x: hidden;
+  overflow-y: auto;
   scrollbar-width: none;
 }
 
 #scroller::-webkit-scrollbar {
   display: none;
+}
+
+:host {
+  max-height: 220px;
 }
