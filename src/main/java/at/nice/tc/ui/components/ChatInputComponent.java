@@ -1,11 +1,15 @@
 package at.nice.tc.ui.components;
 
 
+import com.vaadin.flow.component.Key;
+import com.vaadin.flow.component.KeyModifier;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import lombok.Getter;
+
+import java.util.Set;
 
 import static com.vaadin.flow.component.Key.ENTER;
 import static com.vaadin.flow.component.Key.KEY_S;
@@ -38,6 +42,7 @@ public class ChatInputComponent extends HorizontalLayout {
         sendButton.addClassName("send-button");
         sendButton.setWidth("8em");
         sendButton.setTooltipText("Shift + Enter");
+        sendButton.addClickShortcut(Key.ENTER, KeyModifier.SHIFT).listenOn(comboBox);
 
         stopButton.addThemeVariants(LUMO_ERROR, LUMO_PRIMARY);
         stopButton.setWidth("8em");
@@ -53,54 +58,11 @@ public class ChatInputComponent extends HorizontalLayout {
 
     private void configureComboBox() {
         comboBox.setPlaceholder("Напишите ваше сообщение здесь...");
-        comboBox.setItems(
+        comboBox.setItems(Set.of(
                 "Проведи анализ тест-кейса ",
                 "Да",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
-                "Проведи анализ тест-кейса ",
                 "Проверь доступна ли Jira"
-        );
+        ));
         comboBox.setPageSize(5);
         comboBox.setAllowCustomValue(true);
         comboBox.setAutoOpen(true);

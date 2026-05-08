@@ -80,7 +80,7 @@ public class TestTreeView extends VerticalLayout {
         return li;
     }
 
-    private void addPromptsList(ListItem li, TestTree.Test t) {
+    private void addPromptsList(ListItem li, TestTree.Test test) {
         int promptCount = Prompts.REQUIREMENTS.size();
         if (promptCount == 0) return;
 
@@ -92,11 +92,11 @@ public class TestTreeView extends VerticalLayout {
             promptLi.addClassNames("prompt-item");
 
             // Span для статуса промпта с уникальным ID
-            String promptKey = t.getId() + "_" + promptIndex;
-            Span promptStatus = new Span("⏸️ " + t + "_" + promptIndex);
+            String promptKey = test.getId() + "_" + promptIndex;
+            Span promptStatus = new Span("⏸️ " + test + "_" + promptIndex);
             promptStatus.addClassNames("prompt-status", "status-pending");
 
-            log.debug("TestTreeView: создали ключ '{}' для теста {}  t.getId()='{}', promptIndex={}", promptKey, t, t.getId(), promptIndex);
+            log.debug("TestTreeView: создали ключ '{}' для теста {}  test.getId()='{}', promptIndex={}", promptKey, test, test.getId(), promptIndex);
             promptStatusMap.put(promptKey, promptStatus);
 
             promptLi.add(promptStatus);
