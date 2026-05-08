@@ -192,9 +192,8 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         addedMessageTimestamps.add(System.currentTimeMillis());
 
         // actualBotMessage создаётся здесь, но в messageList не добавляется.
-        // Добавление происходит только при получении первого токена в subscribeToChatStream(),
-        // что гарантирует правильный порядок: сначала сообщение добавляется в список,
-        // затем в него добавляются компоненты (дерево тестов, текст анализа).
+        // Добавление происходит в subscribeToChatStream при первом токене, чтобы гарантировать
+        // правильный порядок: сначала блок добавляется в DOM, затем в него добавляются компоненты.
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
         actualBotMessage.getMainMessage().setUserColorIndex(5);
         actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
@@ -316,7 +315,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         notification.open();
     }
 
-
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
@@ -342,22 +340,26 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                 .subscribe(
                         token -> ui.access(() -> {
                             if (actualBotMessage == null) {
-                                // Создаём новый бот-блок только здесь, если он ещё не был создан в onSubmit
+                                // Отсутствие actualBotMessage здесь означает reconnect без активного запроса
                                 actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
                                 actualBotMessage.getMainMessage().setUserColorIndex(5);
                                 actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
                             }
-                            // Добавляем в список только при получении первого токена,
-                            // когда бот-блок ещё не был добавлен в UI
+                            // Добавляем в messageList только при первом токене — компонент ещё не в DOM.
+                            // Это гарантирует: сначала блок занимает место в списке, затем в него
+                            // добавляются дерево тестов и текст анализа.
                             if (!actualBotMessage.isAttached()) {
                                 messageList.add(actualBotMessage);
                             }
-                            actualBotMessage.appendMarkdownAsync(token);
+                            // Используем appendMarkdownInUiThread вместо appendMarkdownAsync:
+                            // мы уже в ui.access, поэтому ненужно делать внутренний getUI().ifPresent(ui2 -> ui2.access(...))
+                            // который проваливался бы в пустой поскольку компонент ещё не в DOM (getUI() == empty).
+                            actualBotMessage.appendMarkdownInUiThread(token);
                             scroll.scrollToBottom();
                         }),
                         err -> ui.access(() -> {
                             if (actualBotMessage != null) {
-                                actualBotMessage.appendMarkdownAsync("\n\nОшибка: " + err.getMessage());
+                                actualBotMessage.appendMarkdownInUiThread("\n\nОшибка: " + err.getMessage());
                             }
                             stop();
                         }),
