@@ -158,7 +158,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             botMessage.getMainMessage().setUserColorIndex(5);
             messageList.addComponentAtIndex(0, botMessage);
             botMessage.setMarkdown(text);
-            // finish() сбрасывает хвост внутренних буферов состояний (MainState оставляет хвост MAX_TAG_LEN символов)
             botMessage.finish();
         }
 
@@ -167,7 +166,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
             userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
             messageList.addComponentAtIndex(0, userMessage);
             userMessage.setMarkdown(text);
-            // finish() сбрасывает хвост внутренних буферов состояний
             userMessage.finish();
         }
     }
@@ -189,14 +187,17 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         userMessage.setMessageType(MarkdownMessageWithThinking.MessageType.USER);
         messageList.add(userMessage);
         userMessage.setMarkdown(userText);
-        // finish() сбрасывает хвост буфера MainState — весь текст отобразится
         userMessage.finish();
 
         addedMessageTimestamps.add(System.currentTimeMillis());
 
+        // actualBotMessage создаётся здесь, но в messageList не добавляется.
+        // Добавление происходит только при получении первого токена в subscribeToChatStream(),
+        // что гарантирует правильный порядок: сначала сообщение добавляется в список,
+        // затем в него добавляются компоненты (дерево тестов, текст анализа).
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
+        actualBotMessage.getMainMessage().setUserColorIndex(5);
         actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
-        messageList.add(actualBotMessage);
 
         StringBuilder prompt = new StringBuilder();
         if (!config.getUserId().isBlank())
@@ -341,8 +342,14 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                 .subscribe(
                         token -> ui.access(() -> {
                             if (actualBotMessage == null) {
+                                // Создаём новый бот-блок только здесь, если он ещё не был создан в onSubmit
                                 actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
                                 actualBotMessage.getMainMessage().setUserColorIndex(5);
+                                actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
+                            }
+                            // Добавляем в список только при получении первого токена,
+                            // когда бот-блок ещё не был добавлен в UI
+                            if (!actualBotMessage.isAttached()) {
                                 messageList.add(actualBotMessage);
                             }
                             actualBotMessage.appendMarkdownAsync(token);
