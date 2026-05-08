@@ -110,8 +110,22 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
     }
 
     /**
+     * Обрабатывает чанк маркдауна НАПРЯМУЮ в текущем UI-потоке.
+     * Вызывать только из ui.access() — без дополнительной обёртки в ui.access.
+     * Используется в ChatView.subscribeToChatStream(), где поток уже под ui.access.
+     */
+    public void appendMarkdownInUiThread(String chunk) {
+        if (chunk == null || chunk.isEmpty()) return;
+        ProcessingState current = state;
+        if (current != null) {
+            state = current.process(chunk);
+        }
+    }
+
+    /**
      * Добавляет чанк маркдауна асинхронно из фонового потока.
      * Внутри вызывает ui.access и затем process через прямой appendMainText.
+     * Использовать только когда вызов происходит НЕ из ui.access (например, из tool-колбэков).
      */
     public void appendMarkdownAsync(String chunk) {
         if (chunk == null || chunk.isEmpty()) return;
