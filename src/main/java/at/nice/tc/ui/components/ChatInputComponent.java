@@ -60,6 +60,7 @@ public class ChatInputComponent extends HorizontalLayout {
         comboBox.setPlaceholder("Напишите ваше сообщение здесь...");
         comboBox.setItems(Set.of(
                 "Проведи анализ тест-кейса ",
+                "Проведи анализ тест-кейса VPEPVV-T",
                 "Да",
                 "Проверь доступна ли Jira"
         ));
