@@ -206,7 +206,9 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         prompt.append("\n").append(userText);
         prompt.append("\n").append(Prompts.aggregatorPrompt);
 
-        subscribeToChatStream();
+        // Подписку пересоздаём явно перед отправкой — старая подписка (если была) dispose'ится здесь.
+        // onAttach больше не пересоздаёт подписку, чтобы не сбрасывать state в середине стриминга.
+        subscribeToChat();
         aiService.sendMainMessageStream(prompt.toString(), config.getChatId());
     }
 
@@ -318,7 +320,12 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        subscribeToChatStream();
+        // Подписываемся только если нет активной подписки.
+        // Это предотвращает пересоздание подписки в середине стриминга второго (и любого следующего)
+        // ответа LLM, что приводило к сбросу state и записи текста ответа в блок "Размышления модели".
+        if (subscription == null || subscription.isDisposed()) {
+            subscribeToChat();
+        }
     }
 
     @Override
@@ -329,7 +336,12 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         super.onDetach(detachEvent);
     }
 
-    private void subscribeToChatStream() {
+    /**
+     * Подписывается на поток токенов для текущего chatId.
+     * Dispose старой подписки выполняется внутри.
+     * Вызывать: из onSubmit (всегда) и из onAttach (только если нет активной подписки).
+     */
+    private void subscribeToChat() {
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
         }
@@ -352,7 +364,7 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                                 messageList.add(actualBotMessage);
                             }
                             // Используем appendMarkdownInUiThread вместо appendMarkdownAsync:
-                            // мы уже в ui.access, поэтому ненужно делать внутренний getUI().ifPresent(ui2 -> ui2.access(...))
+                            // мы уже в ui.access, поэтому не нужно делать внутренний getUI().ifPresent(ui2 -> ui2.access(...))
                             // который проваливался бы в пустой поскольку компонент ещё не в DOM (getUI() == empty).
                             actualBotMessage.appendMarkdownInUiThread(token);
                             scroll.scrollToBottom();
@@ -371,5 +383,10 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                             inputLayout.showSaveButton();
                         })
                 );
+    }
+
+    // Старый метод оставлен для совместимости — делегирует в subscribeToChat()
+    private void subscribeToChatStream() {
+        subscribeToChat();
     }
 }
