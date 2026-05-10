@@ -126,6 +126,12 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         final String chatId = config.getChatId();
         final Restorer restorer = new Restorer();
 
+        // Получаем сырые ответы (с <think> тегами) — они хранятся отдельно от ChatMemory,
+        // так как Spring AI вырезает теги перед сохранением в ChatMemory.
+        // rawMessages и completedMessages идут в одном порядке (FIFO), поэтому
+        // мы сопоставляем их по индексу среди ASSISTANT-сообщений.
+        final List<String> rawAssistantTexts = new ArrayList<>(memoryService.getRawAssistantMessages(chatId));
+
         final List<Message> completedMessages = new ArrayList<>(memoryService.getCompletedMessages(chatId));
         Collections.reverse(completedMessages);
 
@@ -133,12 +139,22 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         final int messageCount = completedMessages.size();
         boolean hasAssistantMessage = false;
 
+        // Счётчик ассистентских сообщений для сопоставления с rawAssistantTexts.
+        // rawAssistantTexts хранятся в прямом порядке (первый ответ — индекс 0).
+        // completedMessages после reverse() тоже в прямом порядке.
+        int assistantIndex = 0;
+
         for (int i = 0; i < completedMessages.size(); i++) {
             Message m = completedMessages.get(i);
             LocalDateTime messageTime = now.minusSeconds((long) (messageCount - i) * 2);
             switch (m.getMessageType()) {
                 case ASSISTANT -> {
-                    restorer.createCompletedAssistantMessage(m.getText(), messageTime);
+                    // Используем raw-текст (с <think>) если доступен, иначе fallback на ChatMemory текст
+                    String rawText = assistantIndex < rawAssistantTexts.size()
+                            ? rawAssistantTexts.get(assistantIndex)
+                            : m.getText();
+                    restorer.createCompletedAssistantMessage(rawText, messageTime);
+                    assistantIndex++;
                     hasAssistantMessage = true;
                 }
                 case USER -> restorer.createUserMessage(m.getText(), messageTime);
@@ -191,9 +207,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
 
         addedMessageTimestamps.add(System.currentTimeMillis());
 
-        // actualBotMessage создаётся здесь, но в messageList не добавляется.
-        // Добавление происходит в subscribeToChatStream при первом токене, чтобы гарантировать
-        // правильный порядок: сначала блок добавляется в DOM, затем в него добавляются компоненты.
         actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
         actualBotMessage.getMainMessage().setUserColorIndex(5);
         actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
@@ -206,8 +219,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         prompt.append("\n").append(userText);
         prompt.append("\n").append(Prompts.aggregatorPrompt);
 
-        // Подписку пересоздаём явно перед отправкой — старая подписка (если была) dispose'ится здесь.
-        // onAttach больше не пересоздаёт подписку, чтобы не сбрасывать state в середине стриминга.
         subscribeToChat();
         aiService.sendMainMessageStream(prompt.toString(), config.getChatId());
     }
@@ -320,9 +331,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        // Подписываемся только если нет активной подписки.
-        // Это предотвращает пересоздание подписки в середине стриминга второго (и любого следующего)
-        // ответа LLM, что приводило к сбросу state и записи текста ответа в блок "Размышления модели".
         if (subscription == null || subscription.isDisposed()) {
             subscribeToChat();
         }
@@ -336,11 +344,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
         super.onDetach(detachEvent);
     }
 
-    /**
-     * Подписывается на поток токенов для текущего chatId.
-     * Dispose старой подписки выполняется внутри.
-     * Вызывать: из onSubmit (всегда) и из onAttach (только если нет активной подписки).
-     */
     private void subscribeToChat() {
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
@@ -352,20 +355,13 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                 .subscribe(
                         token -> ui.access(() -> {
                             if (actualBotMessage == null) {
-                                // Отсутствие actualBotMessage здесь означает reconnect без активного запроса
                                 actualBotMessage = new MarkdownMessageWithThinking("Агент Jira", LocalDateTime.now(), aiToolCallService);
                                 actualBotMessage.getMainMessage().setUserColorIndex(5);
                                 actualBotMessage.setMessageType(MarkdownMessageWithThinking.MessageType.ASSISTANT);
                             }
-                            // Добавляем в messageList только при первом токене — компонент ещё не в DOM.
-                            // Это гарантирует: сначала блок занимает место в списке, затем в него
-                            // добавляются дерево тестов и текст анализа.
                             if (!actualBotMessage.isAttached()) {
                                 messageList.add(actualBotMessage);
                             }
-                            // Используем appendMarkdownInUiThread вместо appendMarkdownAsync:
-                            // мы уже в ui.access, поэтому не нужно делать внутренний getUI().ifPresent(ui2 -> ui2.access(...))
-                            // который проваливался бы в пустой поскольку компонент ещё не в DOM (getUI() == empty).
                             actualBotMessage.appendMarkdownInUiThread(token);
                             scroll.scrollToBottom();
                         }),
@@ -385,7 +381,6 @@ public class ChatView extends Composite<VerticalLayout> implements BeforeEnterOb
                 );
     }
 
-    // Старый метод оставлен для совместимости — делегирует в subscribeToChat()
     private void subscribeToChatStream() {
         subscribeToChat();
     }

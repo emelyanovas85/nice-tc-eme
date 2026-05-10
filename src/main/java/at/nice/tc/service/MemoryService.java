@@ -4,11 +4,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +26,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * Также управляет {@link ChatMemory} для сохранения истории сообщений
  * в долгосрочной памяти.
+ * <p>
+ * <b>Raw-история:</b> Spring AI {@link ChatMemory} сохраняет ответ модели БЕЗ тегов
+ * {@code <think>...</think>} — они вырезаются как reasoning-артефакты стриминга.
+ * Поэтому MemoryService дополнительно хранит сырой текст каждого ответа ассистента
+ * (с тегами) в {@link #rawAssistantMessages}, чтобы при F5 блок «Размышления модели»
+ * восстанавливался корректно через {@link #getRawAssistantMessages(String)}.
  */
 @Slf4j
 @Service
@@ -35,25 +41,21 @@ public class MemoryService {
 
     /**
      * Хранит {@link Sinks.Many} с replay для каждого conversationId.
-     * <p>
-     * Sinks.many().replay().all() позволяет:
-     * <ul>
-     *   <li>Множественным подписчикам получать одни и те же данные</li>
-     *   <li>Новым подписчикам получать всю историю токенов</li>
-     *   <li>Переподключаться после перезагрузки страницы</li>
-     * </ul>
      */
     private final Map<String, Sinks.Many<String>> replaySinks = new ConcurrentHashMap<>();
-    private final Map<String, Sinks.Many<ChatResponse>> replaySinks2 = new ConcurrentHashMap<>();
 
     /**
-     * Получает или создает Sink для указанного conversationId.
-     * <p>
-     * Все подписчики на этот conversationId будут получать одни и те же токены.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     * @return Sink для публикации токенов
+     * Хранит сырые тексты ответов ассистента (включая теги &lt;think&gt;) для каждого conversationId.
+     * Используется при восстановлении UI после F5, так как ChatMemory хранит текст без тегов.
      */
+    private final Map<String, List<String>> rawAssistantMessages = new ConcurrentHashMap<>();
+
+    /**
+     * Буфер токенов текущего активного ответа — накапливается до завершения стрима,
+     * затем сохраняется в rawAssistantMessages.
+     */
+    private final Map<String, StringBuilder> activeRawBuffers = new ConcurrentHashMap<>();
+
     public Sinks.Many<String> getOrCreateSink(String conversationId) {
         return replaySinks.computeIfAbsent(conversationId, id -> {
             log.debug("Создан новый Sink для conversationId: {}", id);
@@ -61,50 +63,24 @@ public class MemoryService {
         });
     }
 
-
-    /**
-     * Подписывается на поток токенов для указанного conversationId.
-     * <p>
-     * Новые подписчики получат всю историю токенов + новые в реальном времени.
-     * Используется для подключения UI компонентов к активному потоку ответа.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     * @return Flux с историей и новыми токенами
-     */
     public Flux<String> subscribe(String conversationId) {
         Sinks.Many<String> sink = getOrCreateSink(conversationId);
         log.debug("Подписка на поток для conversationId: {}", conversationId);
         return sink.asFlux();
     }
 
-
-    /**
-     * Отправляет токен во все активные подписки для указанного conversationId.
-     * <p>
-     * Используется {@link AiService} для публикации токенов,
-     * полученных от AI модели, во все подключенные UI компоненты.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     * @param token          токен для отправки
-     */
     public void pushToken(String conversationId, String token) {
         Sinks.Many<String> sink = replaySinks.get(conversationId);
         if (sink != null) {
             sink.tryEmitNext(token);
+            // Накапливаем raw-буфер для сохранения после завершения
+            activeRawBuffers.computeIfAbsent(conversationId, id -> new StringBuilder()).append(token);
             log.trace("Токен отправлен для conversationId: {}", conversationId);
         } else {
             log.warn("Sink не найден для conversationId: {}", conversationId);
         }
     }
 
-    /**
-     * Завершает поток для указанного conversationId.
-     * <p>
-     * После завершения новые подписчики получат всю историю,
-     * но новые токены не будут приниматься.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     */
     public void completeStream(String conversationId) {
         Sinks.Many<String> sink = replaySinks.get(conversationId);
         if (sink != null) {
@@ -112,57 +88,29 @@ public class MemoryService {
             replaySinks.remove(conversationId);
             log.debug("Поток завершен для conversationId: {}", conversationId);
         }
-        // Также завершаем sink для ChatResponse
-        Sinks.Many<ChatResponse> sink2 = replaySinks2.get(conversationId);
-        if (sink2 != null) {
-            sink2.tryEmitComplete();
-            replaySinks2.remove(conversationId);
+        // Сохраняем накопленный raw-текст ответа (с <think> тегами)
+        StringBuilder rawBuffer = activeRawBuffers.remove(conversationId);
+        if (rawBuffer != null && !rawBuffer.isEmpty()) {
+            rawAssistantMessages
+                    .computeIfAbsent(conversationId, id -> new ArrayList<>())
+                    .add(rawBuffer.toString());
+            log.debug("Raw-ответ сохранён для conversationId: {} ({} символов)", conversationId, rawBuffer.length());
         }
     }
 
-    /**
-     * Завершает поток с ошибкой для указанного conversationId.
-     * <p>
-     * Ошибка будет передана всем текущим и будущим подписчикам.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     * @param error          ошибка, которую нужно передать
-     */
     public void errorStream(String conversationId, Throwable error) {
         Sinks.Many<String> sink = replaySinks.get(conversationId);
         if (sink != null) {
             sink.tryEmitError(error);
             log.debug("Поток завершен с ошибкой для conversationId: {}", conversationId, error);
         }
-        // Также завершаем sink для ChatResponse с ошибкой
-        Sinks.Many<ChatResponse> sink2 = replaySinks2.get(conversationId);
-        if (sink2 != null) {
-            sink2.tryEmitError(error);
-        }
+        activeRawBuffers.remove(conversationId);
     }
 
-    /**
-     * Проверяет, есть ли активный поток для указанного conversationId.
-     * <p>
-     * Sink считается активным, если он существует в кэше и не завершен.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     * @return true, если поток активен
-     */
     public boolean hasActiveStream(String conversationId) {
-        Sinks.Many<String> sink = replaySinks.get(conversationId);
-        return sink != null;
+        return replaySinks.containsKey(conversationId);
     }
 
-    /**
-     * Возвращает сообщения из истории долгосрочной памяти (ChatMemory).
-     * <p>
-     * История сохраняется Spring AI и может быть использована
-     * для восстановления контекста разговора после перезапуска приложения.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     * @return список сообщений или пустой список
-     */
     public List<Message> getCompletedMessages(String conversationId) {
         try {
             List<Message> messages = chatMemory.get(conversationId);
@@ -174,31 +122,23 @@ public class MemoryService {
     }
 
     /**
-     * Проверяет, есть ли сохраненные данные для conversationId.
-     * <p>
-     * Данные считаются существующими, если:
-     * <ul>
-     *   <li>Есть активный поток (Sink) для conversationId</li>
-     *   <li>Есть завершенные сообщения в ChatMemory</li>
-     * </ul>
+     * Возвращает сохранённые сырые тексты ответов ассистента (с тегами &lt;think&gt;)
+     * в порядке поступления. Используется в {@code ChatView.Restorer} для корректного
+     * восстановления блока «Размышления модели» после перезагрузки страницы.
      *
      * @param conversationId уникальный идентификатор разговора
-     * @return true, если есть данные
+     * @return список raw-ответов или пустой список
      */
+    public List<String> getRawAssistantMessages(String conversationId) {
+        return rawAssistantMessages.getOrDefault(conversationId, List.of());
+    }
+
     public boolean hasInMemory(String conversationId) {
         boolean hasStream = replaySinks.containsKey(conversationId);
         boolean hasMessages = !getCompletedMessages(conversationId).isEmpty();
         return hasStream || hasMessages;
     }
 
-    /**
-     * Очищает историю сообщений для указанного conversationId в ChatMemory.
-     * <p>
-     * Не влияет на активный поток токенов (Sink).
-     * Используется для сброса контекста перед новой проверкой.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     */
     public void clearMessages(String conversationId) {
         try {
             chatMemory.clear(conversationId);
@@ -208,22 +148,13 @@ public class MemoryService {
         }
     }
 
-    /**
-     * Полностью удаляет все данные для conversationId:
-     * <ul>
-     *   <li>Завершает активный поток (Sink)</li>
-     *   <li>Удаляет Sink из кэша</li>
-     *   <li>Очищает историю сообщений в ChatMemory</li>
-     * </ul>
-     * Используйте для полной очистки разговора.
-     *
-     * @param conversationId уникальный идентификатор разговора
-     */
     public void removeConversation(String conversationId) {
         Sinks.Many<String> sink = replaySinks.remove(conversationId);
         if (sink != null) {
             sink.tryEmitComplete();
         }
+        activeRawBuffers.remove(conversationId);
+        rawAssistantMessages.remove(conversationId);
         clearMessages(conversationId);
         log.debug("Данные полностью удалены для conversationId: {}", conversationId);
     }
