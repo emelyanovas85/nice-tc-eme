@@ -147,7 +147,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             thinkingContent.setSpacing(false);
             thinkingContent.addClassName("thinking-content");
 
-            thinkingDetails = new Details("Размышления модели", thinkingContent);
+            thinkingDetails = new Details("\u0420\u0430\u0437\u043c\u044b\u0448\u043b\u0435\u043d\u0438\u044f \u043c\u043e\u0434\u0435\u043b\u0438", thinkingContent);
             thinkingDetails.addClassName("thinking-details");
             thinkingDetails.setOpened(true);
 
@@ -167,7 +167,9 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
         ensureThinkingDetailsCreated();
         thinkingMessage = new Markdown();
         thinkingMessage.addClassName("markdown");
-        UiUtils.doInUI(this, () -> thinkingContent.add(thinkingMessage));
+        // Синхронное добавление: всегда выполняется в текущем потоке (ui.access или init).
+        // НЕ используем UiUtils.doInUI чтобы не нарушать порядок компонентов в thinkingContent.
+        thinkingContent.add(thinkingMessage);
         return thinkingMessage;
     }
 
@@ -186,9 +188,13 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
 
     public void handleEvent(ChatEvent event) {
         if (event instanceof CheckEvent.AgentBuiltTestTreeEvent e) {
-            addNewThinkingMarkdown();
+            // НЕ вызываем addNewThinkingMarkdown() здесь — это создавало лишний пустой Markdown
+            // в thinkingContent, который потом заполнялся последующими ToolEvent-логами,
+            // визуально сдвигая ответ LLM внутрь блока "Размышления".
             Component treeSection = getHandlers().check.doOnBuiltTestTree(e);
-            UiUtils.doInUI(this, () -> thinkingContent.add(treeSection));
+            // Синхронное добавление в текущем потоке — не используем UiUtils.doInUI,
+            // чтобы treeSection занял место в DOM до того как придут следующие токены.
+            thinkingContent.add(treeSection);
         } else if (event instanceof CheckEvent.CheckPromptStartedEvent e) {
             UiUtils.doInUI(this, () -> getHandlers().check.doOnPromptStarted(e));
         } else if (event instanceof CheckEvent.CheckFinishedEvent e) {
@@ -214,14 +220,16 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
                     ensureThinkingDetailsCreated();
                     if (thinkingContent == null) return;
 
-                    UiUtils.doInUI(MarkdownMessageWithThinking.this, () -> {
-                        if (thinkingDetails != null && !thinkingDetails.isOpened()) {
-                            thinkingDetails.setOpened(true);
-                        }
-                        for (var a : logEvent.getAttachments()) {
-                            appendAttachment(a);
-                        }
-                    });
+                    // Синхронное добавление вложений — не используем UiUtils.doInUI,
+                    // чтобы JSON-вложения появлялись в DOM ДО обработки следующих токенов LLM.
+                    // Ранее UiUtils.doInUI откладывал добавление вложений на следующий ui.access,
+                    // из-за чего JSON визуально появлялся ПОСЛЕ таблицы ответа LLM.
+                    if (thinkingDetails != null && !thinkingDetails.isOpened()) {
+                        thinkingDetails.setOpened(true);
+                    }
+                    for (var a : logEvent.getAttachments()) {
+                        appendAttachment(a);
+                    }
                 }
             }
         }
@@ -233,6 +241,7 @@ public class MarkdownMessageWithThinking extends VerticalLayout {
             content.setSpacing(false);
             Details details = new Details(a.getName(), content);
             details.getStyle().set("margin-left", "2em");
+            // Синхронное добавление — порядок в DOM гарантирован
             thinkingContent.add(details);
             value.appendContent(a.getContent());
         }
