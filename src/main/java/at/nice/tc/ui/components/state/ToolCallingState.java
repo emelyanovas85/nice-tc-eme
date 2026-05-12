@@ -54,6 +54,7 @@ public class ToolCallingState extends ProcessingState {
     private long extractTimestamp(String text, int pos) {
         int start = pos + TOOL_UPDATE.getPlaceholder().length();
         int end = start + timestampLen;
+        if (end > text.length()) return 0L;
         try {
             return Long.parseLong(text.substring(start, end));
         } catch (NumberFormatException e) {
@@ -64,15 +65,28 @@ public class ToolCallingState extends ProcessingState {
     private ProcessingState handleToolUpdate(int pos, String text, long timestamp) {
         if (pos < 0) return this;
 
-        context.getThinkingMessage().appendContent(text.substring(0, pos));
+        // Пишем в toolMarkdown всё, что накопилось ДО тега <tool_update>
+        if (pos > 0) {
+            context.getThinkingMessage().appendContent(text.substring(0, pos));
+        }
 
-        if (timestamp == 0L || context.getAiToolCallService() == null)
+        // Если timestamp не распознан — ждём ещё данных (timestamp ещё не полностью пришёл)
+        if (timestamp == 0L) {
+            // Если начало timestamp уже есть, но он неполный — удерживаем в буфере
+            buffer.setLength(0);
+            buffer.append(text.substring(pos));
             return this;
+        }
 
-        context.getAiToolCallService().getUpdate(timestamp).ifPresent(context::handleEvent);
+        // Обрабатываем событие по timestamp
+        if (context.getAiToolCallService() != null) {
+            context.getAiToolCallService().getUpdate(timestamp).ifPresent(context::handleEvent);
+        }
 
+        // remaining — всё после <tool_update> + 13-значного timestamp
+        int skipLen = TOOL_UPDATE.getPlaceholder().length() + timestampLen;
         buffer.setLength(0);
-        String remaining = text.substring(pos + TOOL_UPDATE.length());
+        String remaining = text.substring(pos + skipLen);
         if (remaining.isEmpty()) return this;
         return process(remaining);
     }
