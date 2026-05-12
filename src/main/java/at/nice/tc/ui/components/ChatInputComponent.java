@@ -49,11 +49,14 @@ public class ChatInputComponent extends HorizontalLayout {
         stopButton.addClassName("stop-button");
         stopButton.setVisible(false);
         stopButton.addClickShortcut(KEY_S, CONTROL);
+        saveButton.setTooltipText("Ctrl + S");
+
 
         saveButton.addThemeVariants(LUMO_PRIMARY);
         saveButton.addClassName("save-button");
         saveButton.setVisible(false);
         saveButton.addClickShortcut(KEY_S, CONTROL, SHIFT);
+        saveButton.setTooltipText("Ctrl + Shift + Enter");
     }
 
     private void configureComboBox() {
