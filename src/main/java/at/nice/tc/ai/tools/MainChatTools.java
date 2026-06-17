@@ -39,7 +39,7 @@ public class MainChatTools {
 
     @Tool(name = "checkTestCaseByRequirements",
             description = "Получение необходимых для данных в формате json c результатами проверки верхнеуровнего" +
-                    " (основного) тест-кейса и вложенных в него тест-кейсов. Необходим для выполнения ")
+                    " (основного) тест-кейса и вложенных в него тест-кейсов.")
     public String checkTestCaseByRequirements(
             @ToolParam(description = "Ключ или ID верхнеуровнего (основного) тест-кейса для проверки")
             String keyTestCase,
