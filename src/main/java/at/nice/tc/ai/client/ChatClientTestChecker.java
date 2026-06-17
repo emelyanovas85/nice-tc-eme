@@ -60,9 +60,12 @@ public record ChatClientTestChecker(AiService aiService,
 
         // ✅ 2 попытки Jira + fallback
         CompletableFuture<String> htmlContentTest = tryJiraTwice(testId, jiraService::getTest);
-        CompletableFuture<String> htmlContentExecutionTest = tryJiraTwice(testId, jiraService::getTestExecutions);
-
-
+        // getTestExecutions принимает (int, List<String>) — оборачиваем в лямбду,
+        // чтобы привести к Function<String, CompletableFuture<String>>
+        CompletableFuture<String> htmlContentExecutionTest = tryJiraTwice(
+                testId,
+                id -> jiraService.getTestExecutions(Integer.parseInt(id), jiraService.getRequiredExecutionsProperties())
+        );
 
         CompletableFuture<Map<String, Object>> futureContentTest = htmlContentTest
                 .thenApply(html -> html.isEmpty() ? "" : html)
