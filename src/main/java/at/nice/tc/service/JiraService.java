@@ -8,8 +8,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -71,7 +73,6 @@ public class JiraService {
                 });
     }
 
-
     public CompletableFuture<String> getTest(String id, List<String> fields) {
         return CompletableFuture.supplyAsync(() -> jira.getTest(id, fields));
     }
@@ -90,52 +91,39 @@ public class JiraService {
 
     @Cacheable
     public List<String> getRequiredTestProperties() {
-        ClassPathResource resource = new ClassPathResource("testcase_required_fields.txt");
-        try {
-            return Files.readAllLines(resource.getFile().toPath())
-                    .stream()
-                    .filter(line -> !line.trim().isEmpty() && !line.startsWith("//"))
-                    .toList();
-        } catch (IOException e) {
-            return ThrowableUtils.reThrow(e);
-        }
+        return readLines("testcase_required_fields.txt");
     }
 
     @Cacheable
     public List<String> getRequiredExecutionsProperties() {
-        ClassPathResource resource = new ClassPathResource("executions_required_fields.txt");
-        try {
-            return Files.readAllLines(resource.getFile().toPath())
-                    .stream()
-                    .filter(line -> !line.trim().isEmpty() && !line.startsWith("//"))
-                    .toList();
-        } catch (IOException e) {
-            return ThrowableUtils.reThrow(e);
-        }
+        return readLines("executions_required_fields.txt");
     }
 
     public List<String> getAvailableTestProperties() throws IOException {
-        ClassPathResource resource = new ClassPathResource("testcase_fields_description.json");
-        return Files.readAllLines(resource.getFile().toPath())
-                .stream()
-                .filter(line -> !line.trim().isEmpty())
-                .toList();
+        return readLines("testcase_fields_description.json");
     }
 
     public List<String> getAvailableTestExecutionProperties() throws IOException {
-        ClassPathResource resource = new ClassPathResource("availableTestExecutionProperties.txt");
-        return Files.readAllLines(resource.getFile().toPath())
-                .stream()
-                .filter(line -> !line.trim().isEmpty())
-                .toList();
-    }
-
-    public CompletableFuture<String> getTestExecutions(String versionId) {
-        return CompletableFuture.supplyAsync(() -> jira.getTestExecutions(Integer.parseInt(versionId), List.of("testResultStatus(name)", "executionDate", "testCase")));
+        return readLines("availableTestExecutionProperties.txt");
     }
 
     public CompletableFuture<String> getTestExecutions(int versionId, List<String> fields) {
         return CompletableFuture.supplyAsync(() -> jira.getTestExecutions(versionId, fields));
     }
 
+    /**
+     * Читает файл из classpath через InputStream — работает как в файловой системе,
+     * так и внутри JAR-архива (в отличие от resource.getFile()).
+     */
+    private List<String> readLines(String resourceName) {
+        ClassPathResource resource = new ClassPathResource(resourceName);
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+            return reader.lines()
+                    .filter(line -> !line.trim().isEmpty() && !line.startsWith("/"))
+                    .toList();
+        } catch (IOException e) {
+            return ThrowableUtils.reThrow(e);
+        }
+    }
 }
