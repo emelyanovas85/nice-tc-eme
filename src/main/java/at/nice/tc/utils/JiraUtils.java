@@ -183,15 +183,15 @@ public abstract class JiraUtils {
                     );
         }
 
-        try {
-            Files.writeString(Paths.get(test.get("key") + ".md"), markdown.toString(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+//        try {
+//            Files.writeString(Paths.get(test.get("key") + ".md"), markdown.toString(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 //        Files.writeString(Paths.get(test.get("key") + ".json"), toString(insertNestedTests(test, nestedId$nestedTest)), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 //            for (Map<String, Object> nestedTest : nestedId$nestedTest.values()) {
 //                Files.writeString(Paths.get(nestedTest.get("key") + ".json"), MAPPER.writeValueAsString(test), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 //            }
-        } catch (IOException e) {
-            ThrowableUtils.reThrow(e);
-        }
+//        } catch (IOException e) {
+//            ThrowableUtils.reThrow(e);
+//        }
 
         return markdown.toString();
     }
