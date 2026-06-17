@@ -3,6 +3,7 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.6'
     id 'java'
     id 'idea'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = 'at'
@@ -106,4 +107,14 @@ tasks.named('jar') {
 tasks.named('bootJar') {
     archiveClassifier = ''
     mainClass = 'com.testsystem.TestSystemApplication'
+}
+
+// Fat JAR для использования как библиотека в других проектах.
+// Содержит все зависимости включая локальные libs/*.jar.
+// Сборка: ./gradlew shadowJar
+// Артефакт: build/libs/nice-tc-eme-1.0.0-all.jar
+shadowJar {
+    archiveClassifier = 'all'
+    // Исключаем Spring Boot launcher — он нужен только для standalone-запуска
+    exclude 'org/springframework/boot/loader/**'
 }
