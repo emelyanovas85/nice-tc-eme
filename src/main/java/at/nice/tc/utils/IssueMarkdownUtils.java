@@ -233,9 +233,10 @@ public abstract class IssueMarkdownUtils {
      *     в середине строки (Jira хранит description без переносов строк между секциями).<br>
      * 0c. Вставляем {@code \n} перед каждым элементом списка {@code # } и {@code * },
      *     идущим в одну строку без переноса.<br>
-     * 0d. У каждой строки обрезаем пробелы слева и справа. В Jira-редакторе маркеры
-     *     списка ({@code # ...}, {@code * ...}) могут сохраняться с ведущими пробелами
-     *     (например, {@code " # Текст"}), что ломает {@code (?m)^#}.
+     * 0d. У каждой строки обрезаем ведущие пробелы если строка начинается с маркера
+     *     списка ({@code # ...}, {@code * ...}) или заголовка {@code h1.}–{@code h6.}.
+     *     Используем явную проверку через {@code startsWith} вместо regex, чтобы гарантированно
+     *     убирать пробел перед {@code #} даже при наличии нескольких пробелов.
      *
      * <p><b>Шаг 0.5 — Jira-заголовки {@code h1.}–{@code h6.} → Markdown {@code ##}…{@code ######}.</b>
      *
@@ -260,7 +261,6 @@ public abstract class IssueMarkdownUtils {
 
         // --- Шаг 0b: вставляем переносы перед секционными заголовками ---
         // Паттерн: пробел + *Заголовок* + (пробел или конец строки)
-        // Заголовок не должен содержать * внутри (иначе это inline-bold внутри предложения)
         for (String header : SECTION_HEADERS) {
             text = text.replaceAll(
                     " \\*(" + header + ")\\*(?= |$)",
@@ -274,16 +274,22 @@ public abstract class IssueMarkdownUtils {
         // "... ; * пункт" → "... ;\n* пункт"  (только перед кириллицей/латиницей/кавычками)
         text = text.replaceAll(" \\* (?=[\\p{Lu}\\p{L}«\"—\\-])", "\n* ");
 
-        // --- Шаг 0d: stripLeading у строк-маркеров и h1.–h6. ---
-        text = Arrays.stream(text.split("\n", -1))
-                .map(line -> {
-                    String stripped = line.stripLeading();
-                    if (stripped.matches("^[#*].*") || stripped.matches("^h[1-6]\\..*")) {
-                        return stripped;
-                    }
-                    return line.stripTrailing();
-                })
-                .collect(Collectors.joining("\n"));
+        // --- Шаг 0d: убираем ведущие пробелы у строк-маркеров ---
+        // Используем startsWith вместо regex — надёжно работает с " # текст", "  ## текст" и т.д.
+        String[] lines = text.split("\n", -1);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            String stripped = line.stripLeading();
+            boolean isMarker = stripped.startsWith("#")
+                    || stripped.startsWith("* ")
+                    || stripped.startsWith("** ")
+                    || stripped.startsWith("*** ")
+                    || stripped.matches("^h[1-6]\\..*");
+            sb.append(isMarker ? stripped : line.stripTrailing());
+            if (i < lines.length - 1) sb.append('\n');
+        }
+        text = sb.toString();
 
         // --- Шаг 0.5: Jira-заголовки h1.–h6. → Markdown ## … ###### ---
         text = text
