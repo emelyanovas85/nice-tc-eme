@@ -39,4 +39,13 @@ public interface Jira {
     boolean isAvailable();
 
     String getAllVersions(String testKey);
+
+    /**
+     * Получает данные задачи Jira Issue (не тест-кейс) по ключу.
+     *
+     * @param issueKey ключ задачи, например VPEPVV-1123
+     * @param fields   список полей для запроса; если null — запросить все поля
+     * @return сырая JSON-строка ответа
+     */
+    String getIssue(String issueKey, List<String> fields);
 }

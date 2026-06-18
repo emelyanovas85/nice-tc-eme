@@ -1,6 +1,7 @@
 package at.nice.tc.service;
 
 import at.nice.tc.ai.tools.jiraTool.Jira;
+import at.nice.tc.utils.IssueMarkdownUtils;
 import at.nice.tc.utils.JiraUtils;
 import at.nice.tc.utils.ThrowableUtils;
 import org.springframework.cache.annotation.Cacheable;
@@ -87,6 +88,32 @@ public class JiraService {
 
     public CompletableFuture<String> getAllVersionsAsync(String testKey) {
         return CompletableFuture.supplyAsync(() -> jira.getAllVersions(testKey));
+    }
+
+    /**
+     * Получает задачу Jira Issue по ключу и конвертирует её в Markdown.
+     * Запрашивает только поля, описанные в issue_fields_description.json.
+     *
+     * @param issueKey ключ задачи, например VPEPVV-1123
+     * @return Markdown-строка с подробным описанием задачи
+     */
+    public CompletableFuture<String> getIssueMarkdown(String issueKey) {
+        List<String> fields = List.of(
+                "summary", "description", "issuetype", "status", "priority",
+                "resolution", "assignee", "reporter", "creator", "project",
+                "labels", "versions", "fixVersions", "components",
+                "comment", "issuelinks", "attachment",
+                "created", "updated", "resolutiondate", "duedate",
+                "customfield_10700", "customfield_10909", "customfield_10912",
+                "customfield_10913", "customfield_11808", "customfield_12300",
+                "customfield_12304", "customfield_12607", "customfield_12608",
+                "customfield_12614", "customfield_14700", "customfield_15702",
+                "customfield_20705", "customfield_21703", "customfield_10006",
+                "customfield_12602", "customfield_13803", "customfield_13804",
+                "customfield_13805", "customfield_11600"
+        );
+        return CompletableFuture.supplyAsync(() -> jira.getIssue(issueKey, fields))
+                .thenApply(IssueMarkdownUtils::toMarkdown);
     }
 
     @Cacheable

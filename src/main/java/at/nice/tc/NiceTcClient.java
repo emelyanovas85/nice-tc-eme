@@ -13,11 +13,13 @@ import jiraClient.JiraClientSingleton;
  * Использование с дефолтными учётными данными (JiraClient defaults):
  * <pre>
  * String result = NiceTcClient.getTestWithNestedMarkdown("PROJ-123");
+ * String issue  = NiceTcClient.getIssueMarkdown("VPEPVV-1123");
  * </pre>
  *
  * Использование с явными учётными данными:
  * <pre>
  * String result = NiceTcClient.getTestWithNestedMarkdown("my-login", "my-token", "PROJ-123");
+ * String issue  = NiceTcClient.getIssueMarkdown("my-login", "my-token", "VPEPVV-1123");
  * </pre>
  */
 public class NiceTcClient {
@@ -50,6 +52,36 @@ public class NiceTcClient {
         System.setProperty("jira.username", jiraUsername);
         System.setProperty("jira.password", jiraPassword);
         return buildService().getTestWithNestedMarkdown(testId).get();
+    }
+
+    /**
+     * Получить задачу Jira Issue в формате Markdown.
+     * Использует дефолтные учётные данные из JiraClient.
+     *
+     * @param issueKey ключ задачи, например VPEPVV-1123
+     * @return текст в формате Markdown
+     */
+    public static String getIssueMarkdown(String issueKey) throws Exception {
+        return buildService().getIssueMarkdown(issueKey).get();
+    }
+
+    /**
+     * Получить задачу Jira Issue в формате Markdown.
+     * Использует явно указанные учётные данные.
+     *
+     * @param jiraUsername логин Jira
+     * @param jiraPassword пароль / токен Jira
+     * @param issueKey     ключ задачи, например VPEPVV-1123
+     * @return текст в формате Markdown
+     */
+    public static String getIssueMarkdown(
+            String jiraUsername,
+            String jiraPassword,
+            String issueKey
+    ) throws Exception {
+        System.setProperty("jira.username", jiraUsername);
+        System.setProperty("jira.password", jiraPassword);
+        return buildService().getIssueMarkdown(issueKey).get();
     }
 
     private static JiraService buildService() {

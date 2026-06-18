@@ -82,4 +82,19 @@ public class JiraImpl implements Jira {
             throw new IllegalArgumentException("Ожидается ключ теста, например ASPPODDELTA-T1177.  Возможно, передана версия теста, а не ключ");
         return testCaseAPI.requestToJira(testKey.trim() + "/allVersions", "updatedOn", "id", "majorVersion", "createdOn", "updatedBy");
     }
+
+    @Override
+    public String getIssue(String issueKey, List<String> fields) {
+        HttpClient httpClient = JiraClientSingleton.getJiraClient().getHttpClient();
+        HttpRequest request = httpClient.GET("/rest/api/latest/issue/" + issueKey.trim());
+        if (fields != null && !fields.isEmpty()) {
+            request.addQueryParameter("fields", String.join(",", fields));
+        }
+        try (Response response = request.execute()) {
+            ResponseBody body = response.body();
+            return (body != null) ? body.string() : "";
+        } catch (Exception ex) {
+            return ThrowableUtils.reThrow(ex);
+        }
+    }
 }
