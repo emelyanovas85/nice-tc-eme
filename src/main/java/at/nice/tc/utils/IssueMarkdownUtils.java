@@ -18,7 +18,7 @@ public abstract class IssueMarkdownUtils {
     private static final Map<String, String> FIELD_DESCRIPTIONS = IssueFieldsMapping.load();
 
     /**
-     * Конвертирует сырой JSON задачи Jira Issue в Markdown-строку.
+     * Конвертирует сырой JSON задачи Jira Issue в Markdown-строку со всеми полями.
      *
      * @param issueJson JSON-строка от {@code GET /rest/api/latest/issue/{key}}
      * @return текст в формате Markdown
@@ -85,11 +85,7 @@ public abstract class IssueMarkdownUtils {
         }
 
         // --- Описание ---
-        Object descObj = fields.get("description");
-        if (descObj != null) {
-            md.append("\n## ").append(FIELD_DESCRIPTIONS.getOrDefault("description", "Описание")).append("\n\n");
-            md.append(jiraWikiToMarkdown(str(descObj))).append("\n");
-        }
+        appendDescription(md, fields);
 
         // --- Связанные задачи ---
         Object issueLinksObj = fields.get("issuelinks");
@@ -144,7 +140,43 @@ public abstract class IssueMarkdownUtils {
         return md.toString();
     }
 
+    /**
+     * Краткая версия: только заголовок (ключ — summary) и раздел «Описание».
+     *
+     * @param issueJson JSON-строка от {@code GET /rest/api/latest/issue/{key}}
+     * @return текст в формате Markdown
+     */
+    @SuppressWarnings("unchecked")
+    public static String toMarkdownShort(String issueJson) {
+        Map<String, Object> root;
+        try {
+            root = JiraUtils.MAPPER.readValue(issueJson, LinkedHashMap.class);
+        } catch (Exception e) {
+            return ThrowableUtils.reThrow(e);
+        }
+
+        String key = str(root.get("key"));
+        Map<String, Object> fields = (Map<String, Object>) root.getOrDefault("fields", Collections.emptyMap());
+
+        StringBuilder md = new StringBuilder();
+        md.append("# ").append(key).append(" — ").append(str(fields.get("summary"))).append("\n\n");
+        appendDescription(md, fields);
+        return md.toString();
+    }
+
     // ---- helpers ----
+
+    /**
+     * Добавляет раздел «Описание» в sb, конвертируя Jira Wiki Markup → Markdown.
+     * Вынесено отдельно, чтобы использовать и в полной, и в краткой версии.
+     */
+    private static void appendDescription(StringBuilder md, Map<String, Object> fields) {
+        Object descObj = fields.get("description");
+        if (descObj != null) {
+            md.append("\n## ").append(FIELD_DESCRIPTIONS.getOrDefault("description", "Описание")).append("\n\n");
+            md.append(jiraWikiToMarkdown(str(descObj))).append("\n");
+        }
+    }
 
     private static void appendField(StringBuilder md, String label, String value) {
         if (value != null && !value.isBlank() && !"null".equals(value)) {
@@ -186,7 +218,6 @@ public abstract class IssueMarkdownUtils {
         if (obj instanceof Map<?, ?> map) {
             Object val = ((Map<String, Object>) map).get("value");
             if (val != null) return str(val);
-            // displayName — для полей-пользователей
             Object dn = ((Map<String, Object>) map).get("displayName");
             if (dn != null) return str(dn);
             return null;
@@ -212,16 +243,25 @@ public abstract class IssueMarkdownUtils {
     }
 
     /**
-     * Минимальный конвертер Jira Wiki Markup → Markdown.
+     * Конвертер Jira Wiki Markup → Markdown.
+     * <p>
+     * Jira использует «#» в начале строки как нумерованный список (аналог «1.» в Markdown).
+     * Важно заменить его ДО того, как текст попадёт в Markdown-рендерер,
+     * иначе строки вида «# Открыть форму...» будут интерпретированы как заголовок H1.
      */
     private static String jiraWikiToMarkdown(String text) {
         if (text == null) return "";
         return text
-                .replaceAll("\\*([^*\\n]+)\\*", "**$1**")           // bold
-                .replaceAll("_([^_\\n]+)_", "*$1*")                   // italic
-                .replaceAll("\\{color:[^}]+}(.*?)\\{color}", "$1")    // color tags
-                .replaceAll("!([^|!\\n]+)\\|thumbnail!", "![вложение]($1)") // изображения
-                .replaceAll("(?m)^# ", "1. ");                         // numbered list
+                // Jira нумерованный список: «# текст» → «1. текст»
+                // ВАЖНО: идёт первым, чтобы не конфликтовать с Markdown-заголовками
+                .replaceAll("(?m)^# ", "1. ")
+                // Jira вложенный нумерованный список: «## текст» → «   1. текст»
+                .replaceAll("(?m)^## ", "   1. ")
+                .replaceAll("(?m)^### ", "      1. ")
+                .replaceAll("\\*([^*\\n]+)\\*", "**$1**")            // bold
+                .replaceAll("_([^_\\n]+)_", "*$1*")                    // italic
+                .replaceAll("\\{color:[^}]+}(.*?)\\{color}", "$1")     // color tags
+                .replaceAll("!([^|!\\n]+)\\|thumbnail!", "![вложение]($1)"); // изображения
     }
 
     /**
