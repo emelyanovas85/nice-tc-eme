@@ -11,34 +11,20 @@ import java.util.stream.Collectors;
  */
 public abstract class IssueMarkdownUtils {
 
-    /**
-     * Маппинг: ключ поля JSON → человекочитаемое описание.
-     * Загружается из issue_fields_description.json.
-     */
     private static final Map<String, String> FIELD_DESCRIPTIONS = IssueFieldsMapping.load();
 
     /**
      * Конвертирует сырой JSON задачи Jira Issue в Markdown-строку со всеми полями.
-     *
-     * @param issueJson JSON-строка от {@code GET /rest/api/latest/issue/{key}}
-     * @return текст в формате Markdown
      */
     @SuppressWarnings("unchecked")
     public static String toMarkdown(String issueJson) {
-        Map<String, Object> root;
-        try {
-            root = JiraUtils.MAPPER.readValue(issueJson, LinkedHashMap.class);
-        } catch (Exception e) {
-            return ThrowableUtils.reThrow(e);
-        }
-
+        Map<String, Object> root = parseRoot(issueJson);
         String key = str(root.get("key"));
         Map<String, Object> fields = (Map<String, Object>) root.getOrDefault("fields", Collections.emptyMap());
 
         StringBuilder md = new StringBuilder();
         md.append("# ").append(key).append(" — ").append(str(fields.get("summary"))).append("\n\n");
 
-        // --- Детали задачи ---
         md.append("## Детали задачи\n\n");
         appendField(md, FIELD_DESCRIPTIONS.getOrDefault("issuetype", "Тип"), nestedName(fields.get("issuetype")));
         appendField(md, FIELD_DESCRIPTIONS.getOrDefault("status", "Статус"), nestedName(fields.get("status")));
@@ -49,31 +35,24 @@ public abstract class IssueMarkdownUtils {
         appendField(md, FIELD_DESCRIPTIONS.getOrDefault("creator", "Создатель задачи"), nestedDisplayName(fields.get("creator")));
         appendField(md, FIELD_DESCRIPTIONS.getOrDefault("project", "Проект"), nestedName(fields.get("project")));
 
-        // Метки
         Object labelsObj = fields.get("labels");
         if (labelsObj instanceof List<?> labels && !labels.isEmpty()) {
             md.append("- **").append(FIELD_DESCRIPTIONS.getOrDefault("labels", "Метки")).append("**: ")
                     .append(String.join(", ", (List<String>) labels)).append("\n");
         }
-
-        // Версии
         appendVersionList(md, FIELD_DESCRIPTIONS.getOrDefault("versions", "Затронутые версии"),
                 (List<Map<String, Object>>) fields.get("versions"));
         appendVersionList(md, FIELD_DESCRIPTIONS.getOrDefault("fixVersions", "Исправить в версиях"),
                 (List<Map<String, Object>>) fields.get("fixVersions"));
-
-        // Компоненты
         appendVersionList(md, FIELD_DESCRIPTIONS.getOrDefault("components", "Компоненты"),
                 (List<Map<String, Object>>) fields.get("components"));
 
-        // Даты
         md.append("\n## Даты\n\n");
         appendField(md, FIELD_DESCRIPTIONS.getOrDefault("created", "Дата создания"), formatDate(str(fields.get("created"))));
         appendField(md, FIELD_DESCRIPTIONS.getOrDefault("updated", "Дата последнего обновления"), formatDate(str(fields.get("updated"))));
         appendField(md, FIELD_DESCRIPTIONS.getOrDefault("resolutiondate", "Дата решения"), formatDate(str(fields.get("resolutiondate"))));
         appendField(md, FIELD_DESCRIPTIONS.getOrDefault("duedate", "Срок выполнения"), formatDate(str(fields.get("duedate"))));
 
-        // --- Кастомные поля (только непустые) ---
         md.append("\n## Дополнительные поля\n\n");
         for (Map.Entry<String, String> entry : FIELD_DESCRIPTIONS.entrySet()) {
             String fieldKey = entry.getKey();
@@ -84,10 +63,8 @@ public abstract class IssueMarkdownUtils {
             }
         }
 
-        // --- Описание ---
         appendDescription(md, fields);
 
-        // --- Связанные задачи ---
         Object issueLinksObj = fields.get("issuelinks");
         if (issueLinksObj instanceof List<?> issueLinks && !issueLinks.isEmpty()) {
             md.append("\n## ").append(FIELD_DESCRIPTIONS.getOrDefault("issuelinks", "Связанные задачи")).append("\n\n");
@@ -108,7 +85,6 @@ public abstract class IssueMarkdownUtils {
             }
         }
 
-        // --- Вложения ---
         Object attachObj = fields.get("attachment");
         if (attachObj instanceof List<?> attachments && !attachments.isEmpty()) {
             md.append("\n## ").append(FIELD_DESCRIPTIONS.getOrDefault("attachment", "Вложения")).append("\n\n");
@@ -119,7 +95,6 @@ public abstract class IssueMarkdownUtils {
             }
         }
 
-        // --- Комментарии ---
         Object commentObj = fields.get("comment");
         if (commentObj instanceof Map<?, ?> commentMap) {
             Object commentsList = commentMap.get("comments");
@@ -142,19 +117,10 @@ public abstract class IssueMarkdownUtils {
 
     /**
      * Краткая версия: только заголовок (ключ — summary) и раздел «Описание».
-     *
-     * @param issueJson JSON-строка от {@code GET /rest/api/latest/issue/{key}}
-     * @return текст в формате Markdown
      */
     @SuppressWarnings("unchecked")
     public static String toMarkdownShort(String issueJson) {
-        Map<String, Object> root;
-        try {
-            root = JiraUtils.MAPPER.readValue(issueJson, LinkedHashMap.class);
-        } catch (Exception e) {
-            return ThrowableUtils.reThrow(e);
-        }
-
+        Map<String, Object> root = parseRoot(issueJson);
         String key = str(root.get("key"));
         Map<String, Object> fields = (Map<String, Object>) root.getOrDefault("fields", Collections.emptyMap());
 
@@ -164,12 +130,17 @@ public abstract class IssueMarkdownUtils {
         return md.toString();
     }
 
-    // ---- helpers ----
+    // ---- private helpers ----
 
-    /**
-     * Добавляет раздел «Описание» в sb, конвертируя Jira Wiki Markup → Markdown.
-     * Вынесено отдельно, чтобы использовать и в полной, и в краткой версии.
-     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> parseRoot(String issueJson) {
+        try {
+            return JiraUtils.MAPPER.readValue(issueJson, LinkedHashMap.class);
+        } catch (Exception e) {
+            return ThrowableUtils.reThrow(e);
+        }
+    }
+
     private static void appendDescription(StringBuilder md, Map<String, Object> fields) {
         Object descObj = fields.get("description");
         if (descObj != null) {
@@ -206,12 +177,6 @@ public abstract class IssueMarkdownUtils {
         return null;
     }
 
-    /**
-     * Универсальное извлечение текстового значения из кастомного поля:
-     * - одиночный объект  {"value": "..."}  → значение
-     * - массив объектов   [{"value": "..."}] → значения через запятую
-     * - строка/число/bool → toString
-     */
     @SuppressWarnings("unchecked")
     private static String extractCustomValue(Object obj) {
         if (obj == null) return null;
@@ -244,29 +209,44 @@ public abstract class IssueMarkdownUtils {
 
     /**
      * Конвертер Jira Wiki Markup → Markdown.
-     * <p>
-     * Jira использует «#» в начале строки как нумерованный список (аналог «1.» в Markdown).
-     * Важно заменить его ДО того, как текст попадёт в Markdown-рендерер,
-     * иначе строки вида «# Открыть форму...» будут интерпретированы как заголовок H1.
+     *
+     * <p><b>Порядок замен критичен.</b>
+     * Jira использует {@code #}, {@code ##}, {@code ###} в начале строки
+     * для нумерованных списков (аналог {@code 1.} в Markdown).
+     * Маркдаун-рендерер видит те же символы как заголовки H1–H3.
+     * Поэтому замена Jira-нумерации идёт <b>первой</b>, до любых inline-замен.
+     * Рegex {@code (?m)^#{1,3}\s?} перехватывает и {@code # текст}, и {@code #текст} —
+     * оба варианта Jira-форматирования.
      */
-    private static String jiraWikiToMarkdown(String text) {
+    static String jiraWikiToMarkdown(String text) {
         if (text == null) return "";
-        return text
-                // Jira нумерованный список: «# текст» → «1. текст»
-                // ВАЖНО: идёт первым, чтобы не конфликтовать с Markdown-заголовками
-                .replaceAll("(?m)^# ", "1. ")
-                // Jira вложенный нумерованный список: «## текст» → «   1. текст»
-                .replaceAll("(?m)^## ", "   1. ")
-                .replaceAll("(?m)^### ", "      1. ")
-                .replaceAll("\\*([^*\\n]+)\\*", "**$1**")            // bold
-                .replaceAll("_([^_\\n]+)_", "*$1*")                    // italic
-                .replaceAll("\\{color:[^}]+}(.*?)\\{color}", "$1")     // color tags
-                .replaceAll("!([^|!\\n]+)\\|thumbnail!", "![вложение]($1)"); // изображения
+
+        // --- Шаг 1: Jira-нумерованные списки (#, ##, ###) → Markdown (1.,    1.,       1.) ---
+        // \s? позволяет пробел после # быть необязательным (оба формата встречаются в Jira)
+        text = text
+                .replaceAll("(?m)^### ?\\s*", "      1. ")   // 3й уровень
+                .replaceAll("(?m)^## ?\\s*",  "   1. ")      // 2й уровень
+                .replaceAll("(?m)^# ?\\s*",   "1. ");        // 1й уровень
+
+        // --- Шаг 2: Jira-ненумерованные списки (*, **, ***) → Markdown (-,   -,     -) ---
+        // Только если звёздочка стоит одна в начале строки (не bold!)
+        text = text
+                .replaceAll("(?m)^\\*\\*\\* ", "      - ")   // 3й уровень
+                .replaceAll("(?m)^\\*\\* ",    "   - ")      // 2й уровень
+                .replaceAll("(?m)^\\* ",       "- ");        // 1й уровень
+
+        // --- Шаг 3: inline-разметка ---
+        text = text
+                .replaceAll("\\*([^*\\n]+)\\*", "**$1**")             // bold
+                .replaceAll("(?<!\\*)_([^_\\n]+)_(?!\\*)", "*$1*")    // italic (без конфликта с URL)
+                .replaceAll("\\{color:[^}]+}(.*?)\\{color}", "$1")     // {color:...}
+                .replaceAll("!([^|!\\n]+)\\|thumbnail!", "![вложение]($1)") // изображения
+                .replaceAll("\\[([^|\\]]+)\\|([^\\]]+)\\]", "[$1]($2)") // [text|url]
+                .replaceAll("(?m)^----+\\s*$", "---");                  // горизонтальная линия
+
+        return text;
     }
 
-    /**
-     * Форматирует ISO-дату из Jira (2026-06-16T14:00:08.000+0300) → 16.06.2026 14:00.
-     */
     private static String formatDate(String iso) {
         if (iso == null || iso.isBlank()) return null;
         try {
