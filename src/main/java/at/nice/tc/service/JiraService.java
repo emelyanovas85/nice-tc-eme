@@ -1,9 +1,12 @@
 package at.nice.tc.service;
 
 import at.nice.tc.ai.tools.jiraTool.Jira;
+import at.nice.tc.ai.tools.jiraTool.JiraImpl;
 import at.nice.tc.utils.IssueMarkdownUtils;
 import at.nice.tc.utils.JiraUtils;
 import at.nice.tc.utils.ThrowableUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ClassPathResource;
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 @Service
 public class JiraService {
     private final Jira jira;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public JiraService(@Lazy Jira jira) {
         this.jira = jira;
@@ -114,6 +118,100 @@ public class JiraService {
         List<String> fields = List.of("summary", "description");
         return CompletableFuture.supplyAsync(() -> jira.getIssue(issueKey, fields))
                 .thenApply(IssueMarkdownUtils::toMarkdownShort);
+    }
+
+    /**
+     * Возвращает уникальные id issues (int), связанных с тестом через issueLinks,
+     * отфильтрованных по следующим критериям:
+     * <ul>
+     *   <li>тип задачи: {@code issuetype.name == "Дефект"}</li>
+     *   <li>статус НЕ равен {@code "закрыт (fixed)"} и НЕ равен {@code "отменен (canceled)"}</li>
+     * </ul>
+     *
+     * @param testIdOrKey числовой id версии теста (только цифры) или ключ теста (содержит нецифровые символы)
+     * @return CompletableFuture со списком уникальных числовых id issues-дефектов
+     */
+    public CompletableFuture<List<Integer>> getDefectIssueIds(String testIdOrKey) {
+        // Если передан ключ (содержит нецифровые символы) — сначала получаем числовой id через getTest
+        CompletableFuture<Integer> versionIdFuture;
+        if (testIdOrKey.trim().matches("\\d+")) {
+            versionIdFuture = CompletableFuture.completedFuture(Integer.parseInt(testIdOrKey.trim()));
+        } else {
+            versionIdFuture = getTest(testIdOrKey, List.of("id"))
+                    .thenApplyAsync(json -> {
+                        try {
+                            Map<String, Object> testMap = objectMapper.readValue(json, new TypeReference<>() {});
+                            return ((Number) testMap.get("id")).intValue();
+                        } catch (Exception e) {
+                            return ThrowableUtils.reThrow(e);
+                        }
+                    });
+        }
+
+        return versionIdFuture
+                .thenComposeAsync(versionId ->
+                        getTestExecutions(versionId, List.of("issueLinks"))
+                                .thenApplyAsync(json -> {
+                                    try {
+                                        Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
+                                        List<Map<String, Object>> data = (List<Map<String, Object>>) root.get("data");
+                                        if (data == null) return Collections.<Integer>emptyList();
+
+                                        // Собираем уникальные issueId из всех issueLinks
+                                        return data.stream()
+                                                .map(entry -> (List<Map<String, Object>>) entry.get("issueLinks"))
+                                                .filter(Objects::nonNull)
+                                                .flatMap(Collection::stream)
+                                                .map(link -> link.get("issueId"))
+                                                .filter(Objects::nonNull)
+                                                .map(id -> Integer.parseInt(id.toString()))
+                                                .distinct()
+                                                .collect(Collectors.toList());
+                                    } catch (Exception e) {
+                                        return ThrowableUtils.reThrow(e);
+                                    }
+                                })
+                )
+                .thenComposeAsync(issueIds -> {
+                    // Асинхронно запрашиваем каждый issue и фильтруем
+                    List<CompletableFuture<Optional<Integer>>> futures = issueIds.stream()
+                            .map(issueId -> CompletableFuture.supplyAsync(() -> jira.getIssue(String.valueOf(issueId), null))
+                                    .thenApplyAsync(json -> {
+                                        try {
+                                            Map<String, Object> issue = objectMapper.readValue(json, new TypeReference<>() {});
+                                            Map<String, Object> fields = (Map<String, Object>) issue.get("fields");
+                                            if (fields == null) return Optional.<Integer>empty();
+
+                                            // Проверяем тип: issuetype.name == "Дефект"
+                                            Map<String, Object> issueType = (Map<String, Object>) fields.get("issuetype");
+                                            if (issueType == null) return Optional.<Integer>empty();
+                                            String typeName = String.valueOf(issueType.getOrDefault("name", ""));
+                                            if (!"дефект".equals(typeName.toLowerCase())) return Optional.<Integer>empty();
+
+                                            // Проверяем статус: исключаем "закрыт (fixed)" и "отменен (canceled)"
+                                            Map<String, Object> status = (Map<String, Object>) fields.get("status");
+                                            if (status != null) {
+                                                String statusName = String.valueOf(status.getOrDefault("name", "")).toLowerCase();
+                                                if (statusName.equals("закрыт (fixed)") || statusName.equals("отменен (canceled)")) {
+                                                    return Optional.<Integer>empty();
+                                                }
+                                            }
+
+                                            return Optional.of(issueId);
+                                        } catch (Exception e) {
+                                            return ThrowableUtils.reThrow(e);
+                                        }
+                                    })
+                            )
+                            .collect(Collectors.toList());
+
+                    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                            .thenApplyAsync(v -> futures.stream()
+                                    .map(CompletableFuture::join)
+                                    .filter(Optional::isPresent)
+                                    .map(Optional::get)
+                                    .collect(Collectors.toList()));
+                });
     }
 
     @Cacheable
