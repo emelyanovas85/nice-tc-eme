@@ -18,10 +18,11 @@ import java.util.stream.Collectors;
  * один раз перед любыми другими методами:
  * <pre>
  * NiceTcClient.setCredentials("my-login", "my-token");
- * String test  = NiceTcClient.getTestWithNestedMarkdown("PROJ-T123");
- * String issue = NiceTcClient.getIssueMarkdown("VPEPVV-1123");
- * String short = NiceTcClient.getIssueMarkdownShort("VPEPVV-1123");
- * String defects = NiceTcClient.getDefectsMarkdown("PROJ-T123");
+ * String test           = NiceTcClient.getTestWithNestedMarkdown("PROJ-T123");
+ * String issue          = NiceTcClient.getIssueMarkdown("VPEPVV-1123");
+ * String issueShort     = NiceTcClient.getIssueMarkdownShort("VPEPVV-1123");
+ * String defects        = NiceTcClient.getDefectsMarkdown("PROJ-T123");
+ * String defectsShort   = NiceTcClient.getDefectsMarkdownShort("PROJ-T123");
  * </pre>
  *
  * <p>Без вызова {@link #setCredentials} используются дефолтные учётные данные из JiraClient.
@@ -73,7 +74,7 @@ public class NiceTcClient {
 
     /**
      * Получить единый Markdown-контекст со всеми активными дефектами,
-     * связанными с тестом через issueLinks.
+     * связанными с тестом через issueLinks (полный Markdown всех полей).
      *
      * <p>Фильтрация:
      * <ul>
@@ -82,16 +83,44 @@ public class NiceTcClient {
      * </ul>
      *
      * @param testIdOrKey числовой id версии теста (только цифры) или ключ теста (PROJ-T123)
-     * @return единая Markdown-строка, объединяющая описания всех найденных дефектов
+     * @return единая Markdown-строка, объединяющая полные описания всех найденных дефектов
      * @throws Exception если запросы к Jira завершились ошибкой
      */
     public static String getDefectsMarkdown(String testIdOrKey) throws Exception {
         JiraService service = buildService();
         List<Integer> defectIds = service.getDefectIssueIds(testIdOrKey).get();
 
-        // Асинхронно получаем Markdown по каждому id
         List<CompletableFuture<String>> markdownFutures = defectIds.stream()
                 .map(id -> service.getIssueMarkdown(String.valueOf(id)))
+                .collect(Collectors.toList());
+
+        CompletableFuture.allOf(markdownFutures.toArray(new CompletableFuture[0])).get();
+
+        return markdownFutures.stream()
+                .map(CompletableFuture::join)
+                .collect(Collectors.joining("\n\n---\n\n"));
+    }
+
+    /**
+     * Получить единый Markdown-контекст со всеми активными дефектами
+     * в кратком формате: только заголовок (ключ — summary) и «Описание».
+     *
+     * <p>Фильтрация:
+     * <ul>
+     *   <li>только задачи типа «Дефект»;</li>
+     *   <li>статус не «Закрыт (Fixed)» и не «Отменен (Canceled)».</li>
+     * </ul>
+     *
+     * @param testIdOrKey числовой id версии теста (только цифры) или ключ теста (PROJ-T123)
+     * @return единая Markdown-строка, объединяющая краткие описания всех найденных дефектов
+     * @throws Exception если запросы к Jira завершились ошибкой
+     */
+    public static String getDefectsMarkdownShort(String testIdOrKey) throws Exception {
+        JiraService service = buildService();
+        List<Integer> defectIds = service.getDefectIssueIds(testIdOrKey).get();
+
+        List<CompletableFuture<String>> markdownFutures = defectIds.stream()
+                .map(id -> service.getIssueMarkdownShort(String.valueOf(id)))
                 .collect(Collectors.toList());
 
         CompletableFuture.allOf(markdownFutures.toArray(new CompletableFuture[0])).get();
